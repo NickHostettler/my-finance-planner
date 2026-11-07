@@ -39,6 +39,11 @@ dev = [
     "mypy>=1.4.0",
     "ruff>=0.15.0",
 ]
+# Browser end-to-end tests (tests/e2e). Not installed by default:
+#   uv sync --group e2e && uv run playwright install chromium
+e2e = [
+    "playwright>=1.60",
+]
 
 # --- Packaging (src layout) ---------------------------------------------------
 
@@ -53,6 +58,7 @@ personal_finance = ["py.typed", "dashboard/assets/*.css"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--import-mode=importlib", "--strict-markers"]
+markers = ["e2e: end-to-end tests in a real browser (need the e2e dependency group)"]
 
 [tool.coverage.run]
 source = ["personal_finance"]
