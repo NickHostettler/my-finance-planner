@@ -43,6 +43,28 @@ uv run swiss-finance-dashboard --debug        # Auto-Reload bei Codeänderungen 
 
 `python -m personal_finance` akzeptiert dieselben Optionen.
 
+### Produktionsbetrieb (Server/Container)
+
+Auf einem Server läuft die App mit [gunicorn](https://gunicorn.org/) statt mit dem
+Dash-Entwicklungsserver. gunicorn läuft nur unter Linux/macOS, also z.B. im Docker-Container,
+und wird unter Windows nicht installiert.
+
+```bash
+gunicorn -c python:personal_finance.gunicorn_conf personal_finance.wsgi:server
+```
+
+| Umgebungsvariable | Standard | Bedeutung |
+|---|---|---|
+| `PORT` | `8050` | Port (setzen Hoster wie Render automatisch) |
+| `HOST` | `0.0.0.0` | Interface |
+| `WEB_CONCURRENCY` | `2` | Worker-Prozesse |
+| `GUNICORN_THREADS` | `4` | Threads pro Worker |
+| `LOG_LEVEL` | `info` | Log-Level |
+
+- `GET /health` antwortet mit `200 {"status": "ok"}` für die Health-Checks der Plattform.
+- Der Debug-Modus ist im Produktionsbetrieb nie aktiv, und der Browser wird nicht geöffnet.
+- Die Logs enthalten keine Eingabewerte und keine Client-IP-Adressen.
+
 ### Wo werden meine Daten gespeichert?
 
 Gespeicherte Szenarien und die zuletzt verwendeten Eingaben liegen **ausschliesslich im
@@ -112,6 +134,8 @@ src/personal_finance/
 ├── __main__.py            # python -m personal_finance → startet das Dashboard
 ├── config.py              # Zentrale Konstanten (BVG, 3a-Limit, Kantone, …)
 ├── calculator.py          # Fassade: kombiniert alle Berechnungen
+├── wsgi.py                # Einstiegspunkt für gunicorn (Produktion)
+├── gunicorn_conf.py       # gunicorn-Einstellungen aus Umgebungsvariablen
 ├── core/                  # Reine Fachlogik – keine Abhängigkeit zu Dash/Storage
 │   ├── ahv.py             # AHV-Rentenschätzung
 │   ├── deductions.py      # Lohnabzüge Brutto → Netto
@@ -125,7 +149,7 @@ src/personal_finance/
 │   └── browser_store.py   # Szenarien im Browser (reine Funktionen, kein Server-Speicher)
 └── dashboard/             # Dash-UI
     ├── __init__.py        # Verdrahtung: Layout + Callbacks, run_dashboard()
-    ├── app.py             # Dash-Instanz
+    ├── app.py             # Dash-Instanz + /health
     ├── layout.py          # Seitenaufbau
     ├── components.py      # Wiederverwendbare UI-Bausteine
     ├── figures.py         # Plotly-Grafiken
