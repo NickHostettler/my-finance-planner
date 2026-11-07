@@ -94,22 +94,38 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Container refuses to start without a password
+        if: steps.dockerfile.outputs.present == 'true'
+        shell: bash
+        run: |
+          if timeout 60 docker run --rm my-finance-planner:ci > nopw.log 2>&1; then
+            cat nopw.log; echo "::error::container started without APP_PASSWORD"; exit 1
+          fi
+          grep -q "refusing to start" nopw.log && echo "OK: refused to start without APP_PASSWORD"
+
       - name: Start container and check /health
         if: steps.dockerfile.outputs.present == 'true'
         shell: bash
+        env:
+          APP_PASSWORD: ci-only-test-password-123
         run: |
           # Read-only root filesystem: proves the app writes no data to disk.
           # A non-default PORT checks that the platform's $PORT is honoured.
           docker run -d --name app --read-only --tmpfs /tmp \
             --security-opt no-new-privileges:true \
-            -p 8050:10000 -e PORT=10000 my-finance-planner:ci
+            -p 8050:10000 -e PORT=10000 -e APP_PASSWORD my-finance-planner:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8050/health; then echo; break; fi
             sleep 2
           done
           curl -fsS http://127.0.0.1:8050/health
-          curl -fsS http://127.0.0.1:8050/ | grep -q "Finanzplan"
-          curl -fsS http://127.0.0.1:8050/assets/dashboard.css > /dev/null
+          # Login required everywhere except /health and /robots.txt
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8050/)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -u kamerad:wrong-password-xyz http://127.0.0.1:8050/)" = "401"
+          curl -fsS http://127.0.0.1:8050/robots.txt | grep -q "Disallow: /"
+          curl -fsS -u "kamerad:$APP_PASSWORD" http://127.0.0.1:8050/ | grep -q "Finanzplan"
+          curl -fsS -u "kamerad:$APP_PASSWORD" http://127.0.0.1:8050/assets/dashboard.css > /dev/null
+          echo "OK: 401 without/with wrong login, 200 with login, /health public"
           echo "Container user id: $(docker exec app id -u)"
           test "$(docker exec app id -u)" != "0"
           for i in $(seq 1 20); do
@@ -133,7 +149,7 @@ jobs:
         if: steps.dockerfile.outputs.present == 'true'
         shell: bash
         run: |
-          if docker logs app 2>&1 | grep -E "\[(ERROR|CRITICAL)\]"; then
+          if docker logs app 2>&1 | grep -E "\[(ERROR|CRITICAL)\]|Traceback"; then
             echo "::error::gunicorn logged errors"; exit 1
           fi
 

@@ -60,8 +60,34 @@ gunicorn -c python:personal_finance.gunicorn_conf personal_finance.wsgi:server
 | `WEB_CONCURRENCY` | `2` | Worker-Prozesse |
 | `GUNICORN_THREADS` | `4` | Threads pro Worker |
 | `LOG_LEVEL` | `info` | Log-Level |
+| `APP_PASSWORD` | – | Gemeinsames Passwort (mind. 12 Zeichen); aktiviert den Login |
+| `APP_USERNAME` | `kamerad` | Benutzername für den Login |
+| `REQUIRE_AUTH` | `1` im Docker-Image | Start ohne `APP_PASSWORD` wird verweigert |
 
 - `GET /health` antwortet mit `200 {"status": "ok"}` für die Health-Checks der Plattform.
+- Der Debug-Modus ist im Produktionsbetrieb nie aktiv, und der Browser wird nicht geöffnet.
+- Die Logs enthalten keine Eingabewerte und keine Client-IP-Adressen.
+
+### Zugriffsschutz (Passwort)
+
+Ist `APP_PASSWORD` gesetzt, fragt der Browser beim Öffnen nach Benutzername und Passwort
+(HTTP Basic Auth über HTTPS). Öffentlich bleiben nur `/health` (für die Plattform) und
+`/robots.txt`. Zusätzlich verbieten `robots.txt` und der Header `X-Robots-Tag` Suchmaschinen
+das Indexieren.
+
+- **Das Docker-Image startet nie ohne Passwort** (`REQUIRE_AUTH=1`). So kann die App nicht
+  versehentlich offen online gehen. Lokal mit `uv run swiss-finance-dashboard` ist kein
+  Passwort nötig; die App ist dort nur auf deinem Rechner erreichbar.
+- Ein sicheres Passwort erzeugen:
+  ```bash
+  uv run python -c "import secrets; print(secrets.token_urlsafe(18))"
+  ```
+- Das Passwort gehört **nur** in die Umgebungsvariablen bzw. Secrets der Hosting-Plattform,
+  nie ins Repository.
+- Das Passwort hält Fremde fern, **trennt aber nicht zwischen den Kameraden**. Diese Trennung
+  entsteht dadurch, dass die Daten nur im eigenen Browser liegen (siehe unten).
+- Basic Auth hat kein „Abmelden“: Der Browser merkt sich den Login, bis er geschlossen wird.
+  Auf fremden Geräten deshalb ein privates Fenster nutzen.
 
 ### Mit Docker starten
 
@@ -69,22 +95,22 @@ Das [`Dockerfile`](Dockerfile) baut ein schlankes Produktions-Image: Python-Vers
 `.python-version`, Abhängigkeiten exakt aus `uv.lock`, gunicorn, eigener Benutzer ohne
 root-Rechte und ein eingebauter `HEALTHCHECK`. Mit Docker Desktop lokal testen:
 
-```bash
-docker compose up --build        # -> http://localhost:8050
+```powershell
+$env:APP_PASSWORD = "ein-langes-test-passwort"
+docker compose up --build        # -> http://localhost:8050  (Login: kamerad / Passwort)
 ```
 
 oder ohne Compose:
 
 ```bash
 docker build -t my-finance-planner .
-docker run --rm -p 8050:8050 my-finance-planner
+docker run --rm -p 8050:8050 -e APP_PASSWORD="ein-langes-test-passwort" my-finance-planner
 ```
 
 Der Container kommt mit schreibgeschütztem Dateisystem aus (`read_only` in
 [`compose.yaml`](compose.yaml)), weil die App keine Daten auf dem Server speichert. Die CI baut
-das Image bei jedem PR und prüft es auf diese Weise.
-- Der Debug-Modus ist im Produktionsbetrieb nie aktiv, und der Browser wird nicht geöffnet.
-- Die Logs enthalten keine Eingabewerte und keine Client-IP-Adressen.
+das Image bei jedem PR und prüft es auf diese Weise, inklusive Login und der Weigerung, ohne
+Passwort zu starten.
 
 ### Wo werden meine Daten gespeichert?
 
@@ -171,6 +197,7 @@ src/personal_finance/
 └── dashboard/             # Dash-UI
     ├── __init__.py        # Verdrahtung: Layout + Callbacks, run_dashboard()
     ├── app.py             # Dash-Instanz + /health
+    ├── auth.py            # Passwortschutz (Basic Auth) + robots.txt
     ├── layout.py          # Seitenaufbau
     ├── components.py      # Wiederverwendbare UI-Bausteine
     ├── figures.py         # Plotly-Grafiken
