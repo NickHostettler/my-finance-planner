@@ -160,7 +160,3 @@ class TestFinanceCalculator:
         
         analysis = calc.complete_analysis()
         assert len(analysis.summary['recommendations']) > 0
-
-
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])

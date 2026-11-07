@@ -147,3 +147,9 @@ class TestLastInputs:
     def test_wrong_number_of_inputs_is_rejected(self):
         with pytest.raises(ValueError):
             store.values_from_inputs([1, 2, 3])
+
+
+def test_scenarios_with_invalid_names_are_dropped():
+    data = {"scenarios": {"   ": {"values": {}}, "Gut": {"values": {}}}}
+
+    assert list(store.sanitize_scenarios(data)["scenarios"]) == ["Gut"]

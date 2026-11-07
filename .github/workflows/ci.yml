@@ -40,8 +40,9 @@ jobs:
       - name: Lint (ruff)
         run: uv run ruff check .
 
-      - name: Tests (pytest)
-        run: uv run pytest -rs
+      # Fails if line or branch coverage of src/ drops below 100% (fail_under in pyproject).
+      - name: Tests with coverage (pytest)
+        run: uv run pytest -rs --cov
 
   e2e:
     name: Browser test (user isolation)

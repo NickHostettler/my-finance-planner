@@ -285,38 +285,3 @@ class FinanceCalculator:
         )
         
         return recommendations
-    
-    def get_summary_for_dashboard(self) -> Dict:
-        """Ermittle Summary für Dashboard-Anzeige"""
-        analysis = self.complete_analysis()
-        
-        return {
-            'income': {
-                'monthly': self.monthly_net_income,
-                'annual': self.annual_net_income,
-            },
-            'personal_info': {
-                'current_age': self.current_age,
-                'retirement_age': self.retirement_age,
-                'years_to_retirement': self.years_to_retirement,
-            },
-            'pillar2': {
-                'monthly_total': analysis.pillar2.annual_contribution_total / 12,
-                'monthly_employee': analysis.pillar2.annual_contribution_employee / 12,
-                'monthly_employer': analysis.pillar2.annual_contribution_employer / 12,
-                'estimated_capital': analysis.pillar2.estimated_capital_at_retirement,
-            },
-            'pillar3a': {
-                'scenarios': {
-                    name: {
-                        'monthly': scenario.monthly_savings,
-                        'annual': scenario.annual_savings,
-                        'total_at_retirement': scenario.total_at_retirement,
-                        'contributions': scenario.total_contributions,
-                        'gains': scenario.investment_gains,
-                    }
-                    for name, scenario in analysis.pillar3a_scenarios.items()
-                },
-            },
-            'retirement_projections': analysis.summary,
-        }
