@@ -206,6 +206,23 @@ Nur eine Testebene:
 uv run pytest tests/unit
 ```
 
+Browser-Tests (End-to-End, prüfen u.a., dass Nutzer die Daten anderer nicht sehen):
+```bash
+uv sync --group e2e
+uv run playwright install chromium     # oder vorhandenen Edge nutzen:
+$env:E2E_BROWSER_CHANNEL="msedge"      # (PowerShell)
+uv run pytest tests/e2e
+```
+Ohne Playwright werden diese Tests automatisch übersprungen.
+
+### CI
+
+Jeder Pull Request und jeder Push auf `main` startet [GitHub Actions](.github/workflows/ci.yml):
+
+- **Lint & Tests** auf Linux (Produktionsplattform, inkl. echtem gunicorn-Start) und Windows
+- **Browser-Test** mit Chromium (Nutzer-Isolation)
+- **Docker-Build** mit Health-Check, sobald ein `Dockerfile` existiert
+
 ```bash
 uv run ruff check .
 ```
