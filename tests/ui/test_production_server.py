@@ -69,6 +69,7 @@ def test_gunicorn_defaults_fit_a_small_instance(load_conf):
     assert conf.bind == "0.0.0.0:8050"
     assert (conf.workers, conf.threads, conf.worker_class) == (2, 4, "gthread")
     assert conf.preload_app is True
+    assert conf.control_socket_disable is True
 
 
 def test_gunicorn_uses_platform_port_and_overrides(load_conf):
