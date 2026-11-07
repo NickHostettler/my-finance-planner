@@ -1,5 +1,6 @@
 # Local test of the production container (needs Docker Desktop):
-#   docker compose up --build      ->  http://localhost:8050
+#   $env:APP_PASSWORD = "ein-langes-test-passwort"   # PowerShell
+#   docker compose up --build      ->  http://localhost:8050  (Login: kamerad / Passwort)
 services:
   app:
     build: .
@@ -9,6 +10,9 @@ services:
     environment:
       PORT: "8050"
       WEB_CONCURRENCY: "2"
+      APP_USERNAME: "${APP_USERNAME:-kamerad}"
+      # Required: the image refuses to start without a password.
+      APP_PASSWORD: "${APP_PASSWORD:?Bitte APP_PASSWORD setzen (mind. 12 Zeichen)}"
     # Same hardening as in CI: nothing in the container may be written.
     read_only: true
     tmpfs:

@@ -1,10 +1,12 @@
 """Issue #5: production WSGI entry point, health endpoint and gunicorn settings."""
 
+import base64
 import importlib
 import socket
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 
 import pytest
@@ -114,7 +116,14 @@ def test_gunicorn_serves_dashboard_and_health(tmp_path):
             "-c", "python:personal_finance.gunicorn_conf",
             "personal_finance.wsgi:server",
         ],
-        env={"PATH": "", "PORT": str(port), "HOST": "127.0.0.1", "WEB_CONCURRENCY": "1"},
+        env={
+            "PATH": "",
+            "PORT": str(port),
+            "HOST": "127.0.0.1",
+            "WEB_CONCURRENCY": "1",
+            "REQUIRE_AUTH": "1",
+            "APP_PASSWORD": "gunicorn-test-password",
+        },
         cwd=tmp_path,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -133,7 +142,13 @@ def test_gunicorn_serves_dashboard_and_health(tmp_path):
         else:
             pytest.fail("gunicorn did not become healthy")
 
-        with urllib.request.urlopen(f"{base}/", timeout=5) as response:
+        with pytest.raises(urllib.error.HTTPError) as no_login:
+            urllib.request.urlopen(f"{base}/", timeout=5)
+        assert no_login.value.code == 401
+
+        token = base64.b64encode(b"kamerad:gunicorn-test-password").decode()
+        logged_in = urllib.request.Request(f"{base}/", headers={"Authorization": f"Basic {token}"})
+        with urllib.request.urlopen(logged_in, timeout=5) as response:
             assert response.status == 200
             assert b"Finanzplan" in response.read()
     finally:

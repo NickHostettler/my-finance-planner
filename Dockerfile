@@ -2,7 +2,7 @@
 #
 # Production image: gunicorn serving the Dash app on $PORT (default 8050).
 #   docker build -t my-finance-planner .
-#   docker run --rm -p 8050:8050 my-finance-planner
+#   docker run --rm -p 8050:8050 -e APP_PASSWORD='<min. 12 Zeichen>' my-finance-planner
 #
 # Python version matches .python-version; dependencies come from uv.lock.
 
@@ -44,10 +44,13 @@ RUN groupadd --system --gid 10001 app \
 
 COPY --from=builder --chown=root:root /app/.venv /app/.venv
 
+# REQUIRE_AUTH=1: the container refuses to start unless APP_PASSWORD is set, so the
+# app can never go online without the shared login (see dashboard/auth.py).
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8050
+    PORT=8050 \
+    REQUIRE_AUTH=1
 
 USER app
 WORKDIR /app
