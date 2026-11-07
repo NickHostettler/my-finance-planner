@@ -9,7 +9,11 @@ from personal_finance.dashboard.components import (
     field,
     number_input,
 )
-from personal_finance.storage import scenario_store
+from personal_finance.storage import browser_store
+
+# Also the localStorage keys in the browser.
+SCENARIOS_STORE_ID = "pf-scenarios"
+LAST_INPUTS_STORE_ID = "pf-last-inputs"
 
 
 layout = html.Div(
@@ -100,11 +104,13 @@ layout = html.Div(
                                                     [
                                                         html.Div("SZENARIEN", className="subsection-title"),
                                                         html.P(
-                                                            "Speichere deine Eingaben lokal und lade sie später "
-                                                            "zum Vergleichen wieder. Gleiche Namen überschreiben "
-                                                            "das vorhandene Szenario. Deine letzten Eingaben "
-                                                            "werden automatisch lokal gemerkt. Die SQLite-Datei "
-                                                            "ist nicht verschlüsselt.",
+                                                            "Speichere deine Eingaben und lade sie später zum "
+                                                            "Vergleichen wieder. Gleiche Namen überschreiben das "
+                                                            "vorhandene Szenario. Deine letzten Eingaben werden "
+                                                            "automatisch gemerkt. Alles bleibt nur in diesem "
+                                                            "Browser auf deinem Gerät, der Server speichert "
+                                                            "nichts. Wer dieses Gerät und Browserprofil nutzt, "
+                                                            "kann die Daten sehen.",
                                                             className="section-hint",
                                                         ),
                                                     ],
@@ -116,7 +122,7 @@ layout = html.Div(
                                                             id="scenario-name-input",
                                                             type="text",
                                                             placeholder="Name, z. B. Teilzeit ab 50",
-                                                            maxLength=scenario_store.MAX_SCENARIO_NAME_LENGTH,
+                                                            maxLength=browser_store.MAX_SCENARIO_NAME_LENGTH,
                                                             className="scenario-name-input",
                                                         ),
                                                         html.Button(
@@ -155,6 +161,10 @@ layout = html.Div(
                                                     className="scenario-load-controls",
                                                 ),
                                                 html.Div(id="scenario-status", className="scenario-status"),
+                                                # Per-user data lives only in this browser's
+                                                # localStorage; the server keeps nothing.
+                                                dcc.Store(id=SCENARIOS_STORE_ID, storage_type="local"),
+                                                dcc.Store(id=LAST_INPUTS_STORE_ID, storage_type="local"),
                                                 dcc.Interval(
                                                     id="scenario-initial-load",
                                                     interval=1,

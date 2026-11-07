@@ -15,7 +15,7 @@ Ein Python-Paket für private Finanzplanung nach dem Schweizer Rentensystem (1.,
 - **Transparente Modellannahmen**: Renditen, nominale Werte ohne Inflationsbereinigung, Vereinfachungen der BVG-Schätzung und nicht berücksichtigte Faktoren werden bei der Prognose ausgewiesen
 - **Nominale und reale Prognose**: Umschaltbare Anzeige in zukünftigen CHF oder kaufkraftbereinigten heutigen CHF unter Verwendung der konfigurierten jährlichen Inflation
 - **AHV-Rente**: Unverbindliche Schätzung anhand des durchschnittlichen Jahreseinkommens und der Beitragsjahre als separates Ruhestandseinkommen; 13 Jahreszahlungen sind berücksichtigt, die AHV wird nicht zum Vorsorgekapital addiert
-- **Lokale Szenarien**: Dashboard-Eingaben lassen sich benannt in einer lokalen SQLite-Datenbank speichern, laden und löschen; ein erneut gespeicherter Name aktualisiert das bestehende Szenario
+- **Szenarien im eigenen Browser**: Dashboard-Eingaben lassen sich benannt speichern, laden und löschen; ein erneut gespeicherter Name aktualisiert das bestehende Szenario. Die Daten bleiben im Browser des Nutzers, der Server speichert nichts
 - **Zukunftsprognose**: Szenarioanalyse über einen konfigurierbaren Zeithorizont
 
 ## Installation
@@ -43,12 +43,21 @@ uv run swiss-finance-dashboard --debug        # Auto-Reload bei Codeänderungen 
 
 `python -m personal_finance` akzeptiert dieselben Optionen.
 
-Gespeicherte Szenarien und deine zuletzt verwendeten Dashboard-Eingaben enthalten die Werte als SQL-Spalten. Unter Windows
-liegt die Datenbank standardmässig unter `%LOCALAPPDATA%\SwissFinanceDashboard\scenarios.sqlite3`
-(andere Betriebssysteme verwenden das jeweilige Benutzer-Datenverzeichnis). Sie bleibt ausserhalb
-des Projektordners, wird nicht verschlüsselt und sollte nicht ungeschützt weitergegeben werden.
-Die zuletzt eingegebenen Werte werden automatisch gespeichert und beim nächsten Dashboard-Start
-wiederhergestellt; sie sind unabhängig von benannten Szenarien.
+### Wo werden meine Daten gespeichert?
+
+Gespeicherte Szenarien und die zuletzt verwendeten Eingaben liegen **ausschliesslich im
+`localStorage` deines Browsers** (Schlüssel `pf-scenarios` und `pf-last-inputs`). Der Server
+rechnet nur. Er schreibt nichts auf die Festplatte, hält nichts im Speicher und loggt keine
+Eingaben. Dadurch gilt:
+
+- Jeder Nutzer sieht nur seine eigenen Daten, auch wenn alle denselben Server verwenden.
+- Ein Neustart oder Deploy des Servers löscht keine Nutzerdaten.
+- Die Daten sind an Gerät und Browserprofil gebunden. Wer dasselbe Profil nutzt, sieht sie.
+  Löschen kannst du sie über „Löschen“ in der App oder die Websitedaten des Browsers.
+- Die Daten werden im Browser nicht verschlüsselt.
+
+Die letzten Eingaben werden automatisch gemerkt und beim nächsten Öffnen wiederhergestellt; sie
+sind unabhängig von benannten Szenarien.
 
 ### AHV-Rentenschätzung
 
@@ -113,7 +122,7 @@ src/personal_finance/
 │   ├── projection.py      # Zinseszins-Projektion
 │   └── savings.py         # Sparquote / Sparbetrag
 ├── storage/
-│   └── scenario_store.py  # Lokale SQLite-Szenarien
+│   └── browser_store.py   # Szenarien im Browser (reine Funktionen, kein Server-Speicher)
 └── dashboard/             # Dash-UI
     ├── __init__.py        # Verdrahtung: Layout + Callbacks, run_dashboard()
     ├── app.py             # Dash-Instanz
@@ -127,7 +136,6 @@ src/personal_finance/
 
 tests/
 ├── unit/                  # Fachlogik
-├── integration/           # SQLite-Store
 └── ui/                    # Dashboard-Layout & Callbacks
 
 examples/                  # Beispielskripte
