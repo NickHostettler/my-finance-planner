@@ -89,6 +89,13 @@ das Indexieren.
 - Basic Auth hat kein „Abmelden“: Der Browser merkt sich den Login, bis er geschlossen wird.
   Auf fremden Geräten deshalb ein privates Fenster nutzen.
 
+### Deployment auf Render
+
+Die App ist für [Render](https://render.com) (Gratis-Plan) vorbereitet. Die Konfiguration steht
+in [`render.yaml`](render.yaml), die Einrichtung und der Betrieb sind in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) beschrieben. Deployt wird automatisch bei Merge auf
+`main`, aber nur, wenn die CI grün ist.
+
 ### Mit Docker starten
 
 Das [`Dockerfile`](Dockerfile) baut ein schlankes Produktions-Image: Python-Version aus
