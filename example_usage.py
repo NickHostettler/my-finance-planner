@@ -90,7 +90,7 @@ def main():
     print("✅ Analyse abgeschlossen!")
     print()
     print("💡 Tipp: Starten Sie das Dash Dashboard mit:")
-    print("   $ swiss-finance-dashboard")
+    print("   $ uv run swiss-finance-dashboard")
     print("=" * 80)
 
 

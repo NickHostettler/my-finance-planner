@@ -3,7 +3,7 @@
 ## Voraussetzungen
 
 - Python 3.9 oder höher
-- pip (Python Package Manager)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python-Paket- und Projektmanager)
 
 ## Installation
 
@@ -16,7 +16,7 @@ cd c:\Users\nickh\github_repos\tool
 ### 2. Package installieren
 
 ```bash
-pip install -e .
+uv sync
 ```
 
 Dies installiert das Paket im Development-Modus mit allen Abhängigkeiten:
@@ -25,18 +25,12 @@ Dies installiert das Paket im Development-Modus mit allen Abhängigkeiten:
 - dash & plotly (für Dashboard)
 - python-dateutil
 
-### 3. (Optional) Entwicklungs-Tools installieren
+### 3. Entwicklungs-Tools
 
-Für Testing und Code Quality:
+Die Entwicklungsgruppe wird von `uv sync` standardmässig mitinstalliert. Sie enthält zusätzlich:
 
-```bash
-pip install -e ".[dev]"
-```
-
-Dies installiert zusätzlich:
 - pytest & pytest-cov
-- black (Code Formatter)
-- flake8 (Linter)
+- Ruff (schneller Linter; enthält optional auch einen Formatter)
 - mypy (Type Checker)
 
 ## Erste Schritte
@@ -44,7 +38,7 @@ Dies installiert zusätzlich:
 ### Option 1: Beispiel-Script ausführen
 
 ```bash
-python example_usage.py
+uv run python example_usage.py
 ```
 
 Dies zeigt ein vollständiges Beispiel mit:
@@ -55,7 +49,7 @@ Dies zeigt ein vollständiges Beispiel mit:
 ### Option 2: Interaktives Dash Dashboard starten
 
 ```bash
-swiss-finance-dashboard
+uv run swiss-finance-dashboard
 ```
 
 Das Dashboard öffnet sich dann unter: **http://localhost:8050**
@@ -96,13 +90,16 @@ for rec in analysis.summary['recommendations']:
 
 ```bash
 # Alle Tests
-pytest
+uv run pytest
 
 # Mit Coverage-Report
-pytest --cov=personal_finance
+uv run pytest --cov=personal_finance
 
 # Spezifisch eine Test-Datei
-pytest tests/test_calculator.py -v
+uv run pytest tests/test_calculator.py -v
+
+# Linting
+uv run ruff check .
 ```
 
 ## Projektstruktur
@@ -156,7 +153,7 @@ A: Die 2. Säule berechnet sich nach BVG. Das Modell verwendet CHF 24'885 als Ko
 
 ### Q: Sind die 3a Limits realistisch?
 A: Ja, das Modell beachtet die 2024er Limits:
-- Max. CHF 7'056/Jahr für 3a (gebundene Vorsorge)
+- Max. CHF 7'258/Jahr für 3a (gebundene Vorsorge; ca. CHF 604.83/Monat)
 - Oder 20% des Nettoeinkommens (je kleiner)
 
 ### Q: Wie wird die Kapitalrendite berechnet?
@@ -169,11 +166,11 @@ A: Ja, erstellen Sie einfach mehrere `FinanceCalculator` Instanzen mit unterschi
 
 ### "ModuleNotFoundError: No module named 'personal_finance'"
 
-Stellen Sie sicher, dass Sie im korrekten Verzeichnis sind und das Paket installiert haben:
+Stellen Sie sicher, dass Sie im korrekten Verzeichnis sind und die Umgebung synchronisiert haben:
 
 ```bash
 cd c:\Users\nickh\github_repos\tool
-pip install -e .
+uv sync
 ```
 
 ### Dashboard startet nicht
@@ -185,15 +182,15 @@ pip install -e .
 netstat -ano | findstr :8050
 
 # Oder einen anderen Port nutzen:
-python -c "from personal_finance.dashboard import run_dashboard; run_dashboard(port=8080)"
+uv run python -c "from personal_finance.dashboard import run_dashboard; run_dashboard(port=8080)"
 ```
 
 ### ImportError bei pandas/numpy
 
-Installieren Sie die Abhängigkeiten:
+Synchronisieren Sie die Abhängigkeiten:
 
 ```bash
-pip install -e .
+uv sync
 ```
 
 ## Support

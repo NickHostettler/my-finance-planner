@@ -9,18 +9,19 @@ Ein Python-Paket für private Finanzplanung nach dem Schweizer Rentensystem (1.,
 - **3a Szenarien**: Mehrere Sparlösungen für die 3. Säule
 - **Sparquote & Beträge**: Konfigurierbare Sparquoten oder feste monatliche Sparraten
 - **Dash Dashboard**: Interaktive Visualisierung und Vermögensanalyse
+- **Live-Planung**: Monatliches oder jährliches Brutto-/Nettoeinkommen, flexible 3a/3b-Beiträge und Renditeannahmen mit interaktiven Prognosegrafiken; Brutto wird anhand des gewählten Kantons vereinfacht netto geschätzt
+- **2. Säule**: Vereinfachtes BVG-Schätzmodell (keine offizielle Mindestberechnung) oder eigene monatliche Arbeitnehmer-/Arbeitgeberbeiträge und PK-Verzinsung
+- **Startguthaben**: Bereits vorhandene Guthaben in der 2. Säule, 3a und 3b fliessen in die Projektion ein
+- **Transparente Modellannahmen**: Renditen, nominale Werte ohne Inflationsbereinigung, Vereinfachungen der BVG-Schätzung und nicht berücksichtigte Faktoren werden bei der Prognose ausgewiesen
+- **Nominale und reale Prognose**: Umschaltbare Anzeige in zukünftigen CHF oder kaufkraftbereinigten heutigen CHF unter Verwendung der konfigurierten jährlichen Inflation
+- **AHV-Rente**: Unverbindliche Schätzung anhand des durchschnittlichen Jahreseinkommens und der Beitragsjahre als separates Ruhestandseinkommen; 13 Jahreszahlungen sind berücksichtigt, die AHV wird nicht zum Vorsorgekapital addiert
+- **Lokale Szenarien**: Dashboard-Eingaben lassen sich benannt in einer lokalen SQLite-Datenbank speichern, laden und löschen; ein erneut gespeicherter Name aktualisiert das bestehende Szenario
 - **Zukunftsprognose**: Szenarioanalyse über einen konfigurierbaren Zeithorizont
 
 ## Installation
 
 ```bash
-pip install -e .
-```
-
-Oder mit Entwicklungs-Dependencies:
-
-```bash
-pip install -e ".[dev]"
+uv sync
 ```
 
 ## Verwendung
@@ -28,10 +29,34 @@ pip install -e ".[dev]"
 ### Als CLI Dashboard starten:
 
 ```bash
-swiss-finance-dashboard
+uv run swiss-finance-dashboard
 ```
 
 Das Dashboard öffnet sich dann unter `http://localhost:8050`
+
+Gespeicherte Szenarien und deine zuletzt verwendeten Dashboard-Eingaben enthalten die Werte als SQL-Spalten. Unter Windows
+liegt die Datenbank standardmässig unter `%LOCALAPPDATA%\SwissFinanceDashboard\scenarios.sqlite3`
+(andere Betriebssysteme verwenden das jeweilige Benutzer-Datenverzeichnis). Sie bleibt ausserhalb
+des Projektordners, wird nicht verschlüsselt und sollte nicht ungeschützt weitergegeben werden.
+Die zuletzt eingegebenen Werte werden automatisch gespeichert und beim nächsten Dashboard-Start
+wiederhergestellt; sie sind unabhängig von benannten Szenarien.
+
+### AHV-Rentenschätzung
+
+Im Dashboard gibst du das massgebende durchschnittliche Jahreseinkommen und die erwarteten
+Beitragsjahre ein. Die unverbindliche Schätzung interpoliert vereinfacht zwischen der Mindest- und Maximalrente der
+Vollrentenskala 44 und berücksichtigt die eingegebenen Beitragsjahre anteilig. Sie bildet die
+offizielle Rententabelle nicht nach und berücksichtigt unter anderem keine individuellen IK-Daten,
+Erziehungs- oder Betreuungsgutschriften, Einkommensteilung oder Übergangsregeln. Nutze für deine
+Planung die Schätzung daher nur als grobe Orientierung.
+
+Die geschätzte Rente wird getrennt vom projizierten Vorsorgekapital angezeigt und enthält 13
+Jahreszahlungen. Im Nominalmodus wird die Schätzung in heutigen CHF modellhaft mit der hinterlegten
+Inflation hochgerechnet; in der Realansicht bleibt sie in heutiger Kaufkraft. Die effektive
+künftige Rentenanpassung kann davon abweichen. Steuern auf Renten sind nicht berücksichtigt.
+
+Quellen: [AHV-Merkblatt 3.01](https://www.ahv-iv.ch/p/3.01.d) und
+[Information zur 13. AHV-Rente](https://www.ahv-iv.ch/de/Sozialversicherungen/Alters-und-Hinterlassenenversicherung-AHV/13-AHV-Rente).
 
 ### Programmatisch:
 
@@ -96,24 +121,23 @@ Die meisten Parameter können über die `FinanceCalculator` Klasse konfiguriert 
 - Koordinationsabzug beachten
 
 ### 3. Säule
-- 3a (gebundene Vorsorge): Max. 7'056 CHF/Jahr (2024) oder 20% des Nettoeinkommens
+- 3a (gebundene Vorsorge): Das Modell begrenzt die Einzahlung auf maximal CHF 7'258 pro Jahr (ca. CHF 604.83 pro Monat)
 - 3b (freie Vorsorge): Ohne Limit
 
 ## Development
 
 Tests ausführen:
 ```bash
-pytest
+uv run pytest
 ```
 
 Mit Coverage:
 ```bash
-pytest --cov=personal_finance
+uv run pytest --cov=personal_finance
 ```
 
-Code formatieren:
 ```bash
-black personal_finance tests
+uv run ruff check .
 ```
 
 ## License

@@ -11,6 +11,7 @@ from typing import Dict, List
 import json
 
 from personal_finance.calculator import FinanceCalculator
+from personal_finance import config
 from personal_finance.deductions import DeductionsCalculator
 
 
@@ -147,7 +148,10 @@ app.layout = html.Div([
             
             # Row 3: 3a Slider
             html.Div([
-                html.H4("3️⃣ 3a Sparlösungen (Gebundene Vorsorge - max. CHF 7'056/Jahr)", style={'marginBottom': '15px'}),
+                html.H4(
+                    f"3️⃣ 3a Sparlösungen (Gebundene Vorsorge - max. CHF {config.PILLAR3A_ANNUAL_MAX:,.0f}/Jahr)",
+                    style={'marginBottom': '15px'},
+                ),
                 html.Div([
                     html.Div([
                         html.Label("Monatliche 3a Einzahlung:"),
@@ -155,10 +159,13 @@ app.layout = html.Div([
                         dcc.Slider(
                             id='pillar3a-slider',
                             min=0,
-                            max=700,
-                            step=50,
+                            max=config.PILLAR3A_MONTHLY_MAX,
+                            step=1,
                             value=300,
-                            marks={i: f'{i} CHF' for i in range(0, 701, 100)},
+                            marks={
+                                **{i: f'{i} CHF' for i in range(0, 601, 100)},
+                                config.PILLAR3A_MONTHLY_MAX: "Max",
+                            },
                             tooltip={"placement": "bottom", "always_visible": True},
                         ),
                     ], className="col-md-9"),
@@ -320,11 +327,12 @@ def update_pillar2_employer(employee_contribution):
     Input('pillar3a-slider', 'value'),
 )
 def update_pillar3a_display(value):
-    annual = value * 12
-    limit_used = (annual / 7056) * 100 if annual <= 7056 else 100
-    color = colors['success'] if annual <= 7056 else colors['danger']
+    monthly = min(value, config.PILLAR3A_MONTHLY_MAX)
+    annual = monthly * 12
+    limit_used = annual / config.PILLAR3A_ANNUAL_MAX * 100
+    color = colors['success']
     return html.Div([
-        html.Span(f"CHF {value:,.0f}/Monat", style={'color': color}),
+        html.Span(f"CHF {monthly:,.2f}/Monat", style={'color': color}),
         html.Br(),
         html.Span(f"(CHF {annual:,.0f}/Jahr, {limit_used:.0f}% des Limits)", style={'fontSize': '12px', 'color': 'gray'})
     ])

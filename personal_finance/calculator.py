@@ -11,6 +11,7 @@ from personal_finance.pillar_3b import Pillar3bCalculator, Pillar3bScenario
 from personal_finance.savings import SavingsCalculator, SavingsAnalysis
 from personal_finance.deductions import DeductionsCalculator, SalaryDeductions
 from dataclasses import dataclass
+from personal_finance import config
 
 
 @dataclass
@@ -41,9 +42,9 @@ class FinanceCalculator:
     def __init__(self,
                  monthly_net_income: float,
                  current_age: int,
-                 retirement_age: int = 65,
-                 assumed_annual_return: float = 0.04,
-                 inflation_rate: float = 0.02):
+                 retirement_age: int = config.DEFAULT_RETIREMENT_AGE,
+                 assumed_annual_return: float = config.ASSUMED_ANNUAL_RETURN,
+                 inflation_rate: float = config.INFLATION_RATE):
         """
         Initialize Finance Calculator
         

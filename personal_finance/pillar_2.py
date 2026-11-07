@@ -7,6 +7,7 @@ Berechnet Beiträge und Ansprüche gemäß BVG (Bundesgesetz über die beruflich
 from dataclasses import dataclass
 from typing import Dict, List
 import math
+from personal_finance import config
 
 
 @dataclass
@@ -24,11 +25,11 @@ class Pillar2Result:
 class Pillar2Calculator:
     """Berechnet 2. Säule (Berufvorsorge) nach BVG"""
     
-    # 2024 Werte - können jährlich angepasst werden
-    MIN_SALARY = 24885  # CHF Mindestlohn für Versicherung
-    COORDINATION_DEDUCTION = 24885  # CHF Koordinationsabzug
-    MAX_PILLAR2_RATE = 0.15  # Max. 15% Beitragssatz
-    ASSUMED_ANNUAL_RETURN = 0.04  # 4% angenommene jährliche Rendite
+    # Konstanten aus config.py
+    MIN_SALARY = config.PILLAR2_MIN_SALARY
+    COORDINATION_DEDUCTION = config.PILLAR2_COORDINATION_DEDUCTION
+    MAX_PILLAR2_RATE = config.PILLAR2_MAX_CONTRIBUTION_RATE
+    ASSUMED_ANNUAL_RETURN = config.ASSUMED_ANNUAL_RETURN
     
     def __init__(self, annual_net_income: float, current_age: int, retirement_age: int = 65):
         """
@@ -90,28 +91,12 @@ class Pillar2Calculator:
     
     def _get_contribution_rate(self) -> float:
         """
-        Ermittle Beitragssatz nach Alter
-        
-        Typische Schweizer Skala (Arbeitgeber + Arbeitnehmer kombiniert):
-        - Bis 24: 7%
-        - 25-34: 10%
-        - 35-44: 12%
-        - 45-54: 14%
-        - 55+: 15%
+        Ermittle Beitragssatz nach Alter über config
         
         Returns:
             Beitragssatz als Dezimal (z.B. 0.10 = 10%)
         """
-        if self.current_age < 25:
-            return 0.07
-        elif self.current_age < 35:
-            return 0.10
-        elif self.current_age < 45:
-            return 0.12
-        elif self.current_age < 55:
-            return 0.14
-        else:
-            return 0.15
+        return config.get_pillar2_contribution_rate(self.current_age)
     
     def _estimate_capital_at_retirement(self, annual_contribution: float) -> float:
         """

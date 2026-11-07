@@ -7,6 +7,7 @@ Berechnet private Sparlösungen für die 3. Säule ohne Limite.
 from dataclasses import dataclass
 from typing import Dict, Optional, List
 import math
+from personal_finance import config
 
 
 @dataclass

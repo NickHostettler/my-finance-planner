@@ -6,6 +6,7 @@ Berechnet automatische Lohnabzüge nach Schweizer Recht (AHV, IV, NBU, ALV, etc.
 
 from dataclasses import dataclass
 from typing import Dict
+from personal_finance import config
 
 
 @dataclass
@@ -38,11 +39,11 @@ class SalaryDeductions:
 class DeductionsCalculator:
     """Berechnet Schweizer Lohnabzüge"""
     
-    # 2024 Sätze und Grenzwerte
-    AHV_IV_NBU_RATE = 0.0505  # 5.05%
-    ALV_RATE = 0.011          # 1.1%
-    ALV_ZUSATZ_RATE = 0.005   # 0.5%
-    ALV_ZUSATZ_THRESHOLD = 148200  # Annual income threshold
+    # Konstanten aus config.py
+    AHV_IV_NBU_RATE = config.AHV_IV_NBU_RATE
+    ALV_RATE = config.ALV_RATE
+    ALV_ZUSATZ_RATE = config.ALV_ZUSATZ_RATE
+    ALV_ZUSATZ_THRESHOLD = config.ALV_ZUSATZ_THRESHOLD
     
     def __init__(self, 
                  gross_monthly_income: float,
@@ -128,27 +129,11 @@ class DeductionsCalculator:
         Returns:
             Geschätzte monatliche Steuer in CHF
         """
-        # Vereinfachte Berechnung
-        # Schweizer Durchschnittssteuersatz ca. 15-18%
-        # Je nach Kanton/Gemeinde variabel
+        # Steuersätze aus config
+        rate = config.get_canton_tax_rate(self.canton)
         
-        # Grobe Steuersätze je Kanton (Bundessteuer + durchschn. Kantons-/Gemeindesteuern)
-        canton_rates = {
-            'ZH': 0.165,  # Zürich
-            'BE': 0.145,  # Bern
-            'LU': 0.155,  # Luzern
-            'BS': 0.175,  # Basel-Stadt
-            'AG': 0.140,  # Aargau
-            'SG': 0.155,  # St. Gallen
-            'GE': 0.145,  # Genf
-            'VD': 0.140,  # Waadt
-        }
-        
-        # Basissteuersatz
-        rate = canton_rates.get(self.canton, 0.15)
-        
-        # Vereinfachter Freibetrag (ca. 15'000 CHF pro Jahr)
-        annual_taxable_income = max(0, self.gross_annual_income - 15000)
+        # Vereinfachter Freibetrag aus config
+        annual_taxable_income = max(0, self.gross_annual_income - config.ANNUAL_TAX_ALLOWANCE)
         
         annual_tax = annual_taxable_income * rate
         monthly_tax = annual_tax / 12

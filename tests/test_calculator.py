@@ -71,9 +71,16 @@ class TestPillar3a:
     def test_maximum_annual_limit(self):
         """3a Grenzwert sollte nicht überschritten werden"""
         calc = Pillar3aCalculator(annual_net_income=200000, current_age=35)  # Very high income
-        result = calc.calculate_by_savings_rate(0.20)  # 40000, aber max 7056
+        result = calc.calculate_by_savings_rate(0.20)
         
-        assert result.annual_savings <= 7056
+        assert result.annual_savings == 7258
+
+    def test_fixed_monthly_amount_is_capped_at_7258_per_year(self):
+        calc = Pillar3aCalculator(annual_net_income=200000, current_age=35)
+        result = calc.calculate_by_monthly_amount(1000)
+
+        assert result.annual_savings == 7258
+        assert result.monthly_savings == pytest.approx(7258 / 12)
     
     def test_investment_gains(self):
         """Investitionsgewinne sollten > 0 sein"""

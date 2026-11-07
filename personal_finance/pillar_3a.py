@@ -7,6 +7,7 @@ Berechnet verschiedene Sparlösungen für die 3. Säule (gebundene Vorsorge).
 from dataclasses import dataclass
 from typing import Dict, Optional, List
 import math
+from personal_finance import config
 
 
 @dataclass
@@ -27,8 +28,8 @@ class Pillar3aScenario:
 class Pillar3aCalculator:
     """Berechnet 3a Sparlösungen"""
     
-    # 2024 Limits
-    MAX_PILLAR3A_ANNUAL = 7056  # CHF maximale jährliche 3a Einzahlung
+    # Konstanten aus config.py
+    MAX_PILLAR3A_ANNUAL = config.PILLAR3A_ANNUAL_MAX
     
     def __init__(self, 
                  annual_net_income: float, 
@@ -102,7 +103,7 @@ class Pillar3aCalculator:
         savings_rate = annual_savings / self.annual_net_income if self.annual_net_income > 0 else 0
         
         return self._calculate_scenario(
-            monthly_savings=monthly_savings,
+            monthly_savings=monthly_amount,
             annual_savings=annual_savings,
             savings_rate=savings_rate,
             scenario_name=f"{scenario_name} ({monthly_amount:.0f} CHF/Monat)",
@@ -177,7 +178,7 @@ class Pillar3aCalculator:
     
     def get_maximum_annual_pillar3a(self) -> float:
         """Ermittle maximale jährliche 3a Einzahlung"""
-        # 3a Limit ist min(7056, 20% des Nettoeinkommens)
+        # 3a Einzahlungen sind auf das jährliche Modell-Limit begrenzt.
         income_based_limit = self.annual_net_income * 0.20
         return min(self.MAX_PILLAR3A_ANNUAL, income_based_limit)
     
