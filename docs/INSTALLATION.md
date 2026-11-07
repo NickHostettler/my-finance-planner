@@ -8,10 +8,10 @@
 
 ## Installation
 
-### 1. Repository klonen oder Verzeichnis nutzen
+### 1. In das Projektverzeichnis wechseln
 
 ```bash
-cd c:\Users\nickh\github_repos\tool
+cd my-finance-planner
 ```
 
 ### 2. Package installieren
@@ -153,7 +153,7 @@ A: Ja, erstellen Sie einfach mehrere `FinanceCalculator` Instanzen mit unterschi
 Stellen Sie sicher, dass Sie im korrekten Verzeichnis sind und die Umgebung synchronisiert haben:
 
 ```bash
-cd c:\Users\nickh\github_repos\tool
+cd my-finance-planner
 uv sync
 ```
 

@@ -12,7 +12,7 @@ try:
 except PackageNotFoundError:  # running from a source tree without installation
     __version__ = "0+unknown"
 
-__author__ = "Finance Tools"
+__author__ = "Nick Hostettler"
 
 from personal_finance.calculator import FinanceCalculator  # noqa: E402
 
