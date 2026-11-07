@@ -63,7 +63,16 @@ def base_url():
 def browser():
     channel = os.environ.get("E2E_BROWSER_CHANNEL") or None
     with playwright_api.sync_playwright() as playwright:
-        browser = playwright.chromium.launch(channel=channel, headless=True)
+        try:
+            browser = playwright.chromium.launch(channel=channel, headless=True)
+        except playwright_api.Error as error:
+            # In CI (E2E_REQUIRED=1) a missing browser must fail, never silently skip.
+            if os.environ.get("E2E_REQUIRED") == "1":
+                raise
+            pytest.skip(
+                "No browser for Playwright: run `uv run playwright install chromium` "
+                f"or set E2E_BROWSER_CHANNEL=msedge ({str(error).splitlines()[0]})"
+            )
         yield browser
         browser.close()
 
