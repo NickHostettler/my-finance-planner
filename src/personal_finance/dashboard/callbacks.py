@@ -1,7 +1,11 @@
-"""Dash callbacks. Importing this module registers them on the app."""
+"""Dash callbacks. Importing this module registers them on the app.
+
+Privacy rule: callbacks are pure request/response functions. User data arrives from the
+user's own browser (inputs and ``dcc.Store`` state), is processed, and goes back only to
+that browser. Nothing is written to disk, cached, kept in module state, or logged.
+"""
 
 import math
-import sqlite3
 
 from dash import Input, Output, State, ctx, html, no_update
 
@@ -15,8 +19,9 @@ from personal_finance.dashboard.app import app
 from personal_finance.dashboard.components import (
     money,
 )
+from personal_finance.dashboard.layout import LAST_INPUTS_STORE_ID, SCENARIOS_STORE_ID
 from personal_finance.dashboard.results import results_view
-from personal_finance.storage import scenario_store
+from personal_finance.storage import browser_store
 
 
 @app.callback(
@@ -56,25 +61,34 @@ SCENARIO_INPUT_IDS = [
 ]
 
 
+def _scenario_options(store_data):
+    return [
+        {"label": item["name"], "value": item["name"]}
+        for item in browser_store.list_scenarios(store_data)
+    ]
+
+
 def _scenario_action_response(
     options,
     selected_name,
     message,
     values=None,
     scenario_name_value=no_update,
+    store_data=no_update,
+    is_error=False,
 ):
     status_class = (
         "scenario-status-message scenario-status-error"
-        if message.startswith("Aktion fehlgeschlagen:")
+        if is_error
         else "scenario-status-message"
     )
     status = html.Span(message, className=status_class) if message else ""
     updated_values = (
-        [values[field] for field in scenario_store.SCENARIO_FIELDS]
+        browser_store.values_to_inputs(values)
         if values is not None
         else [no_update] * len(SCENARIO_INPUT_IDS)
     )
-    return [options, selected_name, status, scenario_name_value, *updated_values]
+    return [options, selected_name, status, scenario_name_value, *updated_values, store_data]
 
 
 @app.callback(
@@ -83,12 +97,14 @@ def _scenario_action_response(
     Output("scenario-status", "children"),
     Output("scenario-name-input", "value"),
     *[Output(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
+    Output(SCENARIOS_STORE_ID, "data"),
     Input("scenario-initial-load", "n_intervals"),
     Input("scenario-save-button", "n_clicks"),
     Input("scenario-load-button", "n_clicks"),
     Input("scenario-delete-button", "n_clicks"),
     State("scenario-name-input", "value"),
     State("scenario-select", "value"),
+    State(SCENARIOS_STORE_ID, "data"),
     *[State(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
 )
 def manage_scenarios(
@@ -98,38 +114,36 @@ def manage_scenarios(
     _delete_clicks,
     scenario_name,
     selected_name,
+    store_data,
     *input_values,
 ):
-    """Persist or restore all current dashboard input values."""
+    """Save, load or delete named scenarios in this user's browser storage."""
     try:
         trigger = ctx.triggered_id
         if trigger == "scenario-initial-load":
-            saved = scenario_store.list_scenarios()
-            options = [{"label": item["name"], "value": item["name"]} for item in saved]
-            return _scenario_action_response(options, no_update, "")
+            return _scenario_action_response(_scenario_options(store_data), no_update, "")
 
         if trigger == "scenario-save-button":
-            normalized_name = scenario_store.save_scenario(
-                scenario_name or "",
-                dict(zip(scenario_store.SCENARIO_FIELDS, input_values)),
+            normalized_name = browser_store.validate_name(scenario_name or "")
+            new_state = browser_store.save_scenario(
+                store_data,
+                normalized_name,
+                browser_store.values_from_inputs(list(input_values)),
             )
-            saved = scenario_store.list_scenarios()
-            options = [{"label": item["name"], "value": item["name"]} for item in saved]
             return _scenario_action_response(
-                options,
+                _scenario_options(new_state),
                 normalized_name,
                 f"«{normalized_name}» gespeichert. Ein gleichnamiges Szenario wird aktualisiert.",
                 scenario_name_value=normalized_name,
+                store_data=new_state,
             )
 
         if trigger == "scenario-load-button":
             if not selected_name:
                 raise ValueError("Bitte wähle zuerst ein gespeichertes Szenario aus.")
-            values = scenario_store.load_scenario(selected_name)
-            saved = scenario_store.list_scenarios()
-            options = [{"label": item["name"], "value": item["name"]} for item in saved]
+            values = browser_store.load_scenario(store_data, selected_name)
             return _scenario_action_response(
-                options,
+                _scenario_options(store_data),
                 selected_name,
                 f"«{selected_name}» geladen.",
                 values,
@@ -139,59 +153,53 @@ def manage_scenarios(
         if trigger == "scenario-delete-button":
             if not selected_name:
                 raise ValueError("Bitte wähle zuerst ein gespeichertes Szenario aus.")
-            if not scenario_store.delete_scenario(selected_name):
-                raise ValueError("Das ausgewählte Szenario wurde nicht gefunden.")
-            saved = scenario_store.list_scenarios()
-            options = [{"label": item["name"], "value": item["name"]} for item in saved]
+            new_state = browser_store.delete_scenario(store_data, selected_name)
             return _scenario_action_response(
-                options,
+                _scenario_options(new_state),
                 None,
                 f"«{selected_name}» gelöscht.",
+                store_data=new_state,
             )
 
-        return _scenario_action_response([], no_update, "")
-    except (ValueError, sqlite3.Error, OSError) as error:
-        try:
-            saved = scenario_store.list_scenarios()
-            options = [{"label": item["name"], "value": item["name"]} for item in saved]
-        except (sqlite3.Error, OSError):
-            options = no_update
+        return _scenario_action_response(no_update, no_update, "")
+    except ValueError as error:
         return _scenario_action_response(
-            options,
+            _scenario_options(store_data),
             no_update,
             f"Aktion fehlgeschlagen: {error}",
+            is_error=True,
         )
 
 
 @app.callback(
     *[Output(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
+    Output(LAST_INPUTS_STORE_ID, "data"),
     Output("last-inputs-status", "children"),
     Input("last-inputs-initial-load", "n_intervals"),
     *[Input(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
+    State(LAST_INPUTS_STORE_ID, "data"),
 )
-def remember_dashboard_inputs(_initial_load, *input_values):
-    """Restore the last input snapshot on launch and persist subsequent edits."""
+def remember_dashboard_inputs(_initial_load, *args):
+    """Restore the last inputs from this browser on load and remember later edits."""
+    *input_values, store_data = args
     no_changes = [no_update] * len(SCENARIO_INPUT_IDS)
     try:
         if ctx.triggered_id == "last-inputs-initial-load":
-            values = scenario_store.load_last_inputs()
+            values = browser_store.read_last_inputs(store_data)
             if values is None:
-                return [*no_changes, ""]
-            return [
-                *[values[field] for field in scenario_store.SCENARIO_FIELDS],
-                "",
-            ]
+                return [*no_changes, no_update, ""]
+            return [*browser_store.values_to_inputs(values), no_update, ""]
 
         if ctx.triggered_id in SCENARIO_INPUT_IDS:
-            scenario_store.save_last_inputs(
-                dict(zip(scenario_store.SCENARIO_FIELDS, input_values))
-            )
-        return [*no_changes, ""]
-    except (ValueError, sqlite3.Error, OSError) as error:
+            values = browser_store.values_from_inputs(input_values)
+            return [*no_changes, browser_store.make_last_inputs(values), ""]
+        return [*no_changes, no_update, ""]
+    except ValueError as error:
         return [
             *no_changes,
+            no_update,
             html.Span(
-                f"Letzte Eingaben konnten nicht gespeichert oder geladen werden: {error}",
+                f"Letzte Eingaben konnten nicht gemerkt oder geladen werden: {error}",
                 className="scenario-status-message scenario-status-error",
             ),
         ]
