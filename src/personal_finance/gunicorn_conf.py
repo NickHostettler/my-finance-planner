@@ -39,6 +39,10 @@ worker_class = "gthread"
 threads = _int_from_env("GUNICORN_THREADS", 4, 1, 32)
 preload_app = True
 
+# No runtime control socket (gunicorn >= 26 creates one in $HOME by default): not needed,
+# smaller attack surface, and it would fail on a read-only container filesystem.
+control_socket_disable = True
+
 # Worker heartbeat files in RAM (recommended for containers; works with a read-only
 # root filesystem).
 worker_tmp_dir = "/dev/shm" if os.path.isdir("/dev/shm") else None

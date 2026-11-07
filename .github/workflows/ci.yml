@@ -121,6 +121,22 @@ jobs:
           test "$status" = "healthy"
           docker image ls my-finance-planner:ci --format 'Image size: {{.Size}}'
 
+      - name: Image size breakdown
+        if: steps.dockerfile.outputs.present == 'true'
+        shell: bash
+        run: |
+          docker history my-finance-planner:ci --format '{{.Size}}\t{{.CreatedBy}}' | cut -c1-120 | head -15
+          docker exec app sh -c 'du -sh /app/.venv; du -s /app/.venv/lib/python*/site-packages/* | sort -rn | head -10'
+          docker exec app sh -c 'echo "pyc: $(find /app/.venv -name "*.pyc" -print0 | du -ch --files0-from=- | tail -1)"'
+
+      - name: No errors in container logs
+        if: steps.dockerfile.outputs.present == 'true'
+        shell: bash
+        run: |
+          if docker logs app 2>&1 | grep -E "\[(ERROR|CRITICAL)\]"; then
+            echo "::error::gunicorn logged errors"; exit 1
+          fi
+
       - name: Container logs
         if: always() && steps.dockerfile.outputs.present == 'true'
         run: docker logs app || true
