@@ -1,22 +1,21 @@
 """
-3b Solutions Module (Freie Vorsorge)
+3a Solutions Module
 
-Berechnet private Sparlösungen für die 3. Säule ohne Limite.
+Berechnet verschiedene Sparlösungen für die 3. Säule (gebundene Vorsorge).
 """
 
 from dataclasses import dataclass
 from typing import Dict, Optional, List
-import math
 from personal_finance import config
 
 
 @dataclass
-class Pillar3bScenario:
-    """Ergebnis eines 3b privaten Sparszenarios"""
+class Pillar3aScenario:
+    """Ergebnis eines 3a Sparszenarios"""
     scenario_name: str
     monthly_savings: float              # CHF pro Monat
     annual_savings: float               # CHF pro Jahr
-    annual_savings_rate: Optional[float]  # Sparquote (z.B. 0.20 = 20%)
+    annual_savings_rate: Optional[float]  # Sparquote (z.B. 0.10 = 10%)
     years_to_retirement: int
     assumed_annual_return: float        # Angenommene jährliche Rendite
     total_at_retirement: float          # Gesamtvermögen bei Pensionierung
@@ -25,8 +24,11 @@ class Pillar3bScenario:
     yearly_breakdown: List[Dict]        # Jahr-für-Jahr Breakdown
 
 
-class Pillar3bCalculator:
-    """Berechnet 3b Sparlösungen (Freie Vorsorge ohne Limite)"""
+class Pillar3aCalculator:
+    """Berechnet 3a Sparlösungen"""
+    
+    # Konstanten aus config.py
+    MAX_PILLAR3A_ANNUAL = config.PILLAR3A_ANNUAL_MAX
     
     def __init__(self, 
                  annual_net_income: float, 
@@ -34,7 +36,7 @@ class Pillar3bCalculator:
                  retirement_age: int = 65,
                  assumed_annual_return: float = 0.04):
         """
-        Initialize Pillar 3b Calculator
+        Initialize Pillar 3a Calculator
         
         Args:
             annual_net_income: Jährliches Nettoeinkommen in CHF
@@ -50,18 +52,23 @@ class Pillar3bCalculator:
     
     def calculate_by_savings_rate(self, 
                                   savings_rate: float, 
-                                  scenario_name: str = "3b Sparquote") -> Pillar3bScenario:
+                                  scenario_name: str = "Sparquote") -> Pillar3aScenario:
         """
-        Berechne 3b Szenario basierend auf einer Sparquote
+        Berechne 3a Szenario basierend auf einer Sparquote
         
         Args:
-            savings_rate: Sparquote (z.B. 0.20 für 20%)
+            savings_rate: Sparquote (z.B. 0.10 für 10%)
             scenario_name: Name des Szenarios
         
         Returns:
-            Pillar3bScenario mit Prognose
+            Pillar3aScenario mit Prognose
         """
         annual_savings = self.annual_net_income * savings_rate
+        
+        # Beachte 3a Limit
+        if annual_savings > self.MAX_PILLAR3A_ANNUAL:
+            annual_savings = self.MAX_PILLAR3A_ANNUAL
+        
         monthly_savings = annual_savings / 12
         
         return self._calculate_scenario(
@@ -73,18 +80,23 @@ class Pillar3bCalculator:
     
     def calculate_by_monthly_amount(self, 
                                    monthly_amount: float,
-                                   scenario_name: str = "3b Fixbetrag") -> Pillar3bScenario:
+                                   scenario_name: str = "Fixbetrag") -> Pillar3aScenario:
         """
-        Berechne 3b Szenario basierend auf fixem monatlichem Betrag
+        Berechne 3a Szenario basierend auf fixem monatlichem Betrag
         
         Args:
             monthly_amount: Monatlicher Sparbetrag in CHF
             scenario_name: Name des Szenarios
         
         Returns:
-            Pillar3bScenario mit Prognose
+            Pillar3aScenario mit Prognose
         """
         annual_savings = monthly_amount * 12
+        
+        # Beachte 3a Limit
+        if annual_savings > self.MAX_PILLAR3A_ANNUAL:
+            annual_savings = self.MAX_PILLAR3A_ANNUAL
+            monthly_amount = annual_savings / 12
         
         # Berechne Sparquote
         savings_rate = annual_savings / self.annual_net_income if self.annual_net_income > 0 else 0
@@ -100,7 +112,7 @@ class Pillar3bCalculator:
                            monthly_savings: float,
                            annual_savings: float,
                            savings_rate: Optional[float],
-                           scenario_name: str) -> Pillar3bScenario:
+                           scenario_name: str) -> Pillar3aScenario:
         """
         Interne Methode zur Berechnung eines Szenarios
         """
@@ -124,7 +136,7 @@ class Pillar3bCalculator:
             annual_return=r
         )
         
-        return Pillar3bScenario(
+        return Pillar3aScenario(
             scenario_name=scenario_name,
             monthly_savings=monthly_savings,
             annual_savings=annual_savings,
@@ -163,7 +175,13 @@ class Pillar3bCalculator:
         
         return breakdown
     
-    def create_multiple_scenarios(self) -> Dict[str, Pillar3bScenario]:
+    def get_maximum_annual_pillar3a(self) -> float:
+        """Ermittle maximale jährliche 3a Einzahlung"""
+        # 3a Einzahlungen sind auf das jährliche Modell-Limit begrenzt.
+        income_based_limit = self.annual_net_income * 0.20
+        return min(self.MAX_PILLAR3A_ANNUAL, income_based_limit)
+    
+    def create_multiple_scenarios(self) -> Dict[str, Pillar3aScenario]:
         """
         Erstelle mehrere vordefinierte Sparlösungen
         
@@ -172,20 +190,19 @@ class Pillar3bCalculator:
         """
         scenarios = {}
         
-        # Sparquoten: 10%, 15%, 20%, 25%
-        for rate in [0.10, 0.15, 0.20, 0.25]:
-            try:
-                scenario = self.calculate_by_savings_rate(rate, "3b Sparquote")
-                scenarios[f"3b Sparquote {rate*100:.0f}%"] = scenario
-            except:
-                pass
+        # Sparquoten: 5%, 10%, 15%
+        for rate in [0.05, 0.10, 0.15]:
+            scenario = self.calculate_by_savings_rate(rate)
+            scenarios[f"Sparquote {rate*100:.0f}%"] = scenario
         
-        # Fixbeträge: 500, 1000, 1500, 2000
-        for amount in [500, 1000, 1500, 2000]:
-            try:
-                scenario = self.calculate_by_monthly_amount(amount, "3b Fixbetrag")
-                scenarios[f"3b Fixbetrag {amount} CHF/Monat"] = scenario
-            except:
-                pass
+        # Fixbeträge
+        for amount in [500, 750, 1000]:
+            scenario = self.calculate_by_monthly_amount(amount)
+            scenarios[f"Fixbetrag {amount} CHF/Monat"] = scenario
+        
+        # Maximum 3a
+        max_annual = self.get_maximum_annual_pillar3a()
+        scenario = self.calculate_by_monthly_amount(max_annual / 12, "Maximum 3a")
+        scenarios["Maximum 3a"] = scenario
         
         return scenarios

@@ -38,7 +38,7 @@ Die Entwicklungsgruppe wird von `uv sync` standardmässig mitinstalliert. Sie en
 ### Option 1: Beispiel-Script ausführen
 
 ```bash
-uv run python example_usage.py
+uv run python examples/example_usage.py
 ```
 
 Dies zeigt ein vollständiges Beispiel mit:
@@ -93,10 +93,10 @@ for rec in analysis.summary['recommendations']:
 uv run pytest
 
 # Mit Coverage-Report
-uv run pytest --cov=personal_finance
+uv run pytest --cov
 
 # Spezifisch eine Test-Datei
-uv run pytest tests/test_calculator.py -v
+uv run pytest tests/unit/test_calculator.py -v
 
 # Linting
 uv run ruff check .
@@ -104,23 +104,7 @@ uv run ruff check .
 
 ## Projektstruktur
 
-```
-personal_finance/
-├── __init__.py                 # Package init
-├── calculator.py              # Haupt-Calculator Klasse
-├── pillar_2.py               # 2. Säule (BVG) Module
-├── pillar_3a.py              # 3a Sparlösungen Module
-├── savings.py                # Sparquote/Betrag Verwaltung
-└── dashboard.py              # Dash Dashboard App
-
-tests/
-├── __init__.py
-└── test_calculator.py        # Unit Tests
-
-example_usage.py              # Beispiel-Script
-pyproject.toml               # Package Konfiguration
-README.md                    # Dokumentation
-```
+Siehe [README.md](../README.md#projektstruktur).
 
 ## Konfiguration
 
@@ -195,4 +179,4 @@ uv sync
 
 ## Support
 
-Für weitere Informationen siehe [README.md](README.md)
+Für weitere Informationen siehe [README.md](../README.md)

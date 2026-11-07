@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from personal_finance import scenario_store
+from personal_finance.storage import scenario_store
 
 
 @pytest.fixture

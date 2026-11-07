@@ -5,7 +5,6 @@ Demonstrates how to use the Personal Finance Calculator
 """
 
 from personal_finance.calculator import FinanceCalculator
-import json
 
 
 def main():
@@ -81,7 +80,7 @@ def main():
     print(f"  Gesamtprognose (best-case): CHF {analysis.summary['total_retirement_capital_best_case']:,.0f}")
     
     # Recommendations
-    print(f"\n  Empfehlungen:")
+    print("\n  Empfehlungen:")
     for i, rec in enumerate(analysis.summary['recommendations'], 1):
         print(f"    {i}. {rec}")
     
