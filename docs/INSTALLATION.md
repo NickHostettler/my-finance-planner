@@ -2,8 +2,9 @@
 
 ## Voraussetzungen
 
-- Python 3.9 oder höher
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python-Paket- und Projektmanager)
+- Python 3.12 oder höher. Die verwendete Version steht in `.python-version` (aktuell 3.14);
+  uv lädt sie bei Bedarf automatisch herunter.
 
 ## Installation
 
@@ -19,11 +20,10 @@ cd c:\Users\nickh\github_repos\tool
 uv sync
 ```
 
-Dies installiert das Paket im Development-Modus mit allen Abhängigkeiten:
-- pandas
-- numpy
-- dash & plotly (für Dashboard)
-- python-dateutil
+Dies installiert das Paket im Development-Modus mit seinen Abhängigkeiten:
+- dash & plotly (für das Dashboard)
+
+Mehr braucht die App zur Laufzeit nicht; die Fachlogik verwendet nur die Python-Standardbibliothek.
 
 ### 3. Entwicklungs-Tools
 
@@ -166,10 +166,10 @@ uv sync
 netstat -ano | findstr :8050
 
 # Oder einen anderen Port nutzen:
-uv run python -c "from personal_finance.dashboard import run_dashboard; run_dashboard(port=8080)"
+uv run swiss-finance-dashboard --port 8080
 ```
 
-### ImportError bei pandas/numpy
+### ImportError / ModuleNotFoundError bei dash oder plotly
 
 Synchronisieren Sie die Abhängigkeiten:
 
