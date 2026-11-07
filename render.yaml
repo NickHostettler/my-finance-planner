@@ -1,0 +1,28 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Creates the web service from the Dockerfile. Set up once via
+# Render Dashboard -> New -> Blueprint -> this repository (see docs/DEPLOYMENT.md).
+services:
+  - type: web
+    name: my-finance-planner
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free            # 0.1 CPU, 512 MB, sleeps after 15 min without traffic
+    region: frankfurt     # cannot be changed after creation
+    branch: main
+    healthCheckPath: /health
+    # Deploy only commits whose GitHub Actions checks passed. This replaces the
+    # branch protection that is not available for private repos on GitHub Free.
+    autoDeployTrigger: checksPass
+    envVars:
+      # Entered once in the Render dashboard when the Blueprint is created;
+      # never stored in the repository. At least 12 characters.
+      - key: APP_PASSWORD
+        sync: false
+      - key: APP_USERNAME
+        value: kamerad
+      # One worker is enough for 0.1 CPU and saves memory on the free instance.
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: GUNICORN_THREADS
+        value: "4"
