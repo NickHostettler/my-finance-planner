@@ -2,18 +2,18 @@
 
 import pytest
 
-from personal_finance.dashboard import (
-    _chart_card,
-    _money,
-    _normalize_income,
-    _projection_values,
+from personal_finance.core.income import normalize_income
+from personal_finance.core.projection import project_balance
+from personal_finance.dashboard import app
+from personal_finance.dashboard.callbacks import (
     SCENARIO_INPUT_IDS,
-    app,
-    update_results,
     update_pillar2_controls,
+    update_results,
     update_savings_controls,
 )
-from personal_finance import ahv, config
+from personal_finance.dashboard.components import chart_card, money
+from personal_finance import config
+from personal_finance.core import ahv
 
 
 def _update_dashboard(
@@ -62,27 +62,27 @@ def _update_dashboard(
     ],
 )
 def test_net_income_is_normalized_to_monthly(period, amount, expected_monthly_net):
-    monthly_net, _ = _normalize_income(amount, period, "net", 35, "ZH")
+    monthly_net, _ = normalize_income(amount, period, "net", 35, "ZH")
 
     assert monthly_net == expected_monthly_net
 
 
 def test_gross_income_is_converted_to_estimated_net():
-    monthly_net, monthly_gross = _normalize_income(7500, "monthly", "gross", 35, "ZH")
+    monthly_net, monthly_gross = normalize_income(7500, "monthly", "gross", 35, "ZH")
 
     assert monthly_gross == 7500
     assert 0 < monthly_net < monthly_gross
 
 
 def test_yearly_and_monthly_gross_income_produce_same_estimate():
-    monthly_result = _normalize_income(7500, "monthly", "gross", 35, "ZH")
-    yearly_result = _normalize_income(90000, "yearly", "gross", 35, "ZH")
+    monthly_result = normalize_income(7500, "monthly", "gross", 35, "ZH")
+    yearly_result = normalize_income(90000, "yearly", "gross", 35, "ZH")
 
     assert yearly_result == monthly_result
 
 
 def test_screenshot_income_values_produce_valid_net_income():
-    monthly_net, monthly_gross = _normalize_income(120000, "yearly", "gross", 30, "LU")
+    monthly_net, monthly_gross = normalize_income(120000, "yearly", "gross", 30, "LU")
 
     assert monthly_gross == 10000
     assert monthly_net > 0
@@ -209,14 +209,14 @@ def test_nominal_real_selection_defaults_to_nominal_and_is_saved_with_scenario_i
 
 
 def test_initial_balance_compounds_until_retirement():
-    values = _projection_values(0, years=2, annual_return=0.04, initial_balance=10000)
+    values = project_balance(0, years=2, annual_return=0.04, initial_balance=10000)
 
     assert values == pytest.approx([10000, 10400, 10816])
 
 
 def test_real_projection_converts_nominal_future_value_to_todays_purchasing_power():
-    nominal = _projection_values(1000, years=2, annual_return=0.04)
-    real = _projection_values(
+    nominal = project_balance(1000, years=2, annual_return=0.04)
+    real = project_balance(
         1000,
         years=2,
         annual_return=0.04,
@@ -427,7 +427,7 @@ def test_custom_pillar2_contributions_and_interest_are_projected():
     growth_figure = next(figure for figure in figures if figure.data[0].type == "scatter")
     comparison_figure = next(figure for figure in figures if figure.data[0].type == "bar")
     composition_figure = next(figure for figure in figures if figure.data[0].type == "pie")
-    expected_capital = _projection_values(3600, 30, 0.02, 10000)[-1]
+    expected_capital = project_balance(3600, 30, 0.02, 10000)[-1]
 
     assert growth_figure.data[0].y[0] == 10000
     assert growth_figure.data[0].y[-1] == pytest.approx(expected_capital)
@@ -466,7 +466,7 @@ def test_model_assumptions_disclose_pillar2_method_and_inflation(mode, expected_
     assert "nicht abgezogen" in joined_text
     assert "nominal" in joined_text
     assert f"{config.ASSUMED_ANNUAL_RETURN:.0%} pro Jahr" in joined_text
-    assert f"{_money(config.PILLAR3A_ANNUAL_MAX)} pro Jahr" in joined_text
+    assert f"{money(config.PILLAR3A_ANNUAL_MAX)} pro Jahr" in joined_text
     assert "AHV-Rente" in joined_text
 
 
@@ -533,7 +533,7 @@ def test_3a_contribution_mode_shows_only_matching_input(
 
 @pytest.mark.parametrize("height", [300, 390])
 def test_chart_card_sets_explicit_graph_height(height):
-    card = _chart_card("Chart", "Description", None, height=height)
+    card = chart_card("Chart", "Description", None, height=height)
     graph = next(component for component in card._traverse() if component.__class__.__name__ == "Graph")
 
     assert graph.style["height"] == f"{height}px"

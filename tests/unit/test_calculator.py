@@ -4,9 +4,9 @@ Test Suite for Personal Finance Calculator
 
 import pytest
 from personal_finance.calculator import FinanceCalculator
-from personal_finance.pillar_2 import Pillar2Calculator
-from personal_finance.pillar_3a import Pillar3aCalculator
-from personal_finance.savings import SavingsCalculator
+from personal_finance.core.pillar_2 import Pillar2Calculator
+from personal_finance.core.pillar_3a import Pillar3aCalculator
+from personal_finance.core.savings import SavingsCalculator
 
 
 class TestPillar2:

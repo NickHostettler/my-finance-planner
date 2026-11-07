@@ -89,19 +89,43 @@ analysis = calc.complete_analysis()
 ## Projektstruktur
 
 ```
-personal_finance/
-├── __init__.py
-├── calculator.py          # Hauptklasse für Berechnungen
-├── pillar_2.py           # 2. Säule (Berufvorsorge) Module
-├── pillar_3a.py          # 3a Sparlösungen Module
-├── savings.py            # Sparquote und Betrag Berechnungen
-└── dashboard.py          # Dash Dashboard Anwendung
+src/personal_finance/
+├── __init__.py            # Öffentliche API (FinanceCalculator)
+├── __main__.py            # python -m personal_finance → startet das Dashboard
+├── config.py              # Zentrale Konstanten (BVG, 3a-Limit, Kantone, …)
+├── calculator.py          # Fassade: kombiniert alle Berechnungen
+├── core/                  # Reine Fachlogik – keine Abhängigkeit zu Dash/Storage
+│   ├── ahv.py             # AHV-Rentenschätzung
+│   ├── deductions.py      # Lohnabzüge Brutto → Netto
+│   ├── income.py          # Einkommen normalisieren (Monat/Jahr, Brutto/Netto)
+│   ├── pillar_2.py        # 2. Säule (BVG)
+│   ├── pillar_3a.py       # 3a (gebundene Vorsorge)
+│   ├── pillar_3b.py       # 3b (freie Vorsorge)
+│   ├── projection.py      # Zinseszins-Projektion
+│   └── savings.py         # Sparquote / Sparbetrag
+├── storage/
+│   └── scenario_store.py  # Lokale SQLite-Szenarien
+└── dashboard/             # Dash-UI
+    ├── __init__.py        # Verdrahtung: Layout + Callbacks, run_dashboard()
+    ├── app.py             # Dash-Instanz
+    ├── layout.py          # Seitenaufbau
+    ├── components.py      # Wiederverwendbare UI-Bausteine
+    ├── figures.py         # Plotly-Grafiken
+    ├── results.py         # Ergebnisbereich
+    ├── callbacks.py       # Interaktionen
+    ├── theme.py           # Farben
+    └── assets/            # CSS (wird von Dash automatisch geladen)
 
 tests/
-├── test_pillar2.py
-├── test_pillar3a.py
-└── test_calculator.py
+├── unit/                  # Fachlogik
+├── integration/           # SQLite-Store
+└── ui/                    # Dashboard-Layout & Callbacks
+
+examples/                  # Beispielskripte
+docs/                      # Weitere Dokumentation (Installation)
 ```
+
+Abhängigkeiten zeigen nur nach innen: `dashboard` → `storage`/`calculator` → `core` → `config`.
 
 ## Konfiguration
 
@@ -133,7 +157,12 @@ uv run pytest
 
 Mit Coverage:
 ```bash
-uv run pytest --cov=personal_finance
+uv run pytest --cov
+```
+
+Nur eine Testebene:
+```bash
+uv run pytest tests/unit
 ```
 
 ```bash

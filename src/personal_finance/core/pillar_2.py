@@ -5,8 +5,6 @@ Berechnet Beiträge und Ansprüche gemäß BVG (Bundesgesetz über die beruflich
 """
 
 from dataclasses import dataclass
-from typing import Dict, List
-import math
 from personal_finance import config
 
 

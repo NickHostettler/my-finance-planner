@@ -5,11 +5,10 @@ Integriert alle Berechnungsmodule für eine umfassende Finanzanalyse.
 """
 
 from typing import Dict, List, Optional
-from personal_finance.pillar_2 import Pillar2Calculator, Pillar2Result
-from personal_finance.pillar_3a import Pillar3aCalculator, Pillar3aScenario
-from personal_finance.pillar_3b import Pillar3bCalculator, Pillar3bScenario
-from personal_finance.savings import SavingsCalculator, SavingsAnalysis
-from personal_finance.deductions import DeductionsCalculator, SalaryDeductions
+from personal_finance.core.pillar_2 import Pillar2Calculator, Pillar2Result
+from personal_finance.core.pillar_3a import Pillar3aCalculator, Pillar3aScenario
+from personal_finance.core.pillar_3b import Pillar3bCalculator, Pillar3bScenario
+from personal_finance.core.savings import SavingsCalculator, SavingsAnalysis
 from dataclasses import dataclass
 from personal_finance import config
 
@@ -280,9 +279,9 @@ class FinanceCalculator:
         
         # 3b Empfehlung
         recommendations.append(
-            f"💰 3b (freie Vorsorge): Zusätzlich zu 3a können Sie unbegrenzt in 3b sparen. "
-            f"Mit regelmäßigen Einzahlungen (z.B. 500-2000 CHF/Monat) können Sie ein "
-            f"signifikantes Vermögen bis zur Pensionierung aufbauen."
+            "💰 3b (freie Vorsorge): Zusätzlich zu 3a können Sie unbegrenzt in 3b sparen. "
+            "Mit regelmäßigen Einzahlungen (z.B. 500-2000 CHF/Monat) können Sie ein "
+            "signifikantes Vermögen bis zur Pensionierung aufbauen."
         )
         
         return recommendations

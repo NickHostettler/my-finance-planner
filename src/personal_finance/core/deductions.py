@@ -103,9 +103,6 @@ class DeductionsCalculator:
         # Arbeitgeber-Anteile (informativ)
         employer_ahv_iv_nbu = self.gross_monthly_income * self.AHV_IV_NBU_RATE
         employer_alv = self.gross_monthly_income * self.ALV_RATE
-        employer_alv_zusatz = 0
-        if self.gross_annual_income > self.ALV_ZUSATZ_THRESHOLD:
-            employer_alv_zusatz = self.gross_monthly_income * self.ALV_ZUSATZ_RATE
         
         return SalaryDeductions(
             gross_monthly_income=self.gross_monthly_income,
