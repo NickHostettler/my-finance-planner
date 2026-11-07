@@ -9,9 +9,11 @@ description = "Swiss personal finance planning tool with 2. Säule and 3a calcul
 readme = "README.md"
 requires-python = ">=3.12"
 authors = [
-    {name = "Finance Tools", email = "admin@example.com"}
+    {name = "Nick Hostettler"}
 ]
-license = "MIT"
+# Proprietary: published for viewing only, all rights reserved (see LICENSE).
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
 keywords = ["finance", "swiss", "retirement", "dashboard", "pillar2", "pillar3a"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

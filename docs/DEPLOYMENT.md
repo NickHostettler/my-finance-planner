@@ -5,7 +5,7 @@ Die Konfiguration steht als Blueprint in [`render.yaml`](../render.yaml) im Repo
 
 | | |
 |---|---|
-| URL | https://my-finance-planner-jntw.onrender.com (live seit 7.11.2026) |
+| URL | siehe Render-Dashboard → Dienst `my-finance-planner` (live seit 7.11.2026) |
 | Plan | Free: 0.1 CPU, 512 MB RAM, 750 Instanz-Stunden/Monat |
 | Region | Frankfurt (lässt sich nachträglich nicht ändern) |
 | Deploy | automatisch bei Push auf `main`, **nur wenn die CI grün ist** (`autoDeployTrigger: checksPass`) |

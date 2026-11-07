@@ -1,4 +1,4 @@
-# Only pyproject.toml, uv.lock, .python-version, README.md and src/ are needed.
+# Only pyproject.toml, uv.lock, .python-version, README.md, LICENSE and src/ are needed.
 **/__pycache__/
 **/*.py[cod]
 **/*.egg-info/

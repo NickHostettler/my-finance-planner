@@ -1,4 +1,47 @@
-# Swiss Personal Finance Planning Tool
+# Swiss Personal Finance Planner
+
+[![CI](https://github.com/NickHostettler/my-finance-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/NickHostettler/my-finance-planner/actions/workflows/ci.yml)
+![Python 3.14](https://img.shields.io/badge/python-3.14-blue)
+![License: all rights reserved](https://img.shields.io/badge/license-all%20rights%20reserved-lightgrey)
+
+> **Personal project by Nick Hostettler.** Published for viewing only; see [LICENSE](LICENSE).
+
+A web app that projects how Swiss retirement savings could develop until retirement: the
+occupational pension (2nd pillar/BVG), tax-advantaged pillar 3a, free savings (3b), and a rough
+AHV state-pension estimate. It is deployed for a small group of friends: each one uses it in
+their own browser, and **no personal financial data is ever stored on the server**.
+
+![Dashboard: projected retirement capital, AHV estimate and growth charts](docs/images/dashboard.png)
+
+### Highlights
+
+- **Privacy by design:** All user data (scenarios, last inputs) lives only in the user's browser
+  (`localStorage`). The server is stateless; it never writes to disk, caches, or logs user input.
+  Verified by isolation tests, a deliberately injected data leak that the tests catch, and
+  end-to-end tests with two separate browser profiles.
+- **Secure deployment:** Dockerized (multi-stage build, non-root user, read-only filesystem) and
+  served by gunicorn on Render's free tier. The shared-password login (HTTP Basic Auth,
+  constant-time comparison) **fails closed**: the container refuses to start without a password.
+- **CI/CD:** GitHub Actions runs linting and 170+ tests on Linux and Windows, Playwright
+  browser tests and a Docker build with smoke tests on every pull request. Render deploys only
+  commits whose checks passed.
+- **Domain logic:** Swiss salary deductions with 2026 rates (AHV/IV/EO, ALV with its insured-salary
+  cap), BVG estimate, 3a limits, compound-interest projections in nominal or real terms.
+- **Clean architecture:** `core/` (pure domain logic) → `storage/` → `dashboard/` (UI);
+  dependencies only point inwards.
+
+**Tech stack:** Python 3.14 · Dash/Plotly · Flask · gunicorn · Docker · Render · GitHub Actions ·
+pytest · Playwright · uv · ruff
+
+**Workflow:** Every change went through an issue, a feature branch and a reviewed pull request
+with green CI ([milestone v1.0](https://github.com/NickHostettler/my-finance-planner/milestone/1),
+[release v1.0.0](https://github.com/NickHostettler/my-finance-planner/releases/tag/v1.0.0)).
+Developed with the help of an AI coding assistant (Claude Code), which is noted in the commit
+messages.
+
+---
+
+*Die weitere Dokumentation ist auf Deutsch.*
 
 Ein Python-Paket für private Finanzplanung nach dem Schweizer Rentensystem (1., 2. und 3. Säule).
 

@@ -25,7 +25,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /src
 
 # 1) Dependencies only (cached until pyproject.toml/uv.lock change).
-COPY pyproject.toml uv.lock .python-version README.md ./
+COPY pyproject.toml uv.lock .python-version README.md LICENSE ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project
 
