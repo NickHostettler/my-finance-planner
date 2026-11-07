@@ -5,6 +5,7 @@ Die Konfiguration steht als Blueprint in [`render.yaml`](../render.yaml) im Repo
 
 | | |
 |---|---|
+| URL | https://my-finance-planner-jntw.onrender.com (live seit 7.11.2026) |
 | Plan | Free: 0.1 CPU, 512 MB RAM, 750 Instanz-Stunden/Monat |
 | Region | Frankfurt (lässt sich nachträglich nicht ändern) |
 | Deploy | automatisch bei Push auf `main`, **nur wenn die CI grün ist** (`autoDeployTrigger: checksPass`) |
@@ -31,6 +32,22 @@ verloren. Das ist unproblematisch, weil die App nichts auf dem Server speichert.
 7. **Apply / Deploy Blueprint** klicken. Der erste Build dauert einige Minuten.
 8. Wenn der Dienst **Live** ist: die URL (`https://my-finance-planner….onrender.com`) öffnen
    und mit `kamerad` und dem Passwort anmelden.
+
+## Kameraden einladen
+
+Schicke **den Link und den Hinweis auf die [Kurzanleitung](ANLEITUNG.md)**. Das Passwort
+sollte möglichst über einen **anderen Kanal** gehen als der Link (z.B. Link per Mail, Passwort
+persönlich oder per Messenger), damit eine weitergeleitete Nachricht allein nicht reicht.
+
+Beim ersten Öffnen zeigt die App jedem einen Hinweis: keine Beratung, Daten bleiben im eigenen
+Browser, Bedeutung für Gerätewechsel und fremde Geräte. Mit „Verstanden“ wird er für diesen
+Browser ausgeblendet. Über „Hinweise anzeigen“ in der Fusszeile lässt er sich wieder öffnen.
+Wird der Text geändert, kann `NOTICE_VERSION` in `dashboard/callbacks.py` erhöht werden, damit
+alle ihn erneut sehen.
+
+**Passwort weitergegeben oder jemand soll keinen Zugang mehr haben?** Passwort ändern (siehe
+unten) und den übrigen das neue mitteilen. Ihre gespeicherten Szenarien bleiben erhalten, weil
+sie im jeweiligen Browser liegen.
 
 ## Betrieb
 

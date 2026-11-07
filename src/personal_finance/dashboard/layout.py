@@ -11,9 +11,12 @@ from personal_finance.dashboard.components import (
 )
 from personal_finance.storage import browser_store
 
-# Also the localStorage keys in the browser.
+# Also the localStorage keys in the browser. Every key uses the "pf-" prefix so that
+# "Alle Daten in diesem Browser löschen" can remove all of them at once.
+STORAGE_KEY_PREFIX = "pf-"
 SCENARIOS_STORE_ID = "pf-scenarios"
 LAST_INPUTS_STORE_ID = "pf-last-inputs"
+NOTICE_STORE_ID = "pf-notice"
 
 
 layout = html.Div(
@@ -41,6 +44,57 @@ layout = html.Div(
         ),
         html.Main(
             [
+                # Shown on the first visit in each browser until "Verstanden" is clicked.
+                html.Section(
+                    [
+                        html.Div(
+                            [
+                                html.H2("Willkommen! Drei Dinge vorab"),
+                                html.Ul(
+                                    [
+                                        html.Li(
+                                            [
+                                                html.Strong("Keine Beratung. "),
+                                                "Der Finanzplan zeigt vereinfachte Schätzungen ohne "
+                                                "Gewähr. Er ersetzt keine Finanz-, Steuer- oder "
+                                                "Vorsorgeberatung.",
+                                            ]
+                                        ),
+                                        html.Li(
+                                            [
+                                                html.Strong("Deine Daten bleiben bei dir. "),
+                                                "Eingaben und Szenarien werden nur in diesem Browser "
+                                                "auf deinem Gerät gespeichert. Der Server speichert "
+                                                "nichts, und andere Nutzer sehen deine Daten nicht.",
+                                            ]
+                                        ),
+                                        html.Li(
+                                            [
+                                                html.Strong("Gerät und Browser zählen. "),
+                                                "Auf einem anderen Gerät oder nach dem Löschen der "
+                                                "Browserdaten sind deine Szenarien nicht vorhanden. "
+                                                "Auf fremden Geräten ein privates Fenster nutzen "
+                                                "oder am Ende „Alle Daten in diesem Browser löschen“.",
+                                            ]
+                                        ),
+                                    ]
+                                ),
+                            ],
+                            className="welcome-copy",
+                        ),
+                        html.Button(
+                            "Verstanden",
+                            id="welcome-dismiss",
+                            n_clicks=0,
+                            className="scenario-button scenario-save welcome-dismiss",
+                        ),
+                    ],
+                    id="welcome-notice",
+                    className="welcome-notice",
+                    hidden=True,
+                    **{"aria-label": "Hinweise zur Nutzung"},
+                ),
+                dcc.Store(id=NOTICE_STORE_ID, storage_type="local"),
                 html.Section(
                     [
                         html.Div(
@@ -179,6 +233,22 @@ layout = html.Div(
                                                     id="last-inputs-status",
                                                     className="scenario-status",
                                                 ),
+                                                html.Button(
+                                                    "Alle Daten in diesem Browser löschen",
+                                                    id="clear-browser-data-button",
+                                                    n_clicks=0,
+                                                    className="link-button danger-link",
+                                                ),
+                                                dcc.ConfirmDialog(
+                                                    id="clear-browser-data-confirm",
+                                                    message=(
+                                                        "Alle gespeicherten Szenarien und die gemerkten "
+                                                        "Eingaben in diesem Browser werden gelöscht. "
+                                                        "Das kann nicht rückgängig gemacht werden. "
+                                                        "Fortfahren?"
+                                                    ),
+                                                ),
+                                                html.Div(id="clear-browser-data-done", hidden=True),
                                             ],
                                             className="scenario-manager",
                                         ),
@@ -573,7 +643,22 @@ layout = html.Div(
             ],
             className="page-shell",
         ),
-        html.Footer("Finanzplan · Schweizer Vorsorge", className="page-footer"),
+        html.Footer(
+            [
+                html.Span("Finanzplan · Schweizer Vorsorge"),
+                html.Span(
+                    "Keine Finanzberatung · Deine Daten bleiben in deinem Browser",
+                    className="footer-note",
+                ),
+                html.Button(
+                    "Hinweise anzeigen",
+                    id="welcome-show",
+                    n_clicks=0,
+                    className="footer-link",
+                ),
+            ],
+            className="page-footer",
+        ),
     ],
     className="app-background",
 )

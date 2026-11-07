@@ -898,10 +898,107 @@ input {
 }
 
 .page-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px 14px;
   padding: 22px 20px 28px;
   color: #94a097;
   font-size: 10px;
   text-align: center;
+}
+
+.footer-note {
+  color: #75847b;
+}
+
+/* --- welcome notice (first visit) and data deletion --------------------------------- */
+
+.welcome-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px 24px;
+  margin: 0 0 18px;
+  padding: 18px 20px;
+  border: 1px solid #cfe3d6;
+  border-left: 4px solid var(--green);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 6px 20px rgba(19, 37, 31, 0.06);
+}
+
+/* display:flex above would otherwise override the HTML hidden attribute. */
+.welcome-notice[hidden] {
+  display: none;
+}
+
+.welcome-copy {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.welcome-copy h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.welcome-copy ul {
+  margin: 0;
+  padding-left: 18px;
+  color: #43584b;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.welcome-copy li + li {
+  margin-top: 4px;
+}
+
+.welcome-dismiss {
+  flex: 0 0 auto;
+}
+
+.footer-link,
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.footer-link {
+  color: #75847b;
+}
+
+.footer-link:hover {
+  color: var(--ink);
+}
+
+.link-button {
+  justify-self: start;
+  align-self: start;
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.danger-link {
+  color: #a63d40;
+}
+
+.danger-link:hover {
+  color: #7d2a2d;
+}
+
+.footer-link:focus-visible,
+.link-button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
 @media (max-width: 900px) {
