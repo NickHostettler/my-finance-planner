@@ -62,6 +62,27 @@ gunicorn -c python:personal_finance.gunicorn_conf personal_finance.wsgi:server
 | `LOG_LEVEL` | `info` | Log-Level |
 
 - `GET /health` antwortet mit `200 {"status": "ok"}` für die Health-Checks der Plattform.
+
+### Mit Docker starten
+
+Das [`Dockerfile`](Dockerfile) baut ein schlankes Produktions-Image: Python-Version aus
+`.python-version`, Abhängigkeiten exakt aus `uv.lock`, gunicorn, eigener Benutzer ohne
+root-Rechte und ein eingebauter `HEALTHCHECK`. Mit Docker Desktop lokal testen:
+
+```bash
+docker compose up --build        # -> http://localhost:8050
+```
+
+oder ohne Compose:
+
+```bash
+docker build -t my-finance-planner .
+docker run --rm -p 8050:8050 my-finance-planner
+```
+
+Der Container kommt mit schreibgeschütztem Dateisystem aus (`read_only` in
+[`compose.yaml`](compose.yaml)), weil die App keine Daten auf dem Server speichert. Die CI baut
+das Image bei jedem PR und prüft es auf diese Weise.
 - Der Debug-Modus ist im Produktionsbetrieb nie aktiv, und der Browser wird nicht geöffnet.
 - Die Logs enthalten keine Eingabewerte und keine Client-IP-Adressen.
 

@@ -39,6 +39,10 @@ worker_class = "gthread"
 threads = _int_from_env("GUNICORN_THREADS", 4, 1, 32)
 preload_app = True
 
+# Worker heartbeat files in RAM (recommended for containers; works with a read-only
+# root filesystem).
+worker_tmp_dir = "/dev/shm" if os.path.isdir("/dev/shm") else None
+
 timeout = 60
 graceful_timeout = 30
 keepalive = 5
