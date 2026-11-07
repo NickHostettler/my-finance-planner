@@ -467,7 +467,14 @@ def results_view(
                                                     "Vorsorgebeiträge, Renten und Auszahlungen werden nicht "
                                                     "berechnet. Falls du Brutto eingibst, ist auch die "
                                                     "Umrechnung zum Nettolohn nur eine grobe kantonale "
-                                                    "Schätzung."
+                                                    "Schätzung: AHV/IV/EO "
+                                                    f"{config.AHV_IV_EO_RATE:.1%}, ALV "
+                                                    f"{config.ALV_RATE:.1%} und NBU "
+                                                    f"{config.NBU_RATE:.1%} (Annahme) bis "
+                                                    f"{money(config.ALV_MAX_INSURED_ANNUAL_SALARY)} "
+                                                    "pro Jahr, Krankenkasse "
+                                                    f"{money(config.AVERAGE_HEALTH_INSURANCE_MONTHLY)}"
+                                                    "/Monat."
                                                 ),
                                             ],
                                             className="assumption-item",

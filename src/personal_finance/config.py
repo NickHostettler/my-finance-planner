@@ -46,17 +46,25 @@ PILLAR3A_MONTHLY_MAX = PILLAR3A_ANNUAL_MAX / 12
 # SCHWEIZER LOHNABZÜGE (Deductions)
 # ================================================================================
 
-# AHV/IV/NBU - Alters- und Hinterlassenenversicherung, etc.
-AHV_IV_NBU_RATE = 0.0505  # 5.05% (2024)
-AHV_IV_NBU_RATE_EMPLOYER = 0.0505  # 5.05% (2024)
+# AHV/IV/EO - auf dem gesamten Lohn, ohne Obergrenze.
+# Quelle: Merkblatt 2.01 "Lohnbeiträge an die AHV, die IV und die EO", Stand 1.1.2026
+# (AHV 8.7% + IV 1.4% + EO 0.5% = 10.6%, je hälftig Arbeitnehmer/Arbeitgeber)
+AHV_IV_EO_RATE = 0.053  # 5.3% Arbeitnehmer
+AHV_IV_EO_RATE_EMPLOYER = 0.053  # 5.3% Arbeitgeber
 
-# ALV - Arbeitslosenversicherung
-ALV_RATE = 0.011  # 1.1% (2024)
-ALV_RATE_EMPLOYER = 0.011  # 1.1% (2024)
+# ALV - Arbeitslosenversicherung, nur bis zum Höchstlohn.
+# Quelle: Merkblatt 2.08 "Beiträge an die Arbeitslosenversicherung", Stand 1.1.2025.
+# Seit 1.1.2023 fällt auf Lohnanteilen über dem Höchstlohn kein ALV-Beitrag mehr an
+# (der frühere Solidaritätsbeitrag wurde abgeschafft).
+ALV_RATE = 0.011  # 1.1% Arbeitnehmer
+ALV_RATE_EMPLOYER = 0.011  # 1.1% Arbeitgeber
+ALV_MAX_INSURED_ANNUAL_SALARY = 148200  # CHF pro Jahr
 
-# ALV Zusatz (über CHF 148'200 Jahreseinkommen)
-ALV_ZUSATZ_RATE = 0.005  # 0.5% (2024)
-ALV_ZUSATZ_THRESHOLD = 148200  # CHF
+# NBU - Nichtberufsunfallversicherung (UVG), in der Regel vom Arbeitnehmer getragen.
+# Die Prämie legt jeder Versicherer je nach Branche/Betrieb selbst fest; der Satz ist eine
+# MODELLANNAHME. Versichert ist der Lohn bis zum UVG-Höchstbetrag.
+NBU_RATE = 0.01  # 1.0% Arbeitnehmer (Annahme)
+UVG_MAX_INSURED_ANNUAL_SALARY = 148200  # CHF pro Jahr
 
 # Krankenkassenprämie (durchschnittliche Schätzung)
 AVERAGE_HEALTH_INSURANCE_MONTHLY = 350  # CHF
