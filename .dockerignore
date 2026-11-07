@@ -1,0 +1,21 @@
+# Only pyproject.toml, uv.lock, .python-version, README.md and src/ are needed.
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+.venv/
+.git/
+.github/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+tests/
+docs/
+examples/
+*.sqlite3
+.env
+.env.*
+Dockerfile
+.dockerignore
+compose.yaml

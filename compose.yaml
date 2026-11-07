@@ -1,0 +1,18 @@
+# Local test of the production container (needs Docker Desktop):
+#   docker compose up --build      ->  http://localhost:8050
+services:
+  app:
+    build: .
+    image: my-finance-planner:local
+    ports:
+      - "8050:8050"
+    environment:
+      PORT: "8050"
+      WEB_CONCURRENCY: "2"
+    # Same hardening as in CI: nothing in the container may be written.
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

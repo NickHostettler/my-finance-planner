@@ -96,13 +96,27 @@ jobs:
         if: steps.dockerfile.outputs.present == 'true'
         shell: bash
         run: |
-          docker run -d --name app -p 8050:8050 -e PORT=8050 my-finance-planner:ci
+          # Read-only root filesystem: proves the app writes no data to disk.
+          # A non-default PORT checks that the platform's $PORT is honoured.
+          docker run -d --name app --read-only --tmpfs /tmp \
+            --security-opt no-new-privileges:true \
+            -p 8050:10000 -e PORT=10000 my-finance-planner:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8050/health; then echo; break; fi
             sleep 2
           done
           curl -fsS http://127.0.0.1:8050/health
           curl -fsS http://127.0.0.1:8050/ | grep -q "Finanzplan"
+          curl -fsS http://127.0.0.1:8050/assets/dashboard.css > /dev/null
+          echo "Container user id: $(docker exec app id -u)"
+          test "$(docker exec app id -u)" != "0"
+          for i in $(seq 1 20); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' app)
+            [ "$status" = "healthy" ] && break
+            sleep 3
+          done
+          echo "Docker HEALTHCHECK: $status"
+          test "$status" = "healthy"
           docker image ls my-finance-planner:ci --format 'Image size: {{.Size}}'
 
       - name: Container logs
