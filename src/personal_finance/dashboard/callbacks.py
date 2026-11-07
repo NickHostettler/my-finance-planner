@@ -19,7 +19,12 @@ from personal_finance.dashboard.app import app
 from personal_finance.dashboard.components import (
     money,
 )
-from personal_finance.dashboard.layout import LAST_INPUTS_STORE_ID, SCENARIOS_STORE_ID
+from personal_finance.dashboard.layout import (
+    LAST_INPUTS_STORE_ID,
+    NOTICE_STORE_ID,
+    SCENARIOS_STORE_ID,
+    STORAGE_KEY_PREFIX,
+)
 from personal_finance.dashboard.results import results_view
 from personal_finance.storage import browser_store
 
@@ -477,3 +482,59 @@ def update_results(
             f"{money(pillar3a.monthly_savings)} pro Monat begrenzt."
         )
     return content, notice
+
+
+# --- welcome notice and "delete all data in this browser" (issue #11) ----------------
+
+NOTICE_VERSION = 1  # increase to show the notice again to everyone after a change
+
+
+def _notice_acknowledged(store_data) -> bool:
+    return isinstance(store_data, dict) and store_data.get("version") == NOTICE_VERSION and (
+        store_data.get("acknowledged") is True
+    )
+
+
+@app.callback(
+    Output("welcome-notice", "hidden"),
+    Output(NOTICE_STORE_ID, "data"),
+    Input("scenario-initial-load", "n_intervals"),
+    Input("welcome-dismiss", "n_clicks"),
+    Input("welcome-show", "n_clicks"),
+    State(NOTICE_STORE_ID, "data"),
+)
+def toggle_welcome_notice(_initial_load, _dismiss_clicks, _show_clicks, store_data):
+    """Show the notice until this browser has acknowledged it; reopen from the footer."""
+    trigger = ctx.triggered_id
+    if trigger == "welcome-dismiss":
+        return True, {"version": NOTICE_VERSION, "acknowledged": True}
+    if trigger == "welcome-show":
+        return False, no_update
+    return _notice_acknowledged(store_data), no_update
+
+
+@app.callback(
+    Output("clear-browser-data-confirm", "displayed"),
+    Input("clear-browser-data-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+def ask_before_clearing_browser_data(_clicks):
+    return True
+
+
+# Runs in the browser only: removes every key of this app from localStorage and reloads.
+app.clientside_callback(
+    """
+    function (confirmed) {
+        if (!confirmed) { return window.dash_clientside.no_update; }
+        Object.keys(window.localStorage)
+            .filter(function (key) { return key.indexOf(%s) === 0; })
+            .forEach(function (key) { window.localStorage.removeItem(key); });
+        window.location.reload();
+        return "";
+    }
+    """ % repr(STORAGE_KEY_PREFIX),
+    Output("clear-browser-data-done", "children"),
+    Input("clear-browser-data-confirm", "submit_n_clicks"),
+    prevent_initial_call=True,
+)

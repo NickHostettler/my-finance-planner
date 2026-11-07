@@ -91,6 +91,8 @@ das Indexieren.
 
 ### Deployment auf Render
 
+**Für Nutzer:** [Kurzanleitung](docs/ANLEITUNG.md) (Login, Bedienung, wo die Daten liegen).
+
 Die App ist für [Render](https://render.com) (Gratis-Plan) vorbereitet. Die Konfiguration steht
 in [`render.yaml`](render.yaml), die Einrichtung und der Betrieb sind in
 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) beschrieben. Deployt wird automatisch bei Merge auf
