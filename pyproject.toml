@@ -32,7 +32,7 @@ dependencies = [
 ]
 
 [project.scripts]
-swiss-finance-dashboard = "personal_finance.dashboard:run_dashboard"
+swiss-finance-dashboard = "personal_finance.dashboard:main"
 
 [dependency-groups]
 dev = [

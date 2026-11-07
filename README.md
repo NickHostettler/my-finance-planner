@@ -32,7 +32,16 @@ uv sync
 uv run swiss-finance-dashboard
 ```
 
-Das Dashboard öffnet sich dann unter `http://localhost:8050`
+Das Dashboard öffnet sich automatisch im Standardbrowser unter `http://127.0.0.1:8050`,
+sobald der Server bereit ist. Optionen:
+
+```bash
+uv run swiss-finance-dashboard --no-browser   # Browser nicht öffnen
+uv run swiss-finance-dashboard --port 8080    # anderer Port
+uv run swiss-finance-dashboard --debug        # Auto-Reload bei Codeänderungen (öffnet nur einen Tab)
+```
+
+`python -m personal_finance` akzeptiert dieselben Optionen.
 
 Gespeicherte Szenarien und deine zuletzt verwendeten Dashboard-Eingaben enthalten die Werte als SQL-Spalten. Unter Windows
 liegt die Datenbank standardmässig unter `%LOCALAPPDATA%\SwissFinanceDashboard\scenarios.sqlite3`
