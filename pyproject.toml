@@ -63,11 +63,15 @@ addopts = ["--import-mode=importlib", "--strict-markers"]
 markers = ["e2e: end-to-end tests in a real browser (need the e2e dependency group)"]
 
 [tool.coverage.run]
-source = ["personal_finance"]
+# A path (not the package name) so that code run via ``python -m`` is measured too.
+source = ["src/personal_finance"]
 branch = true
+# Only the application code counts; tests are not measured (also in the VS Code view).
+omit = ["tests/*"]
 
 [tool.coverage.report]
 show_missing = true
+fail_under = 100
 skip_covered = true
 
 [tool.ruff]

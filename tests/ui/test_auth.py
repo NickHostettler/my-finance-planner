@@ -177,3 +177,16 @@ def test_real_app_refuses_to_start_when_required_but_no_password():
 
     assert result.returncode != 0
     assert "refusing to start" in result.stderr
+
+
+def test_configure_from_env_installs_login_only_when_a_password_is_set():
+    protected = Flask("protected")
+    protected.get("/")(lambda: "Dashboard")
+    open_server = Flask("open")
+    open_server.get("/")(lambda: "Dashboard")
+
+    assert auth.configure_from_env(protected, {"APP_PASSWORD": PASSWORD}) is True
+    assert auth.configure_from_env(open_server, {}) is False
+    assert protected.test_client().get("/").status_code == 401
+    assert protected.test_client().get("/", headers=basic("kamerad", PASSWORD)).status_code == 200
+    assert open_server.test_client().get("/").status_code == 200

@@ -115,13 +115,3 @@ class Pillar2Calculator:
         
         future_value = annual_contribution * (((1 + r) ** n - 1) / r)
         return future_value
-    
-    def get_monthly_employee_contribution(self) -> float:
-        """Ermittle monatlichen Arbeitnehmer-Beitrag"""
-        result = self.calculate()
-        return result.annual_contribution_employee / 12
-    
-    def get_monthly_total_contribution(self) -> float:
-        """Ermittle monatlichen Gesamtbeitrag (inkl. Arbeitgeber)"""
-        result = self.calculate()
-        return result.annual_contribution_total / 12

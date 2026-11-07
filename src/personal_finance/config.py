@@ -157,19 +157,6 @@ def get_canton_tax_rate(canton: str) -> float:
     return CANTON_TAX_RATES.get(canton, 0.15)  # Default: 15%
 
 
-def validate_pillar3a_amount(annual_amount: float) -> bool:
-    """
-    Validiere, ob 3a-Betrag im Limit liegt
-    
-    Args:
-        annual_amount: Jährlicher 3a-Betrag in CHF
-    
-    Returns:
-        True wenn ok, False wenn über Limit
-    """
-    return annual_amount <= PILLAR3A_ANNUAL_MAX
-
-
 # ================================================================================
 # VERSION UND METADATA
 # ================================================================================
