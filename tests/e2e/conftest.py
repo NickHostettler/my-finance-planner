@@ -73,7 +73,17 @@ class User:
         self.context = browser.new_context(viewport=viewport) if viewport else browser.new_context()
         self.page = self.context.new_page()
         self.errors = []
+        self.console = []
         self.page.on("pageerror", lambda error: self.errors.append(str(error)))
+        self.page.on(
+            "console", lambda message: self.console.append(f"{message.type}: {message.text[:300]}")
+        )
+        self.page.on(
+            "response",
+            lambda response: self.console.append(f"HTTP {response.status} {response.url[-80:]}")
+            if response.status >= 400
+            else None,
+        )
         self.base_url = base_url
 
     def open(self):
@@ -83,9 +93,18 @@ class User:
 
     def wait_until_idle(self):
         # Dash marks the document while callbacks are pending.
-        self.page.wait_for_function(
-            "() => !document.querySelector('[data-dash-is-loading=\"true\"]')"
-        )
+        try:
+            self.page.wait_for_function(
+                "() => !document.querySelector('[data-dash-is-loading=\"true\"]')"
+            )
+        except playwright_api.TimeoutError:
+            loading = self.page.evaluate(
+                "() => [...document.querySelectorAll('[data-dash-is-loading=\"true\"]')]"
+                ".map(e => `${e.tagName}#${e.id}.${e.className}`.slice(0, 120))"
+            )
+            raise AssertionError(
+                f"Dash still loading after 30 s: {loading}\nconsole: {self.console[-15:]}"
+            ) from None
         self.page.wait_for_timeout(800)
 
     def reload(self):
