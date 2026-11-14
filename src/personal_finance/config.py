@@ -109,6 +109,43 @@ MIN_RETIREMENT_AGE = 55  # Minimal mögliches Renteneintrittsalter
 MAX_RETIREMENT_AGE = 75  # Maximal betrachtetes Renteneintrittsalter
 
 # ================================================================================
+# WOHNEIGENTUM (Tragbarkeit und Eigenmittel, Stand November 2026)
+# ================================================================================
+# Das Modell setzt den Belehnungswert der Bank dem Kaufpreis gleich. Banken prüfen jeden
+# Kauf individuell (Bonität, Objekt, eigene Sätze); die Werte sind keine Bankzusage.
+
+# Verbindlich für alle Banken (von der FINMA als Mindeststandard anerkannt):
+# SBVg "Richtlinien betreffend Mindestanforderungen bei Hypothekarfinanzierungen",
+# Dezember 2023, gültig ab 1.1.2025.
+HOME_SBVG_SOURCE_URL = (
+    "https://www.finma.ch/de/news/2024/03/20240327-mm-hypothekarfinanzierungen/"
+)
+# Ziff. 2.1: Mindestens 10 % des Belehnungswerts müssen Eigenmittel sein, die nicht aus der
+# 2. Säule stammen (weder Vorbezug noch Verpfändung). Erspartes, Wertschriften und Säule 3a
+# zählen dazu ("harte" Eigenmittel).
+HOME_MIN_HARD_EQUITY_RATE = 0.10
+# Ziff. 2.2: Die Hypothekarschuld ist innert maximal 15 Jahren linear auf 2/3 des
+# Belehnungswerts zu amortisieren (Amortisation der 2. Hypothek).
+HOME_FIRST_MORTGAGE_MAX_RATE = 2 / 3
+HOME_AMORTISATION_MAX_YEARS = 15
+
+# Übliche Bankpraxis, keine gesetzliche Regel (die FINMA verlangt nur, dass Banken die
+# Tragbarkeit vorsichtig prüfen). Einzelne Banken weichen davon ab:
+HOME_MIN_EQUITY_RATE = 0.20  # mindestens 20 % Eigenmittel, Belehnung also höchstens 80 %
+HOME_MAX_COST_TO_INCOME = 1 / 3  # Wohnkosten höchstens 1/3 des Bruttoeinkommens
+HOME_IMPUTED_INTEREST_RATE = 0.05  # kalkulatorischer Zins (manche Banken: 4.5 %)
+HOME_MAINTENANCE_RATE = 0.01  # Nebenkosten und Unterhalt pro Jahr, in % des Kaufpreises
+# Zusätzlich verlangen Banken, dass die 2. Hypothek spätestens bei der Pensionierung
+# amortisiert ist; das Modell verkürzt die Amortisationsdauer entsprechend.
+
+# Modellannahmen dieses Tools:
+# Kaufnebenkosten (Notar, Grundbuch, je nach Kanton Handänderungssteuer). Sie werden nicht
+# finanziert und im Modell aus Erspartem oder 3a bezahlt; sie zählen nicht als Eigenmittel.
+HOME_PURCHASE_COSTS_RATE = 0.03
+# Ab diesem Anteil der Wohnkosten am Bruttoeinkommen gilt ein Kauf als "knapp" tragbar.
+HOME_TIGHT_COST_TO_INCOME = 0.30
+
+# ================================================================================
 # VALIDIERUNGS-GRENZEN
 # ================================================================================
 
