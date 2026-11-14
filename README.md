@@ -11,7 +11,7 @@ occupational pension (2nd pillar/BVG), tax-advantaged pillar 3a, free savings (3
 AHV state-pension estimate. It is deployed for a small group of friends: each one uses it in
 their own browser, and **no personal financial data is ever stored on the server**.
 
-![Dashboard: projected retirement capital, AHV estimate and growth charts](docs/images/dashboard.png)
+![Dashboard: inputs on the left, projected retirement capital, AHV estimate and growth chart in tabs on the right](docs/images/dashboard.png)
 
 ### Highlights
 
@@ -30,7 +30,8 @@ their own browser, and **no personal financial data is ever stored on the server
 - **Clean architecture:** `core/` (pure domain logic) → `storage/` → `dashboard/` (UI);
   dependencies only point inwards.
 
-**Tech stack:** Python 3.14 · Dash/Plotly · Flask · gunicorn · Docker · Render · GitHub Actions ·
+**Tech stack:** Python 3.14 · Dash · Dash Mantine Components · Plotly · Flask · gunicorn · Docker ·
+Render · GitHub Actions ·
 pytest · Playwright · uv · ruff
 
 **Workflow:** Every change went through an issue, a feature branch and a reviewed pull request

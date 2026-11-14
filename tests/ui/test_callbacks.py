@@ -3,20 +3,20 @@
 from contextvars import copy_context
 
 import pytest
-from dash import html, no_update
+from dash import no_update
 from dash._callback_context import context_value
 from dash._utils import AttributeDict
 
-from personal_finance.dashboard import callbacks
+from personal_finance.dashboard import app, callbacks
 from personal_finance.dashboard.callbacks import (
     SCENARIO_INPUT_IDS,
     ask_before_clearing_browser_data,
     manage_scenarios,
     remember_dashboard_inputs,
+    restore_last_inputs,
     update_income_controls,
     update_income_preview,
     update_results,
-    update_retirement_options,
 )
 from personal_finance.dashboard.components import number_input
 from personal_finance.storage import browser_store
@@ -51,10 +51,11 @@ def results(**overrides):
 
 
 def error_text(result):
-    content, notice = result
+    *sections, notice = result
     assert notice == ""
-    assert content.className == "validation-message"
-    return content.children[1].children
+    # The message is shown in every result tab, so it is visible whichever tab is open.
+    assert all(section.className == "validation-message" for section in sections)
+    return sections[0].children[1].children
 
 
 def run_callback(trigger, func, *args):
@@ -124,45 +125,67 @@ def test_zero_net_income_after_deductions_is_reported(monkeypatch):
 
 
 def test_capped_3a_contribution_is_explained():
-    _, notice = results(savings_mode="amount", pillar3a_amount=2000)
+    notice = results(savings_mode="amount", pillar3a_amount=2000)[-1]
 
     assert "Modell-Limit" in notice
+
+
+def test_results_fill_all_three_tabs():
+    overview, pension, assumptions, _ = results()
+
+    texts = [repr(section) for section in (overview, pension, assumptions)]
+    assert "Projiziertes Vorsorgekapital" in texts[0]
+    assert "Dein Sparplan" in texts[1]
+    assert "Modell statt Beratung" in texts[2]
+
+
+# --- values coming from the Mantine input fields ------------------------------------------
+
+
+def test_return_switch_sends_text_and_is_used_as_number():
+    as_text, as_number = results(assumed_return="0.06"), results(assumed_return=0.06)
+
+    assert repr(as_text) == repr(as_number)
+
+
+def test_unknown_return_text_is_rejected():
+    assert "Renditeannahmen" in error_text(results(assumed_return="viel"))
+
+
+def test_emptied_number_field_counts_as_missing():
+    # Mantine number fields send "" instead of None when they are cleared.
+    assert "3b-Beitrag" in error_text(results(pillar3b_amount=""))
+    overview = results(initial_3a="")[0]  # optional balance: empty means 0
+    assert getattr(overview, "className", None) != "validation-message"
+
+
+def test_fields_receive_the_return_as_text_and_empty_values_as_none():
+    values = browser_store.values_to_inputs({**VALID_INPUTS, "assumed_return": None})
+
+    assert callbacks._to_components(values)[SCENARIO_INPUT_IDS.index("return-input")] is None
+    stored = callbacks._from_components(callbacks._to_components(
+        browser_store.values_to_inputs(VALID_INPUTS)
+    ))
+    assert stored == browser_store.values_to_inputs(VALID_INPUTS)
 
 
 # --- small helper callbacks ------------------------------------------------------------
 
 
-def test_retirement_options_start_at_the_current_age_if_it_is_higher():
-    options, selected = update_retirement_options(67, 65)
-
-    assert options[0]["value"] == 67
-    assert selected == 67
-
-
-def test_retirement_options_keep_a_valid_selection_and_default_the_age():
-    options, selected = update_retirement_options(None, 64)
-
-    assert selected == 64
-    assert options[0]["value"] <= 64 <= options[-1]["value"]
-
-
 @pytest.mark.parametrize(
-    ("period", "income_type", "label", "suffix", "canton_display"),
+    ("period", "income_type", "label", "unit", "canton_display"),
     [
         ("yearly", "gross", "Dein jährliches Bruttoeinkommen", "CHF/Jahr", "block"),
         ("monthly", "net", "Dein monatliches Nettoeinkommen", "CHF/Monat", "none"),
     ],
 )
-def test_income_controls_follow_period_and_type(
-    period, income_type, label, suffix, canton_display
-):
-    shown_label, shown_suffix, hint, canton_style = update_income_controls(period, income_type)
-
-    assert (shown_label, shown_suffix, canton_style["display"]) == (
-        label,
-        suffix,
-        canton_display,
+def test_income_controls_follow_period_and_type(period, income_type, label, unit, canton_display):
+    shown_label, shown_unit, width, hint, canton_style = update_income_controls(
+        period, income_type
     )
+
+    assert (shown_label, shown_unit, canton_style["display"]) == (label, unit, canton_display)
+    assert width > 0
     assert hint
 
 
@@ -176,10 +199,18 @@ def test_clearing_browser_data_asks_for_confirmation_first():
     assert ask_before_clearing_browser_data(1) is True
 
 
-def test_number_input_without_suffix_has_no_unit_label():
-    component = number_input("plain-input", 1, minimum=0, step=1)
+def test_number_input_without_unit_has_no_unit_label():
+    component = number_input("plain-input", "Zahl", 1, minimum=0, step=1)
 
-    assert not any(isinstance(item, html.Span) for item in component._traverse())
+    assert "rightSection" not in component.to_plotly_json()["props"]
+
+
+def test_number_input_with_unit_and_whole_numbers_only():
+    component = number_input("age-input", "Alter", 35, 18, 1, "Jahre", 80, decimals=0)
+    props = component.to_plotly_json()["props"]
+
+    assert (props["rightSection"], props["max"], props["allowDecimal"]) == ("Jahre", 80, False)
+    assert props["thousandSeparator"] == "’"
 
 
 # --- scenario actions in the user's own browser storage ---------------------------------
@@ -224,22 +255,37 @@ def test_unknown_trigger_changes_nothing():
     assert result[-1] is no_update
 
 
-def test_last_inputs_ignore_unrelated_triggers():
-    store = browser_store.make_last_inputs(VALID_INPUTS)
-    inputs = browser_store.values_to_inputs(VALID_INPUTS)
+def test_remembering_stores_the_current_inputs():
+    inputs = callbacks._to_components(browser_store.values_to_inputs(VALID_INPUTS))
 
-    result = run_callback(None, remember_dashboard_inputs, 0, *inputs, store)
+    store, status = remember_dashboard_inputs(*inputs)
 
-    assert result[: len(SCENARIO_INPUT_IDS) + 1] == [no_update] * (len(SCENARIO_INPUT_IDS) + 1)
-    assert result[-1] == ""
+    assert browser_store.read_last_inputs(store) == browser_store.sanitize_values(VALID_INPUTS)
+    assert status == ""
 
 
 def test_last_inputs_report_an_error_instead_of_failing():
     incomplete_inputs = browser_store.values_to_inputs(VALID_INPUTS)[:-1]
 
-    result = run_callback(
-        "monthly-income-input", remember_dashboard_inputs, 0, *incomplete_inputs, None
-    )
+    store, status = remember_dashboard_inputs(*incomplete_inputs)
 
-    assert result[-2] is no_update
-    assert "konnten nicht gemerkt" in result[-1].children
+    assert store is no_update
+    assert "konnten nicht gemerkt" in status.children
+
+
+def test_restoring_fills_the_fields_or_changes_nothing():
+    remembered = browser_store.make_last_inputs(VALID_INPUTS)
+
+    restored = restore_last_inputs(1, remembered)
+
+    assert restored == callbacks._to_components(browser_store.values_to_inputs(VALID_INPUTS))
+    assert restored[SCENARIO_INPUT_IDS.index("return-input")] == "0.04"
+    assert restore_last_inputs(1, None) == [no_update] * len(SCENARIO_INPUT_IDS)
+
+
+def test_no_callback_reads_and_writes_the_same_property():
+    # A callback that reads and writes the same fields made Dash wait forever (CI, #36).
+    for key, callback in app.callback_map.items():
+        outputs = {output.split("@")[0] for output in key.strip(".").split("...")}
+        inputs = {f"{item['id']}.{item['property']}" for item in callback["inputs"]}
+        assert not outputs & inputs, key

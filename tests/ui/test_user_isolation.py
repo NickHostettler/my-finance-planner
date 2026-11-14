@@ -92,20 +92,12 @@ class Browser:
         return self._scenarios("scenario-load-button", selected=name)
 
     def type_input(self):
-        result = run_callback(
-            SCENARIO_INPUT_IDS[0], remember_dashboard_inputs, 0, *self.inputs, self.last_inputs
-        )
-        if result[N_INPUTS] is not no_update:
-            self.last_inputs = result[N_INPUTS]
+        store, _ = remember_dashboard_inputs(*self.inputs)
+        if store is not no_update:
+            self.last_inputs = store
 
     def restore_last_inputs(self):
-        return run_callback(
-            "last-inputs-initial-load",
-            remember_dashboard_inputs,
-            0,
-            *self.inputs,
-            self.last_inputs,
-        )
+        return callbacks.restore_last_inputs(1, self.last_inputs)
 
 
 def option_names(result):
