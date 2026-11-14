@@ -121,12 +121,15 @@ def _scenario_action_response(
     return [options, selected_name, status, scenario_name_value, *updated_values, store_data]
 
 
+# Loading a scenario and restoring the last inputs both set the input fields, so those
+# outputs are shared (allow_duplicate). Dash requires prevent_initial_call for that; the
+# one-shot dcc.Interval still triggers both callbacks right after the page has loaded.
 @app.callback(
     Output("scenario-select", "data"),
     Output("scenario-select", "value"),
     Output("scenario-status", "children"),
     Output("scenario-name-input", "value"),
-    *[Output(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
+    *[Output(component_id, "value", allow_duplicate=True) for component_id in SCENARIO_INPUT_IDS],
     Output(SCENARIOS_STORE_ID, "data"),
     Input("scenario-initial-load", "n_intervals"),
     Input("scenario-save-button", "n_clicks"),
@@ -136,6 +139,7 @@ def _scenario_action_response(
     State("scenario-select", "value"),
     State(SCENARIOS_STORE_ID, "data"),
     *[State(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
+    prevent_initial_call=True,
 )
 def manage_scenarios(
     _initial_load,
@@ -202,37 +206,37 @@ def manage_scenarios(
 
 
 @app.callback(
-    *[Output(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
+    *[Output(component_id, "value", allow_duplicate=True) for component_id in SCENARIO_INPUT_IDS],
+    Input("last-inputs-initial-load", "n_intervals"),
+    State(LAST_INPUTS_STORE_ID, "data"),
+    prevent_initial_call=True,
+)
+def restore_last_inputs(_initial_load, store_data):
+    """Fill the input fields with the inputs this browser remembered last time."""
+    values = browser_store.read_last_inputs(store_data)
+    if values is None:
+        return [no_update] * len(SCENARIO_INPUT_IDS)
+    return _to_components(browser_store.values_to_inputs(values))
+
+
+# Separate from restoring, so that no callback reads and writes the same fields (a cycle that
+# left Dash waiting forever with the Mantine fields).
+@app.callback(
     Output(LAST_INPUTS_STORE_ID, "data"),
     Output("last-inputs-status", "children"),
-    Input("last-inputs-initial-load", "n_intervals"),
     *[Input(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
-    State(LAST_INPUTS_STORE_ID, "data"),
+    prevent_initial_call=True,
 )
-def remember_dashboard_inputs(_initial_load, *args):
-    """Restore the last inputs from this browser on load and remember later edits."""
-    *input_values, store_data = args
-    no_changes = [no_update] * len(SCENARIO_INPUT_IDS)
+def remember_dashboard_inputs(*component_values):
+    """Remember every change of the inputs in this browser (localStorage)."""
     try:
-        if ctx.triggered_id == "last-inputs-initial-load":
-            values = browser_store.read_last_inputs(store_data)
-            if values is None:
-                return [*no_changes, no_update, ""]
-            return [*_to_components(browser_store.values_to_inputs(values)), no_update, ""]
-
-        if ctx.triggered_id in SCENARIO_INPUT_IDS:
-            values = browser_store.values_from_inputs(_from_components(input_values))
-            return [*no_changes, browser_store.make_last_inputs(values), ""]
-        return [*no_changes, no_update, ""]
+        values = browser_store.values_from_inputs(_from_components(component_values))
     except ValueError as error:
-        return [
-            *no_changes,
-            no_update,
-            html.Span(
-                f"Letzte Eingaben konnten nicht gemerkt oder geladen werden: {error}",
-                className="scenario-status-message scenario-status-error",
-            ),
-        ]
+        return no_update, html.Span(
+            f"Letzte Eingaben konnten nicht gemerkt werden: {error}",
+            className="scenario-status-message scenario-status-error",
+        )
+    return browser_store.make_last_inputs(values), ""
 
 
 @app.callback(

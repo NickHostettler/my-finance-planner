@@ -7,12 +7,13 @@ from dash import no_update
 from dash._callback_context import context_value
 from dash._utils import AttributeDict
 
-from personal_finance.dashboard import callbacks
+from personal_finance.dashboard import app, callbacks
 from personal_finance.dashboard.callbacks import (
     SCENARIO_INPUT_IDS,
     ask_before_clearing_browser_data,
     manage_scenarios,
     remember_dashboard_inputs,
+    restore_last_inputs,
     update_income_controls,
     update_income_preview,
     update_results,
@@ -254,22 +255,37 @@ def test_unknown_trigger_changes_nothing():
     assert result[-1] is no_update
 
 
-def test_last_inputs_ignore_unrelated_triggers():
-    store = browser_store.make_last_inputs(VALID_INPUTS)
-    inputs = browser_store.values_to_inputs(VALID_INPUTS)
+def test_remembering_stores_the_current_inputs():
+    inputs = callbacks._to_components(browser_store.values_to_inputs(VALID_INPUTS))
 
-    result = run_callback(None, remember_dashboard_inputs, 0, *inputs, store)
+    store, status = remember_dashboard_inputs(*inputs)
 
-    assert result[: len(SCENARIO_INPUT_IDS) + 1] == [no_update] * (len(SCENARIO_INPUT_IDS) + 1)
-    assert result[-1] == ""
+    assert browser_store.read_last_inputs(store) == browser_store.sanitize_values(VALID_INPUTS)
+    assert status == ""
 
 
 def test_last_inputs_report_an_error_instead_of_failing():
     incomplete_inputs = browser_store.values_to_inputs(VALID_INPUTS)[:-1]
 
-    result = run_callback(
-        "monthly-income-input", remember_dashboard_inputs, 0, *incomplete_inputs, None
-    )
+    store, status = remember_dashboard_inputs(*incomplete_inputs)
 
-    assert result[-2] is no_update
-    assert "konnten nicht gemerkt" in result[-1].children
+    assert store is no_update
+    assert "konnten nicht gemerkt" in status.children
+
+
+def test_restoring_fills_the_fields_or_changes_nothing():
+    remembered = browser_store.make_last_inputs(VALID_INPUTS)
+
+    restored = restore_last_inputs(1, remembered)
+
+    assert restored == callbacks._to_components(browser_store.values_to_inputs(VALID_INPUTS))
+    assert restored[SCENARIO_INPUT_IDS.index("return-input")] == "0.04"
+    assert restore_last_inputs(1, None) == [no_update] * len(SCENARIO_INPUT_IDS)
+
+
+def test_no_callback_reads_and_writes_the_same_property():
+    # A callback that reads and writes the same fields made Dash wait forever (CI, #36).
+    for key, callback in app.callback_map.items():
+        outputs = {output.split("@")[0] for output in key.strip(".").split("...")}
+        inputs = {f"{item['id']}.{item['property']}" for item in callback["inputs"]}
+        assert not outputs & inputs, key

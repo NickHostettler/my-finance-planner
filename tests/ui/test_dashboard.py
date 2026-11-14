@@ -604,3 +604,17 @@ def test_burger_toggles_the_inputs_column_in_the_browser():
     assert "app-shell.navbar" in app.callback_map
     callback = app.callback_map["app-shell.navbar"]
     assert [item["id"] for item in callback["inputs"]] == ["navbar-burger"]
+
+
+def test_hidden_inputs_and_tabs_are_not_deferred_by_react_activity():
+    # React's <Activity> defers updates in hidden content; Dash then never finishes loading
+    # the fields in closed input groups (CI). Hidden parts must use display:none instead.
+    accordion = next(
+        component
+        for component in app.layout._traverse()
+        if component.__class__.__name__ == "Accordion"
+    )
+
+    for component in (accordion, _component("result-tabs")):
+        assert component.keepMounted is True
+        assert component.keepMountedMode == "display-none"

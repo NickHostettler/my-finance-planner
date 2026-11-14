@@ -150,7 +150,8 @@ _header = dmc.AppShellHeader(
                 position="bottom-end",
                 withArrow=True,
                 shadow="md",
-                keepMounted=True,
+                # Not keepMounted: hidden content would be rendered with React's <Activity>,
+                # which defers updates, so Dash never finished "loading" the fields in it (CI).
             ),
         ],
         justify="space-between",
@@ -414,6 +415,11 @@ _navbar = dmc.AppShellNavbar(
             value=["income", "balances"],
             variant="separated",
             chevronPosition="right",
+            # Collapsed groups are hidden with display:none. Mantine's default (React's
+            # <Activity>) defers updates inside them, which left Dash waiting forever for the
+            # fields in closed groups on slow machines (seen in CI).
+            keepMounted=True,
+            keepMountedMode="display-none",
             className="input-groups",
         ),
     ],
