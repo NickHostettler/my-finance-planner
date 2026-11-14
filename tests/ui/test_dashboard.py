@@ -1,6 +1,7 @@
 """Tests for dashboard income input normalization."""
 
 import pytest
+from dash import html
 
 from personal_finance.core.income import normalize_income
 from personal_finance.core.projection import project_balance
@@ -16,7 +17,20 @@ from personal_finance import config
 from personal_finance.core import ahv
 
 
-def _update_dashboard(
+def _update_dashboard(**inputs):
+    """All three result tabs in one container (as a one-element list) and the notice."""
+    *sections, notice = _results(**inputs)
+    return [html.Div(sections)], notice
+
+
+def _error(**inputs):
+    """The validation message (shown in every tab) and the notice."""
+    *sections, notice = _results(**inputs)
+    assert all(section is sections[0] for section in sections)
+    return sections[0], notice
+
+
+def _results(
     *,
     initial_3a=0,
     initial_3b=0,
@@ -199,7 +213,7 @@ def test_nominal_real_selection_defaults_to_nominal_and_is_saved_with_scenario_i
     )
 
     assert selection.value == "nominal"
-    assert {option["value"] for option in selection.options} == {"nominal", "real"}
+    assert {option["value"] for option in selection.data} == {"nominal", "real"}
     assert "display-basis-input" in SCENARIO_INPUT_IDS
     assert {
         "ahv-average-income-input",
@@ -390,7 +404,7 @@ def test_ahv_rent_is_separate_and_projected_in_nominal_or_real_basis():
     ],
 )
 def test_dashboard_rejects_invalid_ahv_inputs(average_income, years, message):
-    result, notice = _update_dashboard(
+    result, notice = _error(
         ahv_average_income=average_income,
         ahv_contribution_years=years,
     )
@@ -478,7 +492,7 @@ def test_pillar2_interest_assumptions_distinguish_fixed_and_user_selected_rates(
         if isinstance(getattr(component, "children", None), str)
     )
     assert "verwendet fest 4% pro Jahr" in minimum_text
-    assert "Für einen eigenen Zinssatz wähle oben «Eigene PK-Werte»." in minimum_text
+    assert "Für einen eigenen Zinssatz wähle links «Eigene PK-Werte»." in minimum_text
 
     custom_content, _ = _update_dashboard(
         pillar2_mode="custom",
@@ -503,7 +517,7 @@ def test_pillar2_interest_assumptions_distinguish_fixed_and_user_selected_rates(
     ],
 )
 def test_custom_pillar2_rejects_invalid_values(employee, employer, annual_return):
-    result, notice = _update_dashboard(
+    result, notice = _error(
         pillar2_mode="custom",
         pillar2_employee=employee,
         pillar2_employer=employer,
@@ -537,3 +551,56 @@ def test_chart_card_sets_explicit_graph_height(height):
     graph = next(component for component in card._traverse() if component.__class__.__name__ == "Graph")
 
     assert graph.style["height"] == f"{height}px"
+
+
+# --- Mantine layout (issue #36) -------------------------------------------------------------
+
+
+def _component(component_id):
+    return next(
+        component
+        for component in app.layout._traverse()
+        if getattr(component, "id", None) == component_id
+    )
+
+
+def test_page_loads_react_19_for_dash_mantine_components():
+    from personal_finance.dashboard.app import REACT_VERSION
+
+    page = app.server.test_client().get("/").get_data(as_text=True)
+
+    assert REACT_VERSION.startswith("19.")
+    # Dash adds a cache-busting fingerprint inside the file name: react@19.v4_5_0m….2.4.min.js
+    assert "deps/react@19." in page
+    assert "deps/react@18." not in page
+
+
+def test_results_are_split_into_overview_pension_and_assumption_tabs():
+    tabs = _component("result-tabs")
+    tab_values = [
+        component.value
+        for component in tabs._traverse()
+        if component.__class__.__name__ == "TabsTab"
+    ]
+
+    assert tab_values == ["overview", "pension", "assumptions"]
+    assert tabs.value == "overview"
+    # Hidden tabs stay mounted so they always show the latest results.
+    assert tabs.keepMounted is True
+    for section_id in ("overview-section", "pension-section", "assumptions-section"):
+        assert _component(section_id) is not None
+
+
+def test_every_scenario_input_is_in_the_layout_and_inputs_fold_away_on_phones():
+    ids = {getattr(component, "id", None) for component in app.layout._traverse()}
+
+    assert set(SCENARIO_INPUT_IDS) <= ids
+    shell = _component("app-shell")
+    assert shell.navbar["collapsed"] == {"mobile": True}
+    assert _component("navbar-burger").opened is False
+
+
+def test_burger_toggles_the_inputs_column_in_the_browser():
+    assert "app-shell.navbar" in app.callback_map
+    callback = app.callback_map["app-shell.navbar"]
+    assert [item["id"] for item in callback["inputs"]] == ["navbar-burger"]

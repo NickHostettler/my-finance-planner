@@ -69,8 +69,8 @@ def browser():
 class User:
     """One user = one isolated browser context with its own localStorage."""
 
-    def __init__(self, browser, base_url):
-        self.context = browser.new_context()
+    def __init__(self, browser, base_url, viewport=None):
+        self.context = browser.new_context(viewport=viewport) if viewport else browser.new_context()
         self.page = self.context.new_page()
         self.errors = []
         self.page.on("pageerror", lambda error: self.errors.append(str(error)))
@@ -94,26 +94,39 @@ class User:
         self.wait_until_idle()
 
     def income(self):
-        return self.page.locator("#monthly-income-input").input_value()
+        # The field shows Swiss thousand separators (987’600); compare the plain digits.
+        return self.page.locator("#monthly-income-input").input_value().replace("’", "")
 
     def set_income(self, value):
         self.page.fill("#monthly-income-input", value)
         self.page.press("#monthly-income-input", "Tab")
         self.wait_until_idle()
 
+    def open_scenarios(self):
+        """Open the "Szenarien" menu in the header (if it is not open yet)."""
+        if not self.page.locator("#scenario-save-button").is_visible():
+            self.page.click("#scenario-menu-button")
+            self.page.locator("#scenario-save-button").wait_for(state="visible")
+
     def save_scenario(self, name):
+        self.open_scenarios()
         self.page.fill("#scenario-name-input", name)
         self.page.click("#scenario-save-button")
         self.wait_until_idle()
 
     def dropdown_options(self):
-        button = self.page.locator("#scenario-select")
-        button.click()
+        self.open_scenarios()
+        select = self.page.locator("#scenario-select")
+        select.click()
         self.page.wait_for_timeout(400)
-        popup = self.page.locator(f"[id='{button.get_attribute('aria-controls')}']")
-        text = popup.inner_text() if popup.count() else ""
+        listbox = select.get_attribute("aria-controls")  # only set while options exist
+        names = (
+            self.page.locator(f"[id='{listbox}'] [role='option']").all_inner_texts()
+            if listbox
+            else []
+        )
         self.page.keyboard.press("Escape")
-        return [line.strip() for line in text.splitlines() if line.strip()]
+        return [name.strip() for name in names if name.strip()]
 
     def local_storage(self):
         return self.page.evaluate("() => Object.fromEntries(Object.entries(localStorage))")
@@ -139,6 +152,7 @@ class User:
         def _answer(dialog):
             dialog.accept() if confirm else dialog.dismiss()
 
+        self.open_scenarios()
         self.page.once("dialog", _answer)
         if confirm:
             with self.page.expect_navigation():
@@ -162,5 +176,12 @@ def alice(browser, base_url):
 @pytest.fixture
 def bob(browser, base_url):
     user = User(browser, base_url)
+    yield user
+    user.close()
+
+
+@pytest.fixture
+def phone_user(browser, base_url):
+    user = User(browser, base_url, viewport={"width": 390, "height": 844})
     yield user
     user.close()

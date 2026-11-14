@@ -18,6 +18,7 @@ from personal_finance.core.projection import project_balance
 from personal_finance.dashboard.app import app
 from personal_finance.dashboard.components import (
     money,
+    unit_width,
 )
 from personal_finance.dashboard.layout import (
     LAST_INPUTS_STORE_ID,
@@ -27,6 +28,8 @@ from personal_finance.dashboard.layout import (
 )
 from personal_finance.dashboard.results import results_view
 from personal_finance.storage import browser_store
+
+RESULT_SECTION_IDS = ["overview-section", "pension-section", "assumptions-section"]
 
 
 @app.callback(
@@ -65,6 +68,28 @@ SCENARIO_INPUT_IDS = [
     "ahv-contribution-years-input",
 ]
 
+# The return switch (SegmentedControl) only knows text values; stored values are numbers.
+_RETURN_INPUT_INDEX = SCENARIO_INPUT_IDS.index("return-input")
+
+
+def _from_components(component_values):
+    """Input values as stored: an emptied number field is ``None``, the return a number."""
+    values = [None if value == "" else value for value in component_values]
+    if isinstance(values[_RETURN_INPUT_INDEX], str):
+        try:
+            values[_RETURN_INPUT_INDEX] = float(values[_RETURN_INPUT_INDEX])
+        except ValueError:
+            values[_RETURN_INPUT_INDEX] = None
+    return values
+
+
+def _to_components(values):
+    """Inverse of :func:`_from_components` for setting the input fields."""
+    values = list(values)
+    selected_return = values[_RETURN_INPUT_INDEX]
+    values[_RETURN_INPUT_INDEX] = None if selected_return is None else str(selected_return)
+    return values
+
 
 def _scenario_options(store_data):
     return [
@@ -89,7 +114,7 @@ def _scenario_action_response(
     )
     status = html.Span(message, className=status_class) if message else ""
     updated_values = (
-        browser_store.values_to_inputs(values)
+        _to_components(browser_store.values_to_inputs(values))
         if values is not None
         else [no_update] * len(SCENARIO_INPUT_IDS)
     )
@@ -97,7 +122,7 @@ def _scenario_action_response(
 
 
 @app.callback(
-    Output("scenario-select", "options"),
+    Output("scenario-select", "data"),
     Output("scenario-select", "value"),
     Output("scenario-status", "children"),
     Output("scenario-name-input", "value"),
@@ -133,7 +158,7 @@ def manage_scenarios(
             new_state = browser_store.save_scenario(
                 store_data,
                 normalized_name,
-                browser_store.values_from_inputs(list(input_values)),
+                browser_store.values_from_inputs(_from_components(input_values)),
             )
             return _scenario_action_response(
                 _scenario_options(new_state),
@@ -193,10 +218,10 @@ def remember_dashboard_inputs(_initial_load, *args):
             values = browser_store.read_last_inputs(store_data)
             if values is None:
                 return [*no_changes, no_update, ""]
-            return [*browser_store.values_to_inputs(values), no_update, ""]
+            return [*_to_components(browser_store.values_to_inputs(values)), no_update, ""]
 
         if ctx.triggered_id in SCENARIO_INPUT_IDS:
-            values = browser_store.values_from_inputs(input_values)
+            values = browser_store.values_from_inputs(_from_components(input_values))
             return [*no_changes, browser_store.make_last_inputs(values), ""]
         return [*no_changes, no_update, ""]
     except ValueError as error:
@@ -219,26 +244,10 @@ def update_pillar2_controls(mode):
 
 
 @app.callback(
-    Output("retirement-age-input", "options"),
-    Output("retirement-age-input", "value"),
-    Input("current-age-input", "value"),
-    State("retirement-age-input", "value"),
-)
-def update_retirement_options(current_age, retirement_age):
-    age = int(current_age or 35)
-    minimum = max(config.MIN_RETIREMENT_AGE, age)
-    options = [
-        {"label": f"{value} Jahre", "value": value}
-        for value in range(minimum, max(config.MAX_RETIREMENT_AGE, minimum) + 1)
-    ]
-    selected = retirement_age if retirement_age is not None and retirement_age >= minimum else minimum
-    return options, selected
-
-
-@app.callback(
-    Output("income-label", "children"),
-    Output("income-suffix", "children"),
-    Output("income-hint", "children"),
+    Output("monthly-income-input", "label"),
+    Output("monthly-income-input", "rightSection"),
+    Output("monthly-income-input", "rightSectionWidth"),
+    Output("monthly-income-input", "description"),
     Output("canton-control", "style"),
     Input("income-period-input", "value"),
     Input("income-type-input", "value"),
@@ -246,7 +255,7 @@ def update_retirement_options(current_age, retirement_age):
 def update_income_controls(period, income_type):
     period_label = "jährliches" if period == "yearly" else "monatliches"
     income_label = "Bruttoeinkommen" if income_type == "gross" else "Nettoeinkommen"
-    suffix = "CHF/Jahr" if period == "yearly" else "CHF/Monat"
+    unit = "CHF/Jahr" if period == "yearly" else "CHF/Monat"
     hint = (
         "Betrag vor Abzügen; das Netto wird anhand deines Kantons geschätzt."
         if income_type == "gross"
@@ -254,7 +263,8 @@ def update_income_controls(period, income_type):
     )
     return (
         f"Dein {period_label} {income_label}",
-        suffix,
+        unit,
+        unit_width(unit),
         hint,
         {"display": "block" if income_type == "gross" else "none"},
     )
@@ -289,61 +299,42 @@ def update_income_preview(amount, period, income_type, age, canton):
 
 
 @app.callback(
-    Output("results-section", "children"),
+    *[Output(section_id, "children") for section_id in RESULT_SECTION_IDS],
     Output("calculation-notice", "children"),
-    Input("monthly-income-input", "value"),
-    Input("income-period-input", "value"),
-    Input("income-type-input", "value"),
-    Input("canton-input", "value"),
-    Input("current-age-input", "value"),
-    Input("retirement-age-input", "value"),
-    Input("savings-mode-input", "value"),
-    Input("pillar3a-rate-input", "value"),
-    Input("pillar3a-amount-input", "value"),
-    Input("pillar3b-amount-input", "value"),
-    Input("pillar3a-initial-input", "value"),
-    Input("pillar3b-initial-input", "value"),
-    Input("pillar2-initial-input", "value"),
-    Input("pillar2-mode-input", "value"),
-    Input("pillar2-employee-input", "value"),
-    Input("pillar2-employer-input", "value"),
-    Input("pillar2-return-input", "value"),
-    Input("return-input", "value"),
-    Input("display-basis-input", "value"),
-    Input("ahv-average-income-input", "value"),
-    Input("ahv-contribution-years-input", "value"),
+    *[Input(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
 )
-def update_results(
-    income,
-    income_period,
-    income_type,
-    canton,
-    current_age,
-    retirement_age,
-    savings_mode,
-    savings_rate,
-    pillar3a_amount,
-    pillar3b_amount,
-    initial_3a,
-    initial_3b,
-    initial_2,
-    pillar2_mode,
-    pillar2_employee,
-    pillar2_employer,
-    pillar2_return,
-    assumed_return,
-    display_basis,
-    ahv_average_income,
-    ahv_contribution_years,
-):
+def update_results(*component_values):
+    """Validate the inputs and render the three result tabs (same order as the inputs)."""
+    (
+        income,
+        income_period,
+        income_type,
+        canton,
+        current_age,
+        retirement_age,
+        savings_mode,
+        savings_rate,
+        pillar3a_amount,
+        pillar3b_amount,
+        initial_3a,
+        initial_3b,
+        initial_2,
+        pillar2_mode,
+        pillar2_employee,
+        pillar2_employer,
+        pillar2_return,
+        assumed_return,
+        display_basis,
+        ahv_average_income,
+        ahv_contribution_years,
+    ) = _from_components(component_values)
+
     def show_error(message: str):
-        return (
-            html.Div(
-                [html.Strong("Eingaben prüfen"), html.P(message)],
-                className="validation-message",
-            ),
-            "",
+        error = html.Div(
+            [html.Strong("Eingaben prüfen"), html.P(message)],
+            className="validation-message",
         )
+        return error, error, error, ""
 
     if current_age is None or retirement_age is None:
         return show_error("Bitte wähle dein aktuelles Alter und dein Pensionierungsalter.")
@@ -457,7 +448,7 @@ def update_results(
         pillar3a = calculator.calculate_pillar3a(monthly_amount=float(pillar3a_amount))
         requested_3a_monthly = float(pillar3a_amount)
     pillar3b = calculator.calculate_pillar3b(monthly_amount=float(pillar3b_amount))
-    content, notice = results_view(
+    overview, pension, assumptions, notice = results_view(
         income=monthly_net_income,
         current_age=int(current_age),
         retirement_age=int(retirement_age),
@@ -481,7 +472,20 @@ def update_results(
             f"Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
             f"{money(pillar3a.monthly_savings)} pro Monat begrenzt."
         )
-    return content, notice
+    return overview, pension, assumptions, notice
+
+
+# Phones: the burger in the header shows or hides the inputs column (runs in the browser).
+app.clientside_callback(
+    """
+    function (isOpen, navbar) {
+        return Object.assign({}, navbar, {collapsed: {mobile: !isOpen}});
+    }
+    """,
+    Output("app-shell", "navbar"),
+    Input("navbar-burger", "opened"),
+    State("app-shell", "navbar"),
+)
 
 
 # --- welcome notice and "delete all data in this browser" (issue #11) ----------------
