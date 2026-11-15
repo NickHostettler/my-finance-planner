@@ -12,9 +12,11 @@ from dash import Input, Output, State, ctx, html, no_update
 from personal_finance import config
 from personal_finance.calculator import FinanceCalculator
 from personal_finance.core import ahv
+from personal_finance.core.home_plan import HomeInputs, plan_purchase
 from personal_finance.core.income import normalize_income
 from personal_finance.core.pillar_2 import Pillar2Result
 from personal_finance.core.projection import project_balance
+from personal_finance.dashboard import home_view
 from personal_finance.dashboard.app import app
 from personal_finance.dashboard.components import (
     money,
@@ -29,7 +31,12 @@ from personal_finance.dashboard.layout import (
 from personal_finance.dashboard.results import results_view
 from personal_finance.storage import browser_store
 
-RESULT_SECTION_IDS = ["overview-section", "pension-section", "assumptions-section"]
+RESULT_SECTION_IDS = [
+    "overview-section",
+    "pension-section",
+    "home-section",
+    "assumptions-section",
+]
 
 
 @app.callback(
@@ -327,7 +334,7 @@ def update_income_preview(amount, period, income_type, age, canton):
     *[Input(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
 )
 def update_results(*component_values):
-    """Validate the inputs and render the three result tabs (same order as the inputs)."""
+    """Validate the inputs and render the result tabs (inputs in SCENARIO_INPUT_IDS order)."""
     values = _from_components(component_values)
     (
         income,
@@ -358,14 +365,14 @@ def update_results(*component_values):
             [html.Strong("Eingaben prüfen"), html.P(message)],
             className="validation-message",
         )
-        return error, error, error, ""
+        return error, error, error, error, ""
 
     if current_age is None or retirement_age is None:
         return show_error("Bitte wähle dein aktuelles Alter und dein Pensionierungsalter.")
     if current_age < 18 or retirement_age < current_age:
         return show_error("Das Pensionierungsalter muss mindestens deinem aktuellen Alter entsprechen.")
     try:
-        monthly_net_income, _ = normalize_income(
+        monthly_net_income, monthly_gross_income = normalize_income(
             income,
             income_period,
             income_type,
@@ -496,7 +503,42 @@ def update_results(*component_values):
             f"Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
             f"{money(pillar3a.monthly_savings)} pro Monat begrenzt."
         )
-    return overview, pension, assumptions, notice
+    home = _home_results(
+        dict(zip(browser_store.SCENARIO_FIELDS, values)),
+        current_age=int(current_age),
+        retirement_age=int(retirement_age),
+        income_annual=(monthly_gross_income if income_type == "gross" else monthly_net_income)
+        * 12,
+        income_is_net=income_type != "gross",
+    )
+    return overview, pension, home, assumptions, notice
+
+
+def _percent_to_rate(value):
+    """Percent from an input field as a decimal; anything else is passed on for validation."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value / 100
+    return value
+
+
+def _home_results(values, current_age, retirement_age, income_annual, income_is_net):
+    """The "Wohneigentum" tab: hint, error message or the assessment of the purchase."""
+    if values["home_plan"] != "on":
+        return home_view.home_section(None)
+    inputs = HomeInputs(
+        price=values["home_price"],
+        savings=values["home_savings"],
+        pillar3a=values["home_pillar3a"],
+        pillar2=values["home_pillar2"],
+        purchase_age=values["home_purchase_age"],
+        gross_income=values["home_gross_income"],
+        imputed_rate=_percent_to_rate(values["home_imputed_rate"]),
+    )
+    try:
+        plan = plan_purchase(inputs, current_age, retirement_age, income_annual, income_is_net)
+    except ValueError as error:
+        return home_view.home_section(None, str(error))
+    return home_view.home_section(plan)
 
 
 # Phones: the burger in the header shows or hides the inputs column (runs in the browser).

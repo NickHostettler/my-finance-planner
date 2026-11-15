@@ -601,11 +601,13 @@ _results = html.Div(
                     [
                         dmc.TabsTab("Übersicht", value="overview"),
                         dmc.TabsTab("Vorsorge", value="pension"),
+                        dmc.TabsTab("Wohneigentum", value="home"),
                         dmc.TabsTab("Annahmen", value="assumptions"),
                     ]
                 ),
                 dmc.TabsPanel(html.Div(id="overview-section"), value="overview", pt="md"),
                 dmc.TabsPanel(html.Div(id="pension-section"), value="pension", pt="md"),
+                dmc.TabsPanel(html.Div(id="home-section"), value="home", pt="md"),
                 dmc.TabsPanel(html.Div(id="assumptions-section"), value="assumptions", pt="md"),
             ],
             id="result-tabs",

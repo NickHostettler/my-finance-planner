@@ -603,11 +603,12 @@ def test_results_are_split_into_overview_pension_and_assumption_tabs():
         if component.__class__.__name__ == "TabsTab"
     ]
 
-    assert tab_values == ["overview", "pension", "assumptions"]
+    assert tab_values == ["overview", "pension", "home", "assumptions"]
     assert tabs.value == "overview"
     # Hidden tabs stay mounted so they always show the latest results.
     assert tabs.keepMounted is True
-    for section_id in ("overview-section", "pension-section", "assumptions-section"):
+    for section_id in ("overview-section", "pension-section", "home-section",
+                       "assumptions-section"):
         assert _component(section_id) is not None
 
 

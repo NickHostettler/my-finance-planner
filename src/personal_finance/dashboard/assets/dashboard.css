@@ -313,6 +313,68 @@ body {
   text-decoration: underline;
 }
 
+/* --- home ownership ------------------------------------------------------------------ */
+
+.traffic-light {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  background: #1d2b26;
+}
+
+.lamp {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  opacity: 0.22;
+}
+
+/* "color" feeds the glow of the lit lamp (box-shadow uses currentColor). */
+.lamp-red {
+  color: #e5484d;
+  background: currentColor;
+}
+
+.lamp-orange {
+  color: #f5a524;
+  background: currentColor;
+}
+
+.lamp-green {
+  color: #30a46c;
+  background: currentColor;
+}
+
+.lamp-on {
+  opacity: 1;
+  box-shadow: 0 0 12px currentColor;
+}
+
+.traffic-headline {
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.traffic-green {
+  color: var(--green);
+}
+
+.traffic-orange {
+  color: #b26a00;
+}
+
+.traffic-red {
+  color: #a63d40;
+}
+
+.home-reasons {
+  color: #4a5a52;
+}
+
 /* --- scenarios, notice, footer ----------------------------------------------------- */
 
 .scenario-status:empty {

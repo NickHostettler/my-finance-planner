@@ -138,13 +138,113 @@ def test_capped_3a_contribution_is_explained():
     assert "Modell-Limit" in notice
 
 
-def test_results_fill_all_three_tabs():
-    overview, pension, assumptions, _ = results()
+def test_results_fill_all_tabs():
+    overview, pension, home, assumptions, _ = results()
 
-    texts = [repr(section) for section in (overview, pension, assumptions)]
+    texts = [repr(section) for section in (overview, pension, home, assumptions)]
     assert "Projiziertes Vorsorgekapital" in texts[0]
     assert "Dein Sparplan" in texts[1]
-    assert "Modell statt Beratung" in texts[2]
+    assert "Wohneigentum planen" in texts[2]
+    assert "Modell statt Beratung" in texts[3]
+
+
+# --- the "Wohneigentum" tab (issue #25) ----------------------------------------------------
+
+HOME = {
+    "home_plan": "on",
+    "home_price": 1_000_000,
+    "home_savings": 170_000,
+    "home_pillar3a": 0,
+    "home_pillar2": 60_000,
+    "home_gross_income": 200_000,
+    "home_imputed_rate": 5,
+}
+
+
+def texts(component):
+    """All texts in a component tree (children, titles and aria labels), joined."""
+    found = []
+    for node in [component, *component._traverse()]:
+        for prop in ("children", "title", "aria-label"):
+            value = getattr(node, prop, None)
+            if isinstance(value, str):
+                found.append(value)
+    return " ".join(found)
+
+
+def home_tab(**overrides):
+    return results(**{**HOME, **overrides})[2]
+
+
+def test_home_tab_shows_the_assessment_with_traffic_light():
+    tab = home_tab()
+    text = texts(tab)
+
+    assert "Tragbar" in text
+    assert "Ampel: Tragbar" in text
+    assert "CHF 200’000" in text  # equity
+    assert "CHF 800’000" in text  # mortgage
+    assert "Maximal finanzierbarer Kaufpreis" in text
+    lamps = [node for node in tab._traverse() if "lamp-on" in str(getattr(node, "className", ""))]
+    assert [lamp.className for lamp in lamps] == ["lamp lamp-green lamp-on"]
+
+
+@pytest.mark.parametrize(
+    ("overrides", "headline", "reason"),
+    [
+        ({"home_gross_income": 185_000}, "Knapp tragbar", "nahe an der Grenze"),
+        ({"home_savings": 100_000, "home_pillar2": 130_000}, "Nicht tragbar",
+         "harte Eigenmittel"),
+        ({"home_gross_income": 120_000}, "Nicht tragbar", "erlaubt ist höchstens"),
+    ],
+)
+def test_home_tab_explains_why_a_purchase_is_tight_or_not_affordable(overrides, headline, reason):
+    text = texts(home_tab(**overrides))
+
+    assert f"Ampel: {headline}" in text
+    assert reason in text
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"home_price": None}, "Kaufpreis"),
+        ({"home_price": ""}, "Kaufpreis"),
+        ({"home_imputed_rate": 0}, "kalkulatorische Zins"),
+        ({"home_imputed_rate": None}, "kalkulatorische Zins"),
+        ({"home_savings": -5}, "Ersparte"),
+        ({"home_purchase_age": 65}, "Kaufalter"),
+        ({"home_purchase_age": 30}, "Kaufalter"),
+        ({"home_savings": 2_000_000}, "höher als Kaufpreis"),
+    ],
+)
+def test_invalid_home_inputs_show_a_message_only_in_the_home_tab(overrides, message):
+    overview, _, home, _, _ = results(**{**HOME, **overrides})
+
+    assert home.className == "validation-message"
+    assert "Wohneigentum" in home.children[0].children
+    assert message in home.children[1].children
+    assert getattr(overview, "className", None) != "validation-message"
+
+
+def test_home_tab_uses_the_income_inputs_without_an_entered_gross_income():
+    net = texts(home_tab(home_gross_income=None))
+    gross = texts(home_tab(home_gross_income=None, income_type="gross", income=16_000))
+
+    assert "Bruttoeinkommen fehlt" in net
+    assert "CHF 86’400" in net  # 7'200 net per month x 12
+    assert "Bruttoeinkommen fehlt" not in gross
+    assert "CHF 192’000" in gross  # 16'000 gross per month x 12
+
+
+def test_without_a_planned_purchase_the_other_tabs_stay_the_same():
+    planned = results(**HOME)
+    not_planned = results(**{**HOME, "home_plan": "off"})
+
+    assert [repr(section) for section in planned[:2]] == [
+        repr(section) for section in not_planned[:2]
+    ]
+    assert "Wohneigentum planen" in texts(not_planned[2])
 
 
 # --- values coming from the Mantine input fields ------------------------------------------
