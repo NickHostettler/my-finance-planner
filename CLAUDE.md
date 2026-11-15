@@ -13,8 +13,38 @@ Weitere Regeln liegen dort, wo sie gelten, und werden beim Arbeiten im Ordner mi
 | `src/personal_finance/dashboard/CLAUDE.md` | Dash/Mantine-Stolperfallen, **Layout und Breiten** |
 | `tests/CLAUDE.md` | Testaufbau, Coverage, e2e |
 
-Skills (`.claude/skills/`): `ui-check` (alle Tabs auf Handy- und Desktopbreite prüfen),
-`release` (Version, Tag, GitHub-Release, Deploy).
+## Claude-Code-Struktur
+
+```
+CLAUDE.md                     dieses Dokument: Regeln, die überall gelten
+src/…/core|dashboard/CLAUDE.md, tests/CLAUDE.md   Regeln pro Bereich (Tabelle oben)
+.claude/
+  settings.json               geteilt: Rechte, Schutz von .env, Format-Hook
+  settings.local.json         persönlich, nicht im Repo
+  hooks/format_python.py      formatiert jede bearbeitete .py-Datei mit ruff format
+  skills/<name>/SKILL.md      wiederkehrende Abläufe
+scripts/ui_check.py           Werkzeug für den Skill ui-check
+```
+
+| Skill | Wann |
+|---|---|
+| `ui-check` | nach jeder Änderung an Layout, CSS, Karten, Grafiken oder Tabs |
+| `pr` | Arbeit als Pull Request gegen `main` abgeben |
+| `release` | Meilenstein fertig: Version, Tag, GitHub-Release, Deploy |
+| `jahreswerte` | Sätze und Grenzbeträge in `config.py` auf ein neues Jahr bringen |
+
+Was wohin gehört:
+
+- **CLAUDE.md:** kurze Regeln und Stolperfallen, die bei jeder Arbeit im Ordner gelten. Eine
+  Regel für nur einen Bereich gehört in dessen CLAUDE.md, nicht hierher.
+- **Skill:** ein Ablauf mit mehreren Schritten, der nur manchmal gebraucht wird. Ein neuer
+  Skill lohnt sich, sobald derselbe Ablauf zum zweiten Mal erklärt werden müsste.
+- **Hook / `settings.json`:** was immer und ohne Nachdenken passieren muss (Formatierung,
+  Rechte). Hooks blockieren nie und ändern nur die gerade bearbeitete Datei.
+- Bewusst nicht vorhanden: eigene Subagenten, MCP-Server, Plugins und `.claude/commands/`
+  (Skills ersetzen Commands). Erst anlegen, wenn ein konkreter Bedarf da ist.
+- Neue Erkenntnisse aus einer Sitzung (Stolperfalle, geänderter Ablauf) im selben PR in die
+  passende CLAUDE.md oder den Skill nachtragen und Überholtes dort löschen.
 
 ## Aufbau
 

@@ -15,8 +15,9 @@ welche Issues bzw. welcher Meilenstein enthalten sind. Tag, GitHub-Release und D
      anzupassen. `tests/unit/test_version.py` prüft, dass alles übereinstimmt.
    - Doku aktuell? `docs/ANLEITUNG.md`, README (englischer Kopf, Highlights, Screenshot
      `docs/images/dashboard.png`), Tab „Annahmen“ mit Quellen und Stand.
-   - `uv run ruff check .` und `uv run pytest -q --cov` grün, Skill `ui-check` ohne Probleme.
-   - Commit „Release <version>“, Push, PR gegen `main` (Beschreibung auf Deutsch).
+   - `uv run ruff check .`, `uv run ruff format --check .` und `uv run pytest -q --cov` grün,
+     Skill `ui-check` ohne Probleme.
+   - Commit „Release <version>“, dann Push und PR mit dem Skill `pr`.
 2. **Nach dem Merge** (macht der Nutzer oder mit seiner Zustimmung):
    - CI auf `main` abwarten. Render deployt erst, wenn die CI grün ist.
    - Tag und Release:
