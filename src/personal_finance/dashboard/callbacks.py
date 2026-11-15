@@ -51,6 +51,7 @@ RESULT_SECTION_IDS = [
     "overview-section",
     "pension-section",
     "home-section",
+    "life-section",
     "assumptions-section",
 ]
 
@@ -683,19 +684,33 @@ def update_results(*component_values):
             [html.Strong("Eingaben prüfen"), html.P(str(error))],
             className="validation-message",
         )
-        return message, message, message, message, ""
+        return message, message, message, message, message, ""
 
     values = base.values
+    # Life phases (#33): an error only shows in their tab; the rest is computed without them.
+    life, life_tab = _life_results(base)
+    pots = base.pots
+    ahv_today = None
+    if life is not None:
+        pots = tuple(
+            Pot(contributions, pot.annual_return, pot.initial)
+            for pot, contributions in zip(base.pots, life.contributions)
+        )
+        ahv_today = life.gap.ahv_plan
     plan, home = _home_results(
         values,
         current_age=base.current_age,
         retirement_age=base.retirement_age,
         income_annual=base.income_annual,
         income_is_net=base.income_is_net,
-        pots=base.pots,
+        pots=pots,
         display_basis=values["display_basis"],
-        ahv_annual_at_retirement=_ahv_annual(base),
+        ahv_annual_at_retirement=_ahv_annual(base, ahv_today),
     )
+    if plan is not None:
+        paths = plan.with_purchase
+    else:
+        paths = None if life is None else life.gap.plan_paths
     overview, pension, assumptions, notice = results_view(
         income=base.monthly_net_income,
         current_age=base.current_age,
@@ -713,27 +728,81 @@ def update_results(*component_values):
         salary_growth=base.salary_growth,
         ahv_average_income=base.ahv_average_income,
         ahv_contribution_years=base.ahv_contribution_years,
-        paths=None if plan is None else plan.with_purchase,
+        paths=paths,
         purchase_note=None if plan is None else plan.withdrawal_note(),
+        per_year=None if life is None else life.contributions,
+        ahv_monthly_today=ahv_today,
+        life_note=None if life is None else life.note(),
     )
     if float(values["pillar3a_amount"]) > base.pillar3a.monthly_savings:
         notice = (
             f"Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
             f"{money(base.pillar3a.monthly_savings)} pro Monat begrenzt."
         )
-    return overview, pension, home, assumptions, notice
+    return overview, pension, home, life_tab, assumptions, notice
 
 
-def _ahv_annual(base: _Projection) -> Optional[float]:
-    """Nominal AHV per year at retirement (13 pensions), like the overview card."""
+def _ahv_annual(base: _Projection, monthly_today: Optional[float] = None) -> Optional[float]:
+    """Nominal AHV per year at retirement (13 pensions), like the overview card.
+
+    ``monthly_today`` replaces the estimate from the AHV inputs (life phases).
+    """
     if base.ahv_average_income is None:
         return None
+    if monthly_today is None:
+        monthly_today = ahv.estimate_monthly_old_age_pension(
+            base.ahv_average_income, base.ahv_contribution_years
+        )
     return 13 * ahv.project_pension_basis(
-        ahv.estimate_monthly_old_age_pension(base.ahv_average_income, base.ahv_contribution_years),
+        monthly_today,
         base.analysis.years_to_retirement,
         config.INFLATION_RATE,
         "nominal",
     )
+
+
+def _phase_income_to_net(base: _Projection):
+    """Turns a monthly phase income on the basis of the income input into a net income."""
+    values = base.values
+
+    def to_net(amount):
+        if values["income_type"] != "gross" or not isinstance(amount, (int, float)):
+            return amount
+        if isinstance(amount, bool) or not math.isfinite(amount) or amount <= 0:
+            return amount  # 0 stays 0; invalid amounts are rejected by the phase check
+        return normalize_income(amount, "monthly", "gross", base.current_age, values["canton"])[0]
+
+    return to_net
+
+
+def _life_results(base: _Projection):
+    """The plan with life phases (``None`` if off or invalid) and the "Lebensphasen" tab."""
+    values = base.values
+    if values["life_plan"] != "on":
+        return None, life_view.life_section(None)
+    pillar2 = base.analysis.pillar2
+    try:
+        outcome = life_view.plan_life(
+            values,
+            current_age=base.current_age,
+            retirement_age=base.retirement_age,
+            monthly_net_income=base.monthly_net_income,
+            to_net=_phase_income_to_net(base),
+            salary_growth=base.salary_growth,
+            pillar3a_monthly=base.pillar3a.monthly_savings,
+            pillar3b_monthly=base.pillar3b.monthly_savings,
+            pillar2_mode=values["pillar2_mode"],
+            own_total=pillar2.annual_contribution_total
+            if values["pillar2_mode"] == "custom"
+            else 0,
+            initial=tuple(pot.initial for pot in base.pots),
+            returns=(base.pillar2_return, base.pots[1].annual_return),
+            ahv_average_income=base.ahv_average_income,
+            ahv_contribution_years=base.ahv_contribution_years,
+        )
+    except ValueError as error:
+        return None, life_view.life_section(None, str(error))
+    return outcome, life_view.life_section(outcome, display_basis=values["display_basis"])
 
 
 def _percent_to_rate(value):

@@ -73,6 +73,7 @@ class PensionYear:
 class PensionGap:
     """The plan with life phases compared with working full time until retirement."""
 
+    yearly: YearlyPlan  # the plan's values per year (income, child costs, …)
     plan: Tuple[PensionYear, ...]
     full_time: Tuple[PensionYear, ...]
     plan_paths: Paths  # balances from today (index 0) until retirement, nominal
@@ -325,6 +326,7 @@ def compare_with_full_time(
             )
         )
     return PensionGap(
+        yearly=plan,
         plan=plan_years,
         full_time=full_years,
         plan_paths=_paths(plan_years, initial, returns),

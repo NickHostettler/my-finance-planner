@@ -171,34 +171,47 @@ def composition_figure(
     initial_3b: float,
     pillar2_return: float,
     inflation_rate: float = 0,
+    per_year=None,
 ) -> go.Figure:
+    """Initial balances, contributions and growth until retirement.
+
+    ``per_year`` (2nd pillar, 3a, 3b) gives the contributions of each year, e.g. with life
+    phases; otherwise they follow the plan.
+    """
     initial_balance = initial_2 + initial_3a + initial_3b
     years = pillar2.years_until_retirement
-    pillar2_contributions = pillar2.contributions()
-    if not isinstance(pillar2_contributions, Sequence):
-        pillar2_contributions = [pillar2_contributions] * years
+    if per_year is None:
+        pillar2_contributions = pillar2.contributions()
+        if not isinstance(pillar2_contributions, Sequence):
+            pillar2_contributions = [pillar2_contributions] * years
+        per_year = (
+            pillar2_contributions,
+            [pillar3a.annual_savings] * years,
+            [pillar3b.annual_savings] * years,
+        )
+    pillar2_contributions, pillar3a_contributions, pillar3b_contributions = per_year
     contributions = sum(
-        (pillar2_contributions[year - 1] + pillar3a.annual_savings + pillar3b.annual_savings)
+        (
+            pillar2_contributions[year - 1]
+            + pillar3a_contributions[year - 1]
+            + pillar3b_contributions[year - 1]
+        )
         / ((1 + inflation_rate) ** year)
         for year in range(1, years + 1)
     )
     projected_total = (
         project_balance(
-            pillar2.contributions(),
-            years,
-            pillar2_return,
-            initial_2,
-            inflation_rate,
+            list(pillar2_contributions), years, pillar2_return, initial_2, inflation_rate
         )[-1]
         + project_balance(
-            pillar3a.annual_savings,
+            list(pillar3a_contributions),
             years,
             pillar3a.assumed_annual_return,
             initial_3a,
             inflation_rate,
         )[-1]
         + project_balance(
-            pillar3b.annual_savings,
+            list(pillar3b_contributions),
             years,
             pillar3b.assumed_annual_return,
             initial_3b,
@@ -285,6 +298,95 @@ def comparison_figure(
                 "separatethousands": True,
             },
             yaxis={"showgrid": False, "zeroline": False, "title": None, "autorange": "reversed"},
+        )
+    )
+    return figure
+
+
+def phases_figure(
+    ages: Sequence[int],
+    workloads: Sequence[float],
+    monthly_incomes: Sequence[float],
+    birth_ages: Sequence[int],
+) -> go.Figure:
+    """Workload (bars, right axis in %) and income per month (line) over the years (#33).
+
+    A marker on the age axis shows each birth.
+    """
+    figure = go.Figure()
+    figure.add_trace(
+        go.Bar(
+            x=list(ages),
+            y=[workload * 100 for workload in workloads],
+            name="Pensum",
+            yaxis="y2",
+            marker={"color": COLORS["green_light"], "line": {"color": COLORS["green"], "width": 1}},
+            hovertemplate="Alter %{x}<br>Pensum %{y:.0f} %<extra></extra>",
+        )
+    )
+    figure.add_trace(
+        go.Scatter(
+            x=list(ages),
+            y=list(monthly_incomes),
+            name="Einkommen pro Monat",
+            mode="lines",
+            line={"color": COLORS["green"], "width": 2.5, "shape": "hv"},
+            hovertemplate="Alter %{x}<br>%{y:,.0f} CHF pro Monat<extra></extra>",
+        )
+    )
+    births = [age for age in birth_ages if ages and ages[0] <= age <= ages[-1]]
+    if births:
+        figure.add_trace(
+            go.Scatter(
+                x=births,
+                y=[0] * len(births),
+                name="Geburt",
+                mode="markers",
+                marker={"symbol": "star", "size": 13, "color": COLORS["gold"]},
+                hovertemplate="Geburt mit %{x}<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        **chart_layout(
+            height=300,
+            hovermode="x unified",
+            bargap=0.15,
+            xaxis={"showgrid": False, "zeroline": False, "title": None, "dtick": 5},
+            yaxis2={
+                "overlaying": "y",
+                "side": "right",
+                "range": [0, 105],
+                "showgrid": False,
+                "ticksuffix": " %",
+                "title": None,
+            },
+        )
+    )
+    return figure
+
+
+def gap_figure(ages: Sequence[int], plan: Sequence[float], full_time: Sequence[float]) -> go.Figure:
+    """Retirement capital with the life phases (solid) and at 100 % (dotted)."""
+    figure = go.Figure()
+    for label, values, color, dash in [
+        ("Bei 100 % bis zur Pensionierung", full_time, COLORS["muted"], "dot"),
+        ("Mit deinen Lebensphasen", plan, COLORS["green"], "solid"),
+    ]:
+        figure.add_trace(
+            go.Scatter(
+                x=list(ages),
+                y=list(values),
+                name=label,
+                mode="lines",
+                line={"color": color, "width": 2.5, "dash": dash},
+                hovertemplate=f"<b>{label}</b><br>Alter %{{x}}<br>%{{y:,.0f}} CHF<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        **chart_layout(
+            height=300,
+            hovermode="x unified",
+            xaxis={"showgrid": False, "zeroline": False, "title": None, "dtick": 5},
         )
     )
     return figure

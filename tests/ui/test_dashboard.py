@@ -630,7 +630,7 @@ def test_results_are_split_into_overview_pension_and_assumption_tabs():
         if component.__class__.__name__ == "TabsTab"
     ]
 
-    assert tab_values == ["overview", "pension", "home", "assumptions"]
+    assert tab_values == ["overview", "pension", "home", "life", "assumptions"]
     assert tabs.value == "overview"
     # Hidden tabs stay mounted so they always show the latest results.
     assert tabs.keepMounted is True

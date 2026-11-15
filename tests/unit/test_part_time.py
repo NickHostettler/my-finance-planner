@@ -244,6 +244,7 @@ class TestCompareWithFullTime:
     def test_paths_start_with_today_s_balances(self):
         result = compare()
 
+        assert result.yearly.ages == tuple(year.age for year in result.plan)
         assert result.plan_paths.pillar2[0] == 20_000
         assert result.plan_paths.pillar3a[0] == 10_000
         assert result.plan_paths.pillar3b[0] == 5_000
