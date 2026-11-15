@@ -145,6 +145,19 @@ HOME_PURCHASE_COSTS_RATE = 0.03
 # Ab diesem Anteil der Wohnkosten am Bruttoeinkommen gilt ein Kauf als "knapp" tragbar.
 HOME_TIGHT_COST_TO_INCOME = 0.30
 
+# --- Hypothek in der Vermögensprognose ---------------------------------------------------
+# Effektiver Hypothekarzins: MODELLANNAHME für die Prognose (nicht für die Tragbarkeit, dort
+# gilt der kalkulatorische Zins). Aktuelle Sätze bei der Bank erfragen.
+HOME_MORTGAGE_RATE = 0.02
+# Tragbarkeit im Alter: Die Rente aus der 2. Säule wird mit diesem Umwandlungssatz aus dem
+# Kapital geschätzt. MODELLANNAHME: Der gesetzliche Mindestsatz von 6.8 % gilt nur für den
+# obligatorischen Teil; viele Kassen wenden auf das ganze Guthaben tiefere Sätze an.
+HOME_RETIREMENT_CONVERSION_RATE = 0.05
+# Eigenmietwert: Systemwechsel bei der Wohneigentumsbesteuerung, angenommen in der
+# Volksabstimmung vom 28.9.2025. Der Eigenmietwert entfällt ab 1.1.2029, damit weitgehend
+# auch der Abzug der Schuldzinsen. Das Tool modelliert keine Steuern, nur einen Hinweis.
+HOME_IMPUTED_RENTAL_VALUE_END = "1. Januar 2029"
+
 # --- Wohneigentumsförderung (WEF): Geld aus der 2. Säule und der Säule 3a ---------------
 # Quellen: BVG (SR 831.40) Art. 30c und Art. 79b Abs. 3, WEFV (SR 831.411) Art. 5,
 # BVV 3 (SR 831.461.3) Art. 3. Die Reglemente der Pensionskassen können strenger sein.
