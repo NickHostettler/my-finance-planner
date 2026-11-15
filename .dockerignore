@@ -13,6 +13,9 @@ htmlcov/
 tests/
 docs/
 examples/
+scripts/
+.claude/
+**/CLAUDE.md
 *.sqlite3
 .env
 .env.*
