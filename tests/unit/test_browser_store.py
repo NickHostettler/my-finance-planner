@@ -39,6 +39,8 @@ def sample_values(**overrides):
         "home_pillar2": 50_000,
         "home_gross_income": 190_000,
         "home_imputed_rate": 4.5,
+        "home_mortgage_rate": 1.6,
+        "home_amortisation": "indirect",
     }
     values.update(overrides)
     return values
@@ -158,6 +160,7 @@ class TestUntrustedBrowserData:
         assert loaded["home_imputed_rate"] == 5.0
         assert loaded["home_purchase_age"] is None
         assert loaded["home_gross_income"] is None
+        assert (loaded["home_mortgage_rate"], loaded["home_amortisation"]) == (2.0, "direct")
         assert store.values_from_inputs(store.values_to_inputs(loaded)) == loaded
 
     def test_remembered_inputs_from_v1_0_get_home_defaults(self):

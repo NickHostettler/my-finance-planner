@@ -51,6 +51,8 @@ SCENARIO_FIELDS: Dict[str, str] = {
     "home_pillar2": "number",
     "home_gross_income": "number",
     "home_imputed_rate": "number",
+    "home_mortgage_rate": "number",
+    "home_amortisation": "text",
 }
 
 # Defaults for fields added after the first release. Older scenarios and remembered inputs
@@ -65,6 +67,8 @@ FIELD_DEFAULTS: Dict[str, Any] = {
     "home_pillar3a": 0,
     "home_pillar2": 0,
     "home_imputed_rate": 5.0,
+    "home_mortgage_rate": 2.0,
+    "home_amortisation": "direct",
 }
 
 

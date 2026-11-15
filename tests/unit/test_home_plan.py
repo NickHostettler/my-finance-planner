@@ -4,7 +4,8 @@ import math
 
 import pytest
 
-from personal_finance.core import home
+from personal_finance import config
+from personal_finance.core import home, mortgage
 from personal_finance.core.home_plan import HomeInputs, Pot, plan_purchase, purchase_age
 from personal_finance.core.projection import project_balance
 
@@ -24,7 +25,7 @@ POTS = (Pot(0, 0, 100_000), Pot(0, 0, 0), Pot(0, 0, 200_000))
 
 
 def plan(inputs=INPUTS, current_age=35, retirement_age=65, income=200_000, income_is_net=False,
-         pots=POTS, **changes):
+         pots=POTS, ahv_annual=None, **changes):
     return plan_purchase(
         HomeInputs(**{**inputs.__dict__, **changes}),
         current_age,
@@ -32,6 +33,7 @@ def plan(inputs=INPUTS, current_age=35, retirement_age=65, income=200_000, incom
         income,
         income_is_net,
         *pots,
+        ahv_annual_at_retirement=ahv_annual,
     )
 
 
@@ -167,6 +169,65 @@ class TestWithdrawals:
         only_3a = plan(savings=0, pillar3a=0, pillar2=0, price=100_000,
                        pots=(Pot(0, 0, 0), Pot(0, 0, 0), Pot(0, 0, 0)))
         assert only_3a.withdrawal_note() is None
+
+
+class TestMortgage:
+    """Issue #27: mortgage, amortisation and net wealth in the projection."""
+
+    POTS = (Pot(10_000, 0.02, 150_000), Pot(3_000, 0.04, 40_000), Pot(6_000, 0.04, 100_000))
+
+    def later(self, **changes):
+        arguments = dict(purchase_age=45, pillar3a=0, pillar2=0, savings=200_000)
+        return plan(pots=self.POTS, **{**arguments, **changes})
+
+    def test_direct_debt_falls_and_net_wealth_counts_the_home(self):
+        result = self.later()
+        outcome = result.outcome
+
+        assert result.amortisation == mortgage.DIRECT
+        assert outcome.debt[:10] == [0.0] * 10  # before the purchase
+        assert outcome.debt[10] == pytest.approx(result.assessment.mortgage)
+        assert outcome.debt[-1] == pytest.approx(result.assessment.first_mortgage)
+        assert outcome.property_value[9:11] == [0.0, 1_000_000]
+        assert result.with_purchase.pillar3a == self.POTS[1].path(30)  # 3a untouched
+        for year in (0, 10, 30):
+            paths = outcome.paths
+            assert outcome.net_wealth[year] == pytest.approx(
+                paths.pillar2[year] + paths.pillar3a[year] + paths.pillar3b[year]
+                + outcome.property_value[year] - outcome.debt[year]
+            )
+        assert result.net_wealth_without_purchase()[0] == 290_000
+
+    def test_indirect_pays_into_a_pledged_3a_within_the_3a_limit(self):
+        result = self.later(amortisation=mortgage.INDIRECT)
+        indirect = result.outcome
+        direct = result.outcomes[mortgage.DIRECT]
+
+        assert indirect.plan.annual_pledged == pytest.approx(config.PILLAR3A_ANNUAL_MAX - 3_000)
+        assert indirect.debt[11] > direct.debt[11]
+        assert indirect.paths.pillar3a[11] > direct.paths.pillar3a[11]
+        assert indirect.plan.total_interest > direct.plan.total_interest
+
+    def test_retirement_check_uses_the_pension_after_the_withdrawal(self):
+        result = self.later(pillar2=50_000, ahv_annual=30_000)
+        retirement = result.outcome.retirement
+
+        assert retirement.ahv_income == 30_000
+        assert retirement.pension_income == pytest.approx(
+            result.with_purchase.pillar2[-1] * config.HOME_RETIREMENT_CONVERSION_RATE
+        )
+        assert retirement.annual_costs == pytest.approx(
+            result.outcome.debt[-1] * 0.05 + 1_000_000 * config.HOME_MAINTENANCE_RATE
+        )
+
+    @pytest.mark.parametrize(
+        ("changes", "message"),
+        [({"amortisation": "monthly"}, "direkte oder indirekte"),
+         ({"mortgage_rate": -0.01}, "Hypothekarzins")],
+    )
+    def test_invalid_mortgage_inputs(self, changes, message):
+        with pytest.raises(ValueError, match=message):
+            self.later(**changes)
 
 
 def test_projection_without_withdrawals_is_unchanged():

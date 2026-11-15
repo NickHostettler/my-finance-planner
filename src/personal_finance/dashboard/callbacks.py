@@ -81,6 +81,8 @@ SCENARIO_INPUT_IDS = [
     "home-pillar2-input",
     "home-gross-income-input",
     "home-imputed-rate-input",
+    "home-mortgage-rate-input",
+    "home-amortisation-input",
 ]
 # Same order as the stored fields (browser_store.SCENARIO_FIELDS).
 _BASE_INPUT_COUNT = SCENARIO_INPUT_IDS.index("home-plan-input")
@@ -493,6 +495,20 @@ def update_results(*component_values):
         income_is_net=income_type != "gross",
         pots=pots,
         display_basis=display_basis,
+        # Nominal AHV per year at retirement (13 pensions), like the overview card.
+        ahv_annual_at_retirement=(
+            None
+            if ahv_average_income is None
+            else 13
+            * ahv.project_pension_basis(
+                ahv.estimate_monthly_old_age_pension(
+                    float(ahv_average_income), int(ahv_contribution_years)
+                ),
+                analysis.years_to_retirement,
+                config.INFLATION_RATE,
+                "nominal",
+            )
+        ),
     )
     overview, pension, assumptions, notice = results_view(
         income=monthly_net_income,
@@ -531,7 +547,14 @@ def _percent_to_rate(value):
 
 
 def _home_results(
-    values, current_age, retirement_age, income_annual, income_is_net, pots, display_basis
+    values,
+    current_age,
+    retirement_age,
+    income_annual,
+    income_is_net,
+    pots,
+    display_basis,
+    ahv_annual_at_retirement,
 ):
     """The planned purchase (``None`` if none or invalid) and the "Wohneigentum" tab."""
     if values["home_plan"] != "on":
@@ -544,10 +567,18 @@ def _home_results(
         purchase_age=values["home_purchase_age"],
         gross_income=values["home_gross_income"],
         imputed_rate=_percent_to_rate(values["home_imputed_rate"]),
+        mortgage_rate=_percent_to_rate(values["home_mortgage_rate"]),
+        amortisation=values["home_amortisation"],
     )
     try:
         plan = plan_purchase(
-            inputs, current_age, retirement_age, income_annual, income_is_net, *pots
+            inputs,
+            current_age,
+            retirement_age,
+            income_annual,
+            income_is_net,
+            *pots,
+            ahv_annual_at_retirement=ahv_annual_at_retirement,
         )
     except ValueError as error:
         return None, home_view.home_section(None, str(error))

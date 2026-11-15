@@ -6,11 +6,11 @@ import dash_mantine_components as dmc
 from dash import html
 
 from personal_finance import config
-from personal_finance.core import home
+from personal_finance.core import home, mortgage
 from personal_finance.core.home_plan import HomePlan
 from personal_finance.core.projection import deflate
 from personal_finance.dashboard.components import chart_card, metric_card, money, section_card
-from personal_finance.dashboard.figures import withdrawal_figure
+from personal_finance.dashboard.figures import wealth_figure, withdrawal_figure
 
 # Traffic light: status -> (lit lamp, text colour tone)
 _LIGHTS = {
@@ -213,6 +213,248 @@ def pension_money_section(plan: HomePlan, display_basis: str):
     )
 
 
+_MODE_LABELS = {mortgage.DIRECT: "Direkt", mortgage.INDIRECT: "Indirekt über 3a"}
+
+
+def mortgage_section(plan: HomePlan, display_basis: str):
+    """Mortgage, amortisation and net wealth until retirement; affordability in retirement."""
+    real = display_basis == "real"
+    inflation = config.INFLATION_RATE if real else 0
+    basis = "heutige Kaufkraft" if real else "nominal"
+    outcome = plan.outcome
+    paths = outcome.paths
+    savings = deflate(
+        [sum(values) for values in zip(paths.pillar2, paths.pillar3a, paths.pillar3b)], inflation
+    )
+    property_value = deflate(outcome.property_value, inflation)
+    debt = deflate(outcome.debt, inflation)
+    net_wealth = deflate(outcome.net_wealth, inflation)
+    net_without = deflate(plan.net_wealth_without_purchase(), inflation)
+    current_age = plan.purchase_age - plan.years_until_purchase
+    ages = list(range(current_age, current_age + len(debt)))
+    at_retirement = (1 + inflation) ** (len(debt) - 1)  # nominal -> chosen basis
+    amortisation = outcome.plan
+    assessment = plan.assessment
+
+    cards = dmc.SimpleGrid(
+        [
+            metric_card(
+                "Hypothek bei Pensionierung",
+                money(debt[-1]),
+                f"Start {money(assessment.mortgage)} · {_MODE_LABELS[plan.amortisation]} "
+                "amortisiert",
+                "blue",
+                "%",
+            ),
+            metric_card(
+                "Zinskosten bis zur Pensionierung",
+                money(amortisation.total_interest),
+                f"Effektiver Zins {plan.mortgage_rate:.2%} · nominal, ohne Steuern",
+                "gold",
+                "Σ",
+            ),
+            metric_card(
+                "Nettovermögen bei Pensionierung",
+                money(net_wealth[-1]),
+                f"Vermögen + Immobilie − Hypothek · ohne Kauf {money(net_without[-1])}",
+                "dark",
+                "=",
+            ),
+        ],
+        cols={"base": 1, "sm": 3},
+        spacing="md",
+    )
+
+    def comparison_row(label, values):
+        return dmc.TableTr([dmc.TableTd(label)] + [dmc.TableTd(value) for value in values])
+
+    outcomes = [plan.outcomes[mode] for mode in mortgage.MODES]
+    comparison = section_card(
+        "Direkt oder indirekt amortisieren?",
+        f"Bei Pensionierung · {basis} · Zinskosten nominal",
+        [
+            dmc.TableScrollContainer(
+                dmc.Table(
+                    [
+                        dmc.TableThead(
+                            dmc.TableTr(
+                                [dmc.TableTh("")]
+                                + [
+                                    dmc.TableTh(
+                                        _MODE_LABELS[mode]
+                                        + (" (gewählt)" if mode == plan.amortisation else "")
+                                    )
+                                    for mode in mortgage.MODES
+                                ]
+                            )
+                        ),
+                        dmc.TableTbody(
+                            [
+                                comparison_row(
+                                    "Amortisation pro Jahr",
+                                    [money(item.plan.annual_amortisation) for item in outcomes],
+                                ),
+                                comparison_row(
+                                    "davon in verpfändete 3a",
+                                    [money(item.plan.annual_pledged) for item in outcomes],
+                                ),
+                                comparison_row(
+                                    "Hypothek",
+                                    [money(item.debt[-1] / at_retirement) for item in outcomes],
+                                ),
+                                comparison_row(
+                                    "Säule 3a",
+                                    [
+                                        money(item.paths.pillar3a[-1] / at_retirement)
+                                        for item in outcomes
+                                    ],
+                                ),
+                                comparison_row(
+                                    "Zinskosten bis dahin",
+                                    [money(item.plan.total_interest) for item in outcomes],
+                                ),
+                                comparison_row(
+                                    "Nettovermögen",
+                                    [
+                                        money(item.net_wealth[-1] / at_retirement)
+                                        for item in outcomes
+                                    ],
+                                ),
+                            ]
+                        ),
+                    ],
+                    striped=True,
+                    fz="sm",
+                    className="comparison-table",
+                ),
+                minWidth=360,
+            ),
+            dmc.Text(
+                "Indirekt bleibt die Schuld bis zum Ende der Amortisation gleich hoch, deshalb "
+                "sind die Zinsen höher. Dafür wächst das 3a-Geld mit der Rendite, und die "
+                "3a-Einzahlungen senken das steuerbare Einkommen. Die Steuern rechnet das Tool "
+                "nicht.",
+                size="xs",
+                c="dimmed",
+                mt="sm",
+            ),
+        ],
+        class_name="amortisation-card",
+    )
+
+    notes = []
+    if plan.amortisation == mortgage.INDIRECT and (
+        amortisation.annual_pledged < amortisation.annual_amortisation - 0.005
+    ):
+        notes.append(
+            dmc.Alert(
+                f"In die Säule 3a passen neben deinem 3a-Plan nur noch "
+                f"{money(amortisation.annual_pledged)} pro Jahr (Limit "
+                f"{money(config.PILLAR3A_ANNUAL_MAX)}). Die restlichen "
+                f"{money(amortisation.annual_direct)} pro Jahr werden direkt amortisiert.",
+                title="3a-Limit erreicht",
+                color="yellow",
+                variant="light",
+                radius="lg",
+                className="pledged-cap-hint",
+            )
+        )
+
+    retirement = outcome.retirement
+    status = home.STATUS_AFFORDABLE if retirement.affordable else home.STATUS_NOT_AFFORDABLE
+    ratio = (
+        _percent(retirement.cost_to_income)
+        if retirement.cost_to_income != float("inf")
+        else "–"
+    )
+    retirement_rows = [
+        _detail_row(
+            "Wohnkosten pro Monat",
+            money(retirement.annual_costs / at_retirement / 12),
+        ),
+        _detail_row(
+            f"Rente 2. Säule pro Monat (Umwandlungssatz "
+            f"{config.HOME_RETIREMENT_CONVERSION_RATE:.1%})",
+            money(retirement.pension_income / at_retirement / 12),
+        ),
+        _detail_row(
+            "AHV pro Monat (Jahresbetrag / 12)",
+            "Angaben fehlen"
+            if retirement.ahv_income is None
+            else money(retirement.ahv_income / at_retirement / 12),
+        ),
+        _detail_row("Anteil der Wohnkosten an den Renten", ratio),
+    ]
+    retirement_card = section_card(
+        "Tragbarkeit im Alter",
+        f"Nach der Pensionierung · {basis} · höchstens ⅓ der Renten",
+        [
+            dmc.Group(
+                [
+                    traffic_light(status),
+                    html.Div(
+                        "Im Alter tragbar" if retirement.affordable else "Im Alter nicht tragbar",
+                        className=f"traffic-headline traffic-{_LIGHTS[status]}",
+                    ),
+                ],
+                gap="md",
+                wrap="nowrap",
+            ),
+            html.Div(retirement_rows, className="detail-list"),
+            dmc.Text(
+                "Kalkulatorischer Zins auf der Resthypothek plus Unterhalt, verglichen mit AHV "
+                "und Rente aus der 2. Säule. 3a- und freies Vermögen sind nicht eingerechnet."
+                + (
+                    " Für die AHV gib links unter «AHV-Rente» dein Einkommen an."
+                    if retirement.ahv_income is None
+                    else ""
+                ),
+                size="xs",
+                c="dimmed",
+                mt="xs",
+            ),
+        ],
+        class_name="retirement-card",
+    )
+
+    return dmc.Stack(
+        [
+            dmc.Title(
+                "Hypothek und Vermögen bis zur Pensionierung", order=4, className="card-title"
+            ),
+            cards,
+            chart_card(
+                "Vermögen, Hypothek und Nettovermögen",
+                f"Immobilie zum Kaufpreis, ohne Wertveränderung · {basis}",
+                wealth_figure(ages, savings, property_value, debt, net_wealth),
+                height=360,
+                class_name="wealth-card",
+            ),
+            *notes,
+            dmc.Grid(
+                [
+                    dmc.GridCol(comparison, span={"base": 12, "lg": 7}),
+                    dmc.GridCol(retirement_card, span={"base": 12, "lg": 5}),
+                ],
+                gap="md",
+            ),
+            dmc.Alert(
+                f"Ab dem {config.HOME_IMPUTED_RENTAL_VALUE_END} wird der Eigenmietwert "
+                "abgeschafft (Volksabstimmung vom 28. September 2025). Dann entfällt auch der "
+                "Abzug der Schuldzinsen weitgehend, und der Steuervorteil einer hohen "
+                "Hypothek sinkt. Das Tool berechnet keine Steuern; frag deine "
+                "Steuerverwaltung oder Bank, was das für dich bedeutet.",
+                title="Eigenmietwert und Steuern",
+                color="blue",
+                variant="light",
+                radius="lg",
+                className="imputed-rent-hint",
+            ),
+        ],
+        gap="md",
+    )
+
+
 def home_section(
     plan: Optional[HomePlan], error: Optional[str] = None, display_basis: str = "nominal"
 ):
@@ -360,6 +602,7 @@ def home_section(
             ),
             details,
             pension_money_section(plan, display_basis),
+            mortgage_section(plan, display_basis),
             *hints,
         ],
         gap="md",

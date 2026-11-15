@@ -7,11 +7,12 @@ German message for invalid inputs.
 
 import math
 from dataclasses import dataclass
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from personal_finance import config
-from personal_finance.core import home, wef
+from personal_finance.core import home, mortgage, wef
 from personal_finance.core.home import HomeAssessment, MaxPrice
+from personal_finance.core.mortgage import AmortisationPlan, RetirementAffordability
 from personal_finance.core.projection import project_balance
 from personal_finance.core.wef import WithdrawalLimit
 
@@ -58,6 +59,20 @@ class HomeInputs:
     purchase_age: Any
     gross_income: Any
     imputed_rate: Any  # decimal, e.g. 0.05
+    mortgage_rate: Any = config.HOME_MORTGAGE_RATE  # effective rate, decimal
+    amortisation: Any = mortgage.DIRECT
+
+
+@dataclass(frozen=True)
+class MortgageOutcome:
+    """The purchase with one way of amortising (#27). Lists per year from today, nominal."""
+
+    plan: AmortisationPlan
+    paths: Paths                 # 2nd pillar, 3a (incl. pledged 3a) and 3b
+    property_value: List[float]  # price from the purchase on (no change in value)
+    debt: List[float]
+    net_wealth: List[float]      # paths + property - debt
+    retirement: RetirementAffordability
 
 
 @dataclass(frozen=True)
@@ -77,7 +92,22 @@ class HomePlan:
     pillar3a_limit: WithdrawalLimit
     savings_outside_3b: float  # savings not covered by the projected free assets (3b)
     without_purchase: Paths
-    with_purchase: Paths
+    # Mortgage (#27): the chosen way of amortising and both ways for the comparison
+    amortisation: str
+    mortgage_rate: float
+    outcomes: Dict[str, MortgageOutcome]
+
+    @property
+    def outcome(self) -> MortgageOutcome:
+        return self.outcomes[self.amortisation]
+
+    @property
+    def with_purchase(self) -> Paths:
+        return self.outcome.paths
+
+    def net_wealth_without_purchase(self) -> List[float]:
+        paths = self.without_purchase
+        return [sum(values) for values in zip(paths.pillar2, paths.pillar3a, paths.pillar3b)]
 
     def withdrawal_note(self) -> Optional[str]:
         """One sentence for the overview: what the purchase takes from the projection."""
@@ -137,6 +167,7 @@ def plan_purchase(
     pot_2: Pot,
     pot_3a: Pot,
     pot_3b: Pot,
+    ahv_annual_at_retirement: Optional[float] = None,
 ) -> HomePlan:
     """Check the planned purchase and its effect on the projection.
 
@@ -148,6 +179,8 @@ def plan_purchase(
         pot_2, pot_3a, pot_3b: The pots of the projection without a purchase. At the
             purchase, the pension fund and 3a money and the savings are taken out of them
             (savings from the free assets 3b, as far as they reach).
+        ahv_annual_at_retirement: Nominal AHV pension per year, for the check in retirement
+            (``None`` if not estimated).
     """
     age = purchase_age(inputs.purchase_age, current_age, retirement_age)
     if inputs.gross_income is None:
@@ -184,11 +217,55 @@ def plan_purchase(
     pillar3a_used = wef.check_amount(pillar3a, limit_3a, "aus der Säule 3a")
     savings = assessment.hard_funds - pillar3a_used
 
-    with_purchase = Paths(
-        pot_2.path(years, {at_purchase: pillar2_used}),
-        pot_3a.path(years, {at_purchase: pillar3a_used}),
-        pot_3b.path(years, {at_purchase: savings}),
-    )
+    pillar2_path = pot_2.path(years, {at_purchase: pillar2_used})
+    pillar3a_path = pot_3a.path(years, {at_purchase: pillar3a_used})
+    pillar3b_path = pot_3b.path(years, {at_purchase: savings})
+    before = [0.0] * at_purchase
+    property_value = before + [assessment.price] * (years - at_purchase + 1)
+
+    def outcome(mode: str) -> MortgageOutcome:
+        plan = mortgage.amortisation_plan(
+            assessment.mortgage,
+            assessment.first_mortgage,
+            assessment.amortisation_years,
+            years - at_purchase,
+            inputs.mortgage_rate,
+            mode,
+            pledged_return=pot_3a.annual_return,
+            # The pledged 3a payments share the yearly 3a limit with the 3a plan.
+            pledged_cap=max(0.0, config.PILLAR3A_ANNUAL_MAX - pot_3a.annual_contribution),
+        )
+        pledged_3a = before + list(plan.pledged_3a)
+        paths = Paths(
+            pillar2_path,
+            [plan_3a + pledged for plan_3a, pledged in zip(pillar3a_path, pledged_3a)],
+            pillar3b_path,
+        )
+        debt = before + list(plan.debt)
+        net_wealth = [
+            sum(values) - owed
+            for *values, owed in zip(
+                paths.pillar2, paths.pillar3a, paths.pillar3b, property_value, debt
+            )
+        ]
+        return MortgageOutcome(
+            plan=plan,
+            paths=paths,
+            property_value=property_value,
+            debt=debt,
+            net_wealth=net_wealth,
+            retirement=mortgage.retirement_affordability(
+                debt[-1],
+                assessment.price,
+                paths.pillar2[-1],
+                ahv_annual_at_retirement,
+                imputed_rate=inputs.imputed_rate,
+            ),
+        )
+
+    if inputs.amortisation not in mortgage.MODES:
+        raise ValueError("Bitte wähle direkte oder indirekte Amortisation.")
+    outcomes = {mode: outcome(mode) for mode in mortgage.MODES}
     return HomePlan(
         purchase_age=age,
         years_until_purchase=at_purchase,
@@ -204,5 +281,7 @@ def plan_purchase(
         pillar3a_limit=limit_3a,
         savings_outside_3b=max(0.0, savings - balance_3b),
         without_purchase=without,
-        with_purchase=with_purchase,
+        amortisation=inputs.amortisation,
+        mortgage_rate=float(inputs.mortgage_rate),  # validated by amortisation_plan
+        outcomes=outcomes,
     )

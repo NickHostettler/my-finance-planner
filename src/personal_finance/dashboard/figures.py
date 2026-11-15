@@ -112,6 +112,56 @@ def withdrawal_figure(
     return figure
 
 
+def wealth_figure(
+    ages: List[int],
+    savings: List[float],
+    property_value: List[float],
+    debt: List[float],
+    net_wealth: List[float],
+) -> go.Figure:
+    """Savings and the home (stacked), the mortgage debt and the net wealth over time."""
+    figure = go.Figure()
+    for label, values, color in [
+        ("Vorsorge und Vermögen", savings, COLORS["green"]),
+        ("Immobilie (Kaufpreis)", property_value, COLORS["gold"]),
+    ]:
+        figure.add_trace(
+            go.Scatter(
+                x=ages,
+                y=values,
+                name=label,
+                mode="lines",
+                stackgroup="assets",
+                line={"color": color, "width": 1.5},
+                fillcolor=color,
+                opacity=0.5,
+                hovertemplate=f"<b>{label}</b><br>Alter %{{x}}<br>%{{y:,.0f}} CHF<extra></extra>",
+            )
+        )
+    for label, values, color, dash, width in [
+        ("Hypothekarschuld", debt, COLORS["red"], "dash", 2.5),
+        ("Nettovermögen", net_wealth, COLORS["ink"], "solid", 3),
+    ]:
+        figure.add_trace(
+            go.Scatter(
+                x=ages,
+                y=values,
+                name=label,
+                mode="lines",
+                line={"color": color, "width": width, "dash": dash},
+                hovertemplate=f"<b>{label}</b><br>Alter %{{x}}<br>%{{y:,.0f}} CHF<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        **chart_layout(
+            height=360,
+            hovermode="x unified",
+            xaxis={"showgrid": False, "zeroline": False, "title": None, "dtick": 5},
+        )
+    )
+    return figure
+
+
 def composition_figure(
     pillar2,
     pillar3a,

@@ -479,6 +479,28 @@ _home_group = _group(
                     15,
                     description="So rechnen Banken die Tragbarkeit, nicht dein echter Zins",
                 ),
+                dmc.Text("Hypothek in der Prognose", fw=600, size="sm", mt="xs"),
+                number_input(
+                    "home-mortgage-rate-input",
+                    "Effektiver Hypothekarzins",
+                    _home_defaults["home_mortgage_rate"],
+                    0,
+                    0.05,
+                    "%",
+                    15,
+                    description="Dein erwarteter Zins für die Zinskosten",
+                ),
+                segmented(
+                    "home-amortisation-input",
+                    "Amortisation der 2. Hypothek",
+                    [
+                        {"label": "Direkt", "value": "direct"},
+                        {"label": "Indirekt über 3a", "value": "indirect"},
+                    ],
+                    _home_defaults["home_amortisation"],
+                    "Direkt sinkt die Schuld jedes Jahr; indirekt sparst du in ein verpfändetes "
+                    "3a-Konto.",
+                ),
             ],
             id="home-fields",
             className="field-stack",

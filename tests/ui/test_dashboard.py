@@ -44,7 +44,7 @@ def _results(
     display_basis="nominal",
     ahv_average_income=None,
     ahv_contribution_years=44,
-    home=("off", 900_000, None, 200_000, 0, 0, None, 5),
+    home=("off", 900_000, None, 200_000, 0, 0, None, 5, 2, "direct"),
 ):
     return update_results(
         5000,
