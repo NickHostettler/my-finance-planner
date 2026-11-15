@@ -52,7 +52,13 @@ die Lasche **Wohneigentum** rechts zeigt das Ergebnis.
 
 1. **Kaufpreis** und **Kauf mit Alter** (leer = heute).
 2. **Eigenkapital für den Kauf:** Erspartes und Wertschriften, Geld aus der Säule 3a und aus
-   der Pensionskasse. Was du aus 3a und Pensionskasse nimmst, fehlt danach in der Vorsorge.
+   der Pensionskasse. Sobald du den Kauf planst oder das Kaufalter änderst, füllt die App die
+   **Höchstbeträge zum Kaufalter** ein: zuerst dein freies Vermögen, dann 3a, zuletzt die
+   Pensionskasse, und nur so viel, wie der Kauf braucht. Unter jedem Feld steht, wie viel zum
+   Kaufalter höchstens verfügbar ist. Du kannst weniger einsetzen; der Button
+   **„Höchstbeträge zum Kaufalter einsetzen“** füllt die Felder wieder neu. Ein geladenes
+   Szenario behält seine Beträge. Was du aus 3a und Pensionskasse nimmst, fehlt danach in der
+   Vorsorge.
 3. **Bruttoeinkommen des Haushalts:** leer lassen, dann nimmt die App dein Einkommen von oben.
 4. **Kalkulatorischer Zins:** Banken rechnen die Tragbarkeit meist mit 5 %, nicht mit deinem
    echten Zins.
@@ -63,7 +69,12 @@ Das zeigt die Lasche:
 
 - **Ampel zur Tragbarkeit:** grün = tragbar, orange = knapp, rot = nicht tragbar, mit einer
   Begründung (z.B. „Es fehlen CHF 18’000 harte Eigenmittel“).
-- **Eigenmittel, Hypothek, monatliche Wohnkosten** und der **maximal finanzierbare Kaufpreis**.
+- **Eigenmittel, Hypothek, monatliche Wohnkosten** und der **maximal finanzierbare Kaufpreis**,
+  einmal mit dem eingesetzten Eigenkapital und einmal mit **allen verfügbaren Mitteln** zum
+  Kaufalter.
+- **Eigenmittel: Bedarf und verfügbare Mittel:** wie viel Eigenmittel der Preis mindestens
+  braucht (davon wie viel hart), was zum Kaufalter verfügbar wäre und ob das Eingesetzte
+  reicht.
 - **Vorsorge mit und ohne Kauf:** wie viel weniger du bei der Pensionierung in 2. Säule und 3a
   hast.
 - **Vermögen, Hypothek und Nettovermögen** bis zur Pensionierung, der Vergleich direkt/indirekt

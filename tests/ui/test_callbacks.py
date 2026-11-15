@@ -578,9 +578,11 @@ def test_restoring_fills_the_fields_or_changes_nothing():
 
     restored = restore_last_inputs(1, remembered)
 
-    assert restored == callbacks._to_components(browser_store.values_to_inputs(VALID_INPUTS))
+    # The fields, then the guard against filling in the highest home amounts (#40).
+    assert restored[:-1] == callbacks._to_components(browser_store.values_to_inputs(VALID_INPUTS))
+    assert restored[-1] == {"plan": "off", "age": None}
     assert restored[SCENARIO_INPUT_IDS.index("return-input")] == "0.04"
-    assert restore_last_inputs(1, None) == [no_update] * len(SCENARIO_INPUT_IDS)
+    assert restore_last_inputs(1, None) == [no_update] * (len(SCENARIO_INPUT_IDS) + 1)
 
 
 def test_no_callback_reads_and_writes_the_same_property():
