@@ -8,10 +8,13 @@
 
 A web app that projects how Swiss retirement savings could develop until retirement: the
 occupational pension (2nd pillar/BVG), tax-advantaged pillar 3a, free savings (3b), and a rough
-AHV state-pension estimate. It is deployed for a small group of friends: each one uses it in
+AHV state-pension estimate. Since v1.1 it also checks whether a planned home purchase is
+affordable and what it does to the retirement savings. It is deployed for a small group of friends: each one uses it in
 their own browser, and **no personal financial data is ever stored on the server**.
 
 ![Dashboard: inputs on the left, projected retirement capital, AHV estimate and growth chart in tabs on the right](docs/images/dashboard.png)
+
+![Home ownership tab: traffic light for affordability, equity, mortgage, monthly housing costs and the maximum affordable price](docs/images/wohneigentum.png)
 
 ### Highlights
 
@@ -22,11 +25,18 @@ their own browser, and **no personal financial data is ever stored on the server
 - **Secure deployment:** Dockerized (multi-stage build, non-root user, read-only filesystem) and
   served by gunicorn on Render's free tier. The shared-password login (HTTP Basic Auth,
   constant-time comparison) **fails closed**: the container refuses to start without a password.
-- **CI/CD:** GitHub Actions runs linting and 170+ tests on Linux and Windows, Playwright
+- **CI/CD:** GitHub Actions runs linting, a format check and 440+ tests (100 % line and branch
+  coverage) on Linux and Windows, Playwright
   browser tests and a Docker build with smoke tests on every pull request. Render deploys only
   commits whose checks passed.
 - **Domain logic:** Swiss salary deductions with 2026 rates (AHV/IV/EO, ALV with its insured-salary
   cap), BVG estimate, 3a limits, compound-interest projections in nominal or real terms.
+- **Home ownership (v1.1):** affordability and equity check following the Swiss banking rules
+  (20 % equity, 10 % of it not from the pension fund, housing costs up to a third of the gross
+  income) with a traffic light and the maximum affordable price; early withdrawals from the
+  2nd pillar and 3a (WEF) and their effect on the retirement capital; direct or indirect
+  amortisation, net wealth over time and affordability in retirement. Every rule is a constant
+  with its source.
 - **Clean architecture:** `core/` (pure domain logic) → `storage/` → `dashboard/` (UI);
   dependencies only point inwards.
 
@@ -35,8 +45,9 @@ Render · GitHub Actions ·
 pytest · Playwright · uv · ruff
 
 **Workflow:** Every change went through an issue, a feature branch and a reviewed pull request
-with green CI ([milestone v1.0](https://github.com/NickHostettler/my-finance-planner/milestone/1),
-[release v1.0.0](https://github.com/NickHostettler/my-finance-planner/releases/tag/v1.0.0)).
+with green CI (milestones [v1.0](https://github.com/NickHostettler/my-finance-planner/milestone/1)
+and [v1.1](https://github.com/NickHostettler/my-finance-planner/milestone/2),
+[releases](https://github.com/NickHostettler/my-finance-planner/releases)).
 Developed with the help of an AI coding assistant (Claude Code), which is noted in the commit
 messages.
 
@@ -57,6 +68,7 @@ Ein Python-Paket für private Finanzplanung nach dem Schweizer Rentensystem (1.,
 - **2. Säule**: Vereinfachtes BVG-Schätzmodell (keine offizielle Mindestberechnung) oder eigene monatliche Arbeitnehmer-/Arbeitgeberbeiträge und PK-Verzinsung
 - **Startguthaben**: Bereits vorhandene Guthaben in der 2. Säule, 3a und 3b fliessen in die Projektion ein
 - **Transparente Modellannahmen**: Renditen, nominale Werte ohne Inflationsbereinigung, Vereinfachungen der BVG-Schätzung und nicht berücksichtigte Faktoren werden bei der Prognose ausgewiesen
+- **Wohneigentum**: Tragbarkeit und Eigenmittel mit Ampel, maximaler Kaufpreis, Vorbezug aus 2. Säule und 3a (WEF), direkte oder indirekte Amortisation, Nettovermögen und Tragbarkeit im Alter
 - **Nominale und reale Prognose**: Umschaltbare Anzeige in zukünftigen CHF oder kaufkraftbereinigten heutigen CHF unter Verwendung der konfigurierten jährlichen Inflation
 - **AHV-Rente**: Unverbindliche Schätzung anhand des durchschnittlichen Jahreseinkommens und der Beitragsjahre als separates Ruhestandseinkommen; 13 Jahreszahlungen sind berücksichtigt, die AHV wird nicht zum Vorsorgekapital addiert
 - **Szenarien im eigenen Browser**: Dashboard-Eingaben lassen sich benannt speichern, laden und löschen; ein erneut gespeicherter Name aktualisiert das bestehende Szenario. Die Daten bleiben im Browser des Nutzers, der Server speichert nichts
