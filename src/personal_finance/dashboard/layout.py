@@ -556,6 +556,202 @@ _home_group = _group(
     ],
 )
 
+
+def life_input_id(field: str) -> str:
+    """Component id of a life phase field: "life_1_to" -> "life-1-to-input"."""
+    return field.replace("_", "-") + "-input"
+
+
+_life_defaults = browser_store.FIELD_DEFAULTS
+
+
+def _life_row(row: int):
+    """One phase: until age, workload, income and child costs (hidden while unused)."""
+
+    def field(part: str, label: str, step: float, unit: str, maximum=None, decimals=None):
+        return number_input(
+            life_input_id(f"life_{row}_{part}"),
+            label,
+            None,
+            0,
+            step,
+            unit,
+            maximum,
+            decimals=decimals,
+        )
+
+    return html.Div(
+        [
+            dmc.Text(f"Phase {row}", id=f"life-row-{row}-title", fw=600, size="sm"),
+            dmc.SimpleGrid(
+                [
+                    html.Div(
+                        field("to", "Bis Alter", 1, "J.", config.MAX_RETIREMENT_AGE, 0),
+                        id=f"life-row-{row}-to",
+                    ),
+                    field("workload", "Pensum", 10, "%", 100),
+                    field("income", "Einkommen", 100, "CHF/Mt."),
+                    field("costs", "Kinderkosten", 100, "CHF/Mt."),
+                ],
+                cols=2,
+                spacing="xs",
+                verticalSpacing="xs",
+            ),
+        ],
+        id=f"life-row-{row}",
+        className="life-row",
+        style={"display": "none"},
+    )
+
+
+_life_group = _group(
+    "life",
+    "Lebensphasen & Familie",
+    "↻",
+    [
+        segmented(
+            "life-plan-input",
+            "Erwerbsleben",
+            [
+                {"label": "Wie heute", "value": "off"},
+                {"label": "Phasen planen", "value": "on"},
+            ],
+            _life_defaults["life_plan"],
+            "Teilzeit, Unterbrüche und Kinder bis zur Pensionierung. «Wie heute» rechnet mit "
+            "deinem Einkommen von oben.",
+        ),
+        html.Div(
+            [
+                dmc.Text(
+                    "Einkommen pro Monat wie oben (netto oder brutto), in heutigen Franken; die "
+                    "Lohnzunahme kommt dazu. Die erste Phase beginnt heute, die letzte dauert bis "
+                    "zur Pensionierung.",
+                    size="xs",
+                    c="dimmed",
+                ),
+                dmc.Group(
+                    [
+                        dmc.Button(
+                            "100 %",
+                            id="life-template-full",
+                            n_clicks=0,
+                            variant="light",
+                            size="compact-xs",
+                        ),
+                        dmc.Button(
+                            "Teilzeit mit Kindern",
+                            id="life-template-kids",
+                            n_clicks=0,
+                            variant="light",
+                            size="compact-xs",
+                        ),
+                        dmc.Button(
+                            "Unterbruch",
+                            id="life-template-break",
+                            n_clicks=0,
+                            variant="light",
+                            size="compact-xs",
+                        ),
+                    ],
+                    gap=6,
+                ),
+                *[_life_row(row) for row in range(1, browser_store.LIFE_PHASE_ROWS + 1)],
+                dmc.Group(
+                    [
+                        dmc.Button(
+                            "+ Phase", id="life-add-button", n_clicks=0, variant="light", size="xs"
+                        ),
+                        dmc.Button(
+                            "− Phase",
+                            id="life-remove-button",
+                            n_clicks=0,
+                            variant="subtle",
+                            size="xs",
+                        ),
+                    ],
+                    gap="xs",
+                    grow=True,
+                ),
+                segmented(
+                    life_input_id("life_coordination"),
+                    "Koordinationsabzug der Pensionskasse",
+                    [
+                        {"label": "Fix (BVG)", "value": "fixed"},
+                        {"label": "Nach Pensum", "value": "workload"},
+                    ],
+                    _life_defaults["life_coordination"],
+                    "Gesetzlich gilt der volle Abzug auch bei Teilzeit; viele Kassen passen ihn "
+                    "ans Pensum an. Siehe PK-Reglement.",
+                ),
+                dmc.Text("Kinder", fw=600, size="sm", mt="xs"),
+                dmc.Text(
+                    "Dein Alter bei der Geburt, auch für geplante Kinder. Nur Jahrgänge, keine "
+                    "Namen; alles bleibt in diesem Browser.",
+                    size="xs",
+                    c="dimmed",
+                ),
+                dmc.SimpleGrid(
+                    [
+                        number_input(
+                            life_input_id(f"life_child_{child}"),
+                            f"Kind {child}",
+                            None,
+                            0,
+                            1,
+                            "J.",
+                            config.MAX_RETIREMENT_AGE,
+                            decimals=0,
+                        )
+                        for child in range(1, browser_store.LIFE_CHILDREN + 1)
+                    ],
+                    cols=2,
+                    spacing="xs",
+                    verticalSpacing="xs",
+                ),
+                segmented(
+                    life_input_id("life_role"),
+                    "Urlaub bei der Geburt (EO)",
+                    [
+                        {"label": "Mutter · 14 Wo.", "value": "mother"},
+                        {"label": "Anderer · 2 Wo.", "value": "other"},
+                    ],
+                    _life_defaults["life_role"],
+                ),
+                segmented(
+                    life_input_id("life_credit_share"),
+                    "AHV-Erziehungsgutschriften",
+                    [
+                        {"label": "Ganz", "value": "full"},
+                        {"label": "Hälftig (verheiratet)", "value": "half"},
+                    ],
+                    _life_defaults["life_credit_share"],
+                ),
+                number_input(
+                    life_input_id("life_child_allowance"),
+                    "Kinderzulage pro Kind",
+                    _life_defaults["life_child_allowance"],
+                    0,
+                    5,
+                    "CHF/Mt.",
+                    description="Bis 16; Mindestbetrag, viele Kantone zahlen mehr",
+                ),
+                number_input(
+                    life_input_id("life_education_allowance"),
+                    "Ausbildungszulage pro Kind",
+                    _life_defaults["life_education_allowance"],
+                    0,
+                    5,
+                    "CHF/Mt.",
+                    description="Von 16 bis höchstens 25",
+                ),
+            ],
+            id="life-fields",
+            className="field-stack",
+            style={"display": "none"},
+        ),
+    ],
+)
+
 _navbar = dmc.AppShellNavbar(
     [
         dmc.Text("DEINE AUSGANGSLAGE", className="eyebrow"),
@@ -573,6 +769,7 @@ _navbar = dmc.AppShellNavbar(
                 _pillar2_group,
                 _pillar3a_group,
                 _pillar3b_group,
+                _life_group,
                 _home_group,
             ],
             multiple=True,
@@ -673,12 +870,14 @@ _results = html.Div(
                         dmc.TabsTab("Übersicht", value="overview"),
                         dmc.TabsTab("Vorsorge", value="pension"),
                         dmc.TabsTab("Wohneigentum", value="home"),
+                        dmc.TabsTab("Lebensphasen", value="life"),
                         dmc.TabsTab("Annahmen", value="assumptions"),
                     ]
                 ),
                 dmc.TabsPanel(html.Div(id="overview-section"), value="overview", pt="md"),
                 dmc.TabsPanel(html.Div(id="pension-section"), value="pension", pt="md"),
                 dmc.TabsPanel(html.Div(id="home-section"), value="home", pt="md"),
+                dmc.TabsPanel(html.Div(id="life-section"), value="life", pt="md"),
                 dmc.TabsPanel(html.Div(id="assumptions-section"), value="assumptions", pt="md"),
             ],
             id="result-tabs",

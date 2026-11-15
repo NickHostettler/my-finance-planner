@@ -69,12 +69,17 @@ def results_view(
     salary_growth: float = 0,
     paths=None,
     purchase_note: Optional[str] = None,
+    per_year=None,
+    ahv_monthly_today: Optional[float] = None,
+    life_note: Optional[str] = None,
 ) -> Tuple[object, object, object, str]:
     """Return the overview, pension and assumption tabs and the calculation notice.
 
     ``paths`` (nominal 2nd pillar, 3a and 3b balances per year) replaces the projection of
     the savings plan, e.g. with the withdrawals for a planned home purchase; then
-    ``purchase_note`` explains it in the overview.
+    ``purchase_note`` explains it in the overview. With life phases (#33) ``per_year`` gives
+    the contributions of each year (2nd pillar, 3a, 3b), ``ahv_monthly_today`` replaces the
+    AHV estimate and ``life_note`` explains it.
     """
     pillar2 = analysis.pillar2
     years = analysis.years_to_retirement
@@ -85,11 +90,14 @@ def results_view(
         if real
         else "Nominale CHF · ohne Inflationsbereinigung"
     )
-    ahv_estimated_today = (
-        ahv.estimate_monthly_old_age_pension(ahv_average_income, ahv_contribution_years)
-        if ahv_average_income is not None
-        else None
-    )
+    if ahv_monthly_today is not None:
+        ahv_estimated_today = ahv_monthly_today
+    elif ahv_average_income is not None:
+        ahv_estimated_today = ahv.estimate_monthly_old_age_pension(
+            ahv_average_income, ahv_contribution_years
+        )
+    else:
+        ahv_estimated_today = None
     ahv_estimated_display = ahv.project_pension_basis(
         ahv_estimated_today,
         years,
@@ -122,6 +130,7 @@ def results_view(
         initial_3b,
         pillar2_return,
         inflation_rate,
+        per_year=per_year,
     )
     comparison = comparison_figure(
         pillar2_values[-1],
@@ -139,6 +148,7 @@ def results_view(
                 f"{'reale CHF' if real else 'nominale CHF'}",
                 className="results-subtitle",
             ),
+            *([dmc.Text(life_note, className="results-subtitle life-note")] if life_note else []),
             *(
                 [dmc.Text(purchase_note, className="results-subtitle purchase-note")]
                 if purchase_note
@@ -439,6 +449,49 @@ def results_view(
                         f"Umwandlungssatz von {config.HOME_RETIREMENT_CONVERSION_RATE:.0%} "
                         "(Modellannahme). Steuern sind nicht berechnet; der Eigenmietwert "
                         f"entfällt ab dem {config.HOME_IMPUTED_RENTAL_VALUE_END}.",
+                    ),
+                    _assumption(
+                        "Lebensphasen · Teilzeit und Unterbrüche",
+                        "Phaseneinkommen gelten in heutigen Franken, die Lohnzunahme kommt "
+                        "dazu. Versichert ist in der 2. Säule nur ein Jahreslohn über "
+                        f"{money(config.PILLAR2_MIN_SALARY)}; davon geht der Koordinationsabzug "
+                        f"von {money(config.PILLAR2_COORDINATION_DEDUCTION)} ab, gesetzlich "
+                        "auch bei Teilzeit voll, wahlweise ans Pensum angepasst. Eigene "
+                        "PK-Beiträge ändern im Verhältnis zum Einkommen (Modellannahme). Ohne "
+                        "Pensionskasse darfst du in die Säule 3a bis "
+                        f"{config.PILLAR3A_LARGE_RATE:.0%} des Erwerbseinkommens einzahlen, "
+                        f"höchstens {money(config.PILLAR3A_LARGE_MAX)}; ohne Erwerb gar nicht. "
+                        "Für die AHV senken tiefere Einkommen den Durchschnitt; für jedes Jahr "
+                        "mit einem Kind unter 16 zählt eine Erziehungsgutschrift von "
+                        f"{money(ahv.EDUCATION_CREDIT)} (bei Ehepaaren hälftig). Fehlende "
+                        "Beitragsjahre ohne Erwerb rechnet das Modell nicht.",
+                        [
+                            _link(
+                                "Erziehungsgutschriften (Merkblatt 1.07)", ahv.EDUCATION_CREDIT_URL
+                            )
+                        ],
+                    ),
+                    _assumption(
+                        "Familie · Zulagen und Erwerbsersatz",
+                        f"Kinderzulage mindestens {money(config.CHILD_ALLOWANCE_MONTHLY)} pro "
+                        f"Monat bis {config.CHILD_ALLOWANCE_UNTIL_AGE}, Ausbildungszulage "
+                        f"mindestens {money(config.EDUCATION_ALLOWANCE_MONTHLY)} bis höchstens "
+                        f"{config.EDUCATION_ALLOWANCE_UNTIL_AGE}; die Kantone zahlen oft mehr. "
+                        "Das Modell rechnet in ganzen Jahren und nimmt an, dass Kinder ab 16 "
+                        "in Ausbildung sind. Bei einer Geburt zahlt die EO "
+                        f"{config.PARENTAL_ALLOWANCE_RATE:.0%} des Lohns, höchstens "
+                        f"{money(config.PARENTAL_ALLOWANCE_DAILY_MAX)} pro Tag, für "
+                        f"{config.MATERNITY_LEAVE_DAYS} Tage (Mutter) oder "
+                        f"{config.OTHER_PARENT_LEAVE_DAYS} Tage (anderer Elternteil); der Rest "
+                        "des Lohns fällt im Modell weg. Kinderkosten steigen mit der Inflation. "
+                        f"Stand {config.FAMILY_RULES_AS_OF}.",
+                        [
+                            _link("Familienzulagen (BSV)", config.FAMILY_ALLOWANCE_SOURCE_URL),
+                            _link(
+                                "Erwerbsersatz bei Elternschaft (BSV)",
+                                config.PARENTAL_LEAVE_SOURCE_URL,
+                            ),
+                        ],
                     ),
                     _assumption(
                         "Nicht berücksichtigt",

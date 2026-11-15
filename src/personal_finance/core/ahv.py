@@ -14,6 +14,14 @@ MINIMUM_PENSION_INCOME = 12 * MINIMUM_FULL_MONTHLY_PENSION  # 15'360
 MAXIMUM_PENSION_INCOME = 72 * MINIMUM_FULL_MONTHLY_PENSION  # 92'160
 OFFICIAL_LEAFLET_URL = "https://www.ahv-iv.ch/p/3.01.d"
 
+# Erziehungsgutschriften (AHVG Art. 29sexies, Merkblatt 1.07): für jedes Jahr mit einem Kind
+# unter 16 die dreifache minimale jährliche Altersrente, eine Gutschrift pro Jahr, egal wie
+# viele Kinder. Nicht für das Geburtsjahr, aber für das Jahr, in dem das Kind 16 wird. Bei
+# Ehepaaren wird sie für die Ehejahre hälftig aufgeteilt.
+EDUCATION_CREDIT = 3 * 12 * MINIMUM_FULL_MONTHLY_PENSION  # 46'080 pro Jahr ab 2027
+EDUCATION_CREDIT_CHILD_AGE = 16
+EDUCATION_CREDIT_URL = "https://www.ahv-iv.ch/p/1.07.d"
+
 
 def estimate_monthly_old_age_pension(
     average_annual_income: float,

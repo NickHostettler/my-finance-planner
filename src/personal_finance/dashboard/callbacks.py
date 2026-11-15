@@ -29,7 +29,7 @@ from personal_finance.core.pillar_2 import (
     validate_salary_growth,
 )
 from personal_finance.core.projection import project_balance
-from personal_finance.dashboard import home_view
+from personal_finance.dashboard import home_view, life_view
 from personal_finance.dashboard.app import app
 from personal_finance.dashboard.components import (
     money,
@@ -38,6 +38,7 @@ from personal_finance.dashboard.components import (
 from personal_finance.dashboard.layout import (
     HOME_AMOUNT_HINTS,
     HOME_PREFILL_SKIP_STORE_ID,
+    life_input_id,
     LAST_INPUTS_STORE_ID,
     NOTICE_STORE_ID,
     SCENARIOS_STORE_ID,
@@ -50,6 +51,7 @@ RESULT_SECTION_IDS = [
     "overview-section",
     "pension-section",
     "home-section",
+    "life-section",
     "assumptions-section",
 ]
 
@@ -85,6 +87,8 @@ SCENARIO_INPUT_IDS = [
     "home-mortgage-rate-input",
     "home-amortisation-input",
     "salary-growth-input",
+    # Life phases and family (v1.2): "life_1_to" -> "life-1-to-input", same order.
+    *[life_input_id(field) for field in browser_store.LIFE_FIELDS],
 ]
 # Same order as the stored fields (browser_store.SCENARIO_FIELDS).
 _BASE_INPUT_COUNT = SCENARIO_INPUT_IDS.index("home-plan-input")
@@ -297,6 +301,78 @@ def update_pillar2_controls(mode):
 def update_home_controls(plan):
     """Show the home ownership fields only while a purchase is planned."""
     return {"display": "grid" if plan == "on" else "none"}
+
+
+# --- life phases: show the used rows (#33) -----------------------------------------------
+
+_LIFE_WORKLOAD_IDS = [life_input_id(f"life_{row}_workload") for row in life_view.ROWS]
+_LIFE_TO_IDS = [life_input_id(f"life_{row}_to") for row in life_view.ROWS]
+
+
+@app.callback(
+    Output("life-fields", "style"),
+    *[Output(f"life-row-{row}", "style") for row in life_view.ROWS],
+    *[Output(f"life-row-{row}-to", "style") for row in life_view.ROWS],
+    *[Output(f"life-row-{row}-title", "children") for row in life_view.ROWS],
+    Input("life-plan-input", "value"),
+    Input("current-age-input", "value"),
+    *[Input(component_id, "value") for component_id in _LIFE_WORKLOAD_IDS],
+    *[Input(component_id, "value") for component_id in _LIFE_TO_IDS],
+)
+def update_life_controls(plan, current_age, *values):
+    """Show the phase rows in use (at least one); the last one needs no «bis Alter»."""
+    rows = len(life_view.ROWS)
+    workloads, to_ages = values[:rows], values[rows:]
+    visible = max(1, life_view.used_rows(workloads))
+    return [
+        {"display": "grid" if plan == "on" else "none"},
+        *[{"display": "block" if row <= visible else "none"} for row in life_view.ROWS],
+        *[{"display": "none" if row == visible else "block"} for row in life_view.ROWS],
+        *life_view.row_titles(current_age, to_ages, visible),
+    ]
+
+
+# Every phase field in row order: until age, workload, income, child costs of row 1, 2, …
+_LIFE_ROW_IDS = [
+    life_input_id(f"life_{row}_{part}")
+    for row in life_view.ROWS
+    for part in browser_store.LIFE_ROW_PARTS
+]
+_ROW_SIZE = len(browser_store.LIFE_ROW_PARTS)
+
+
+@app.callback(
+    *[Output(component_id, "value", allow_duplicate=True) for component_id in _LIFE_ROW_IDS],
+    Input(life_view.FULL, "n_clicks"),
+    Input(life_view.KIDS, "n_clicks"),
+    Input(life_view.BREAK, "n_clicks"),
+    Input(life_view.ADD, "n_clicks"),
+    Input(life_view.REMOVE, "n_clicks"),
+    Input(life_view.PLAN, "value"),
+    State("current-age-input", "value"),
+    State("retirement-age-input", "value"),
+    State("monthly-income-input", "value"),
+    State("income-period-input", "value"),
+    *[State(component_id, "value") for component_id in _LIFE_ROW_IDS],
+    prevent_initial_call=True,
+)
+def edit_life_phases(
+    _full, _kids, _break, _add, _remove, plan, current_age, retirement_age, income, period, *fields
+):
+    """Templates, «+ Phase» and «− Phase»; planning life phases starts with full time."""
+    rows = [
+        tuple(None if value == "" else value for value in fields[start : start + _ROW_SIZE])
+        for start in range(0, len(fields), _ROW_SIZE)
+    ]
+    monthly_income = None
+    if isinstance(income, (int, float)) and not isinstance(income, bool) and income > 0:
+        monthly_income = income / 12 if period == "yearly" else income
+    new = life_view.edit_rows(
+        ctx.triggered_id, rows, plan, current_age, retirement_age, monthly_income
+    )
+    if new is None:
+        return [no_update] * len(_LIFE_ROW_IDS)
+    return [value for row in new for value in row]
 
 
 # --- purchase money: fill in the highest amounts at the purchase age (#40) -----------
@@ -651,19 +727,33 @@ def update_results(*component_values):
             [html.Strong("Eingaben prüfen"), html.P(str(error))],
             className="validation-message",
         )
-        return message, message, message, message, ""
+        return message, message, message, message, message, ""
 
     values = base.values
+    # Life phases (#33): an error only shows in their tab; the rest is computed without them.
+    life, life_tab = _life_results(base)
+    pots = base.pots
+    ahv_today = None
+    if life is not None:
+        pots = tuple(
+            Pot(contributions, pot.annual_return, pot.initial)
+            for pot, contributions in zip(base.pots, life.contributions)
+        )
+        ahv_today = life.gap.ahv_plan
     plan, home = _home_results(
         values,
         current_age=base.current_age,
         retirement_age=base.retirement_age,
         income_annual=base.income_annual,
         income_is_net=base.income_is_net,
-        pots=base.pots,
+        pots=pots,
         display_basis=values["display_basis"],
-        ahv_annual_at_retirement=_ahv_annual(base),
+        ahv_annual_at_retirement=_ahv_annual(base, ahv_today),
     )
+    if plan is not None:
+        paths = plan.with_purchase
+    else:
+        paths = None if life is None else life.gap.plan_paths
     overview, pension, assumptions, notice = results_view(
         income=base.monthly_net_income,
         current_age=base.current_age,
@@ -681,27 +771,81 @@ def update_results(*component_values):
         salary_growth=base.salary_growth,
         ahv_average_income=base.ahv_average_income,
         ahv_contribution_years=base.ahv_contribution_years,
-        paths=None if plan is None else plan.with_purchase,
+        paths=paths,
         purchase_note=None if plan is None else plan.withdrawal_note(),
+        per_year=None if life is None else life.contributions,
+        ahv_monthly_today=ahv_today,
+        life_note=None if life is None else life.note(),
     )
     if float(values["pillar3a_amount"]) > base.pillar3a.monthly_savings:
         notice = (
             f"Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
             f"{money(base.pillar3a.monthly_savings)} pro Monat begrenzt."
         )
-    return overview, pension, home, assumptions, notice
+    return overview, pension, home, life_tab, assumptions, notice
 
 
-def _ahv_annual(base: _Projection) -> Optional[float]:
-    """Nominal AHV per year at retirement (13 pensions), like the overview card."""
+def _ahv_annual(base: _Projection, monthly_today: Optional[float] = None) -> Optional[float]:
+    """Nominal AHV per year at retirement (13 pensions), like the overview card.
+
+    ``monthly_today`` replaces the estimate from the AHV inputs (life phases).
+    """
     if base.ahv_average_income is None:
         return None
+    if monthly_today is None:
+        monthly_today = ahv.estimate_monthly_old_age_pension(
+            base.ahv_average_income, base.ahv_contribution_years
+        )
     return 13 * ahv.project_pension_basis(
-        ahv.estimate_monthly_old_age_pension(base.ahv_average_income, base.ahv_contribution_years),
+        monthly_today,
         base.analysis.years_to_retirement,
         config.INFLATION_RATE,
         "nominal",
     )
+
+
+def _phase_income_to_net(base: _Projection):
+    """Turns a monthly phase income on the basis of the income input into a net income."""
+    values = base.values
+
+    def to_net(amount):
+        if values["income_type"] != "gross" or not isinstance(amount, (int, float)):
+            return amount
+        if isinstance(amount, bool) or not math.isfinite(amount) or amount <= 0:
+            return amount  # 0 stays 0; invalid amounts are rejected by the phase check
+        return normalize_income(amount, "monthly", "gross", base.current_age, values["canton"])[0]
+
+    return to_net
+
+
+def _life_results(base: _Projection):
+    """The plan with life phases (``None`` if off or invalid) and the "Lebensphasen" tab."""
+    values = base.values
+    if values["life_plan"] != "on":
+        return None, life_view.life_section(None)
+    pillar2 = base.analysis.pillar2
+    try:
+        outcome = life_view.plan_life(
+            values,
+            current_age=base.current_age,
+            retirement_age=base.retirement_age,
+            monthly_net_income=base.monthly_net_income,
+            to_net=_phase_income_to_net(base),
+            salary_growth=base.salary_growth,
+            pillar3a_monthly=base.pillar3a.monthly_savings,
+            pillar3b_monthly=base.pillar3b.monthly_savings,
+            pillar2_mode=values["pillar2_mode"],
+            own_total=pillar2.annual_contribution_total
+            if values["pillar2_mode"] == "custom"
+            else 0,
+            initial=tuple(pot.initial for pot in base.pots),
+            returns=(base.pillar2_return, base.pots[1].annual_return),
+            ahv_average_income=base.ahv_average_income,
+            ahv_contribution_years=base.ahv_contribution_years,
+        )
+    except ValueError as error:
+        return None, life_view.life_section(None, str(error))
+    return outcome, life_view.life_section(outcome, display_basis=values["display_basis"])
 
 
 def _percent_to_rate(value):

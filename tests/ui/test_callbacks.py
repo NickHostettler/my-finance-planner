@@ -53,6 +53,8 @@ VALID_INPUTS = {
     "home_imputed_rate": 5,
     "home_mortgage_rate": 2,
     "home_amortisation": "direct",
+    # Life phases (v1.2): not planned.
+    **{field: browser_store.FIELD_DEFAULTS.get(field) for field in browser_store.LIFE_FIELDS},
 }
 
 
@@ -146,17 +148,18 @@ def test_salary_growth_increases_projected_pillar2_contributions():
 
     assert repr(no_growth[0]) != repr(with_growth[0])
     assert "wächst mit dem Lohn (5.0%/Jahr)" in texts(with_growth[0])
-    assert "Lohn steigt im Modell um 5.0% pro Jahr" in texts(with_growth[3])
+    assert "Lohn steigt im Modell um 5.0% pro Jahr" in texts(with_growth[4])
 
 
 def test_results_fill_all_tabs():
-    overview, pension, home, assumptions, _ = results()
+    overview, pension, home, life, assumptions, _ = results()
 
-    texts = [repr(section) for section in (overview, pension, home, assumptions)]
+    texts = [repr(section) for section in (overview, pension, home, life, assumptions)]
     assert "Projiziertes Vorsorgekapital" in texts[0]
     assert "Dein Sparplan" in texts[1]
     assert "Wohneigentum planen" in texts[2]
-    assert "Modell statt Beratung" in texts[3]
+    assert "Lebensphasen planen" in texts[3]
+    assert "Modell statt Beratung" in texts[4]
 
 
 # --- the "Wohneigentum" tab (issue #25) ----------------------------------------------------
@@ -177,7 +180,7 @@ HOME = {
 
 def test_assumptions_explain_the_home_rules_with_sources_and_date():
     # Shown with and without a planned purchase (issue #28).
-    assumptions = results()[3]
+    assumptions = results()[4]
     text = texts(assumptions)
 
     assert "Wohneigentum · Eigenmittel und Tragbarkeit" in text
@@ -186,7 +189,9 @@ def test_assumptions_explain_the_home_rules_with_sources_and_date():
     assert "Wohneigentum · Vorbezug aus 2. Säule und 3a (WEF)" in text
     assert "mindestens CHF 20’000 pro Vorbezug" in text
     assert "Wohneigentum · Hypothek in der Prognose" in text
-    assert text.count(f"Stand {config.HOME_RULES_AS_OF}.") == 2
+    # Two home cards, and the family card (#33) has the same date.
+    assert config.FAMILY_RULES_AS_OF == config.HOME_RULES_AS_OF
+    assert text.count(f"Stand {config.HOME_RULES_AS_OF}.") == 3
     assert "Hypothekarberatung" in text
     assert "Banken und Pensionskassen individuell" in text
     links = [node.href for node in assumptions._traverse() if getattr(node, "href", None)]
@@ -256,7 +261,7 @@ def test_home_tab_explains_why_a_purchase_is_tight_or_not_affordable(overrides, 
     ],
 )
 def test_invalid_home_inputs_show_a_message_only_in_the_home_tab(overrides, message):
-    overview, _, home, _, _ = results(**{**HOME, **overrides})
+    overview, _, home, _, _, _ = results(**{**HOME, **overrides})
 
     assert home.className == "validation-message"
     assert "Wohneigentum" in home.children[0].children

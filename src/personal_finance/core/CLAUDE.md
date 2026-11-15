@@ -32,6 +32,29 @@
   `available_funds` und `suggested_amounts` liefern die Höchstbeträge zum Kaufalter (#40):
   Reihenfolge 3b → 3a → Pensionskasse, gekürzt auf Kaufpreis plus Nebenkosten, kein PK-Bezug
   unter dem WEF-Mindestbetrag.
-- Annahmen, die im UI erklärt werden müssen: Immobilie bleibt zum Kaufpreis (keine
+- Annahmen, die im UI erklärt werden müssen (Wohneigentum): Immobilie bleibt zum Kaufpreis (keine
   Wertveränderung); Wohnkosten werden aus dem laufenden Einkommen bezahlt; Erspartes über das
   prognostizierte freie Vermögen hinaus kommt „von ausserhalb“.
+
+## Lebensphasen (v1.2)
+
+- `life_phases.py`: `LifePhase` (Alter von–bis inklusive, Pensum als Dezimalzahl, Einkommen pro
+  Monat auf derselben Basis wie die Einkommenseingabe), `validate_phases` (lückenlos, ohne
+  Überschneidung, von heute bis zum Jahr vor der Pensionierung) und `yearly_plan` (ein Wert pro
+  Jahr, Index 0 = heute). Die Listen gehen direkt in `project_balance`.
+- Regression: `full_time_phase` (eine Phase, 100 %) muss exakt die Reihen ohne Phasen ergeben.
+- Modellannahmen: Phaseneinkommen in heutigen Franken plus Lohnzunahme ab heute; 3a nur in
+  Jahren mit Erwerbseinkommen; eigene PK-Beiträge im Verhältnis zum Einkommen.
+- `part_time.py` (#31): `pension_years` (versicherter Lohn, PK-Beitrag und 3a-Limit pro Jahr:
+  klein mit PK, gross ohne PK), `ahv_monthly_pension` (Phasen senken den Durchschnitt,
+  Erziehungsgutschriften ganz oder hälftig) und `compare_with_full_time` (Vorsorgelücke). Der
+  fixe Koordinationsabzug muss exakt die BVG-Schätzung ohne Phasen ergeben (Test).
+- Kinder werden im Kern als **Alter des Elternteils bei der Geburt** übergeben
+  (`family.validate_birth_ages`). Gutschrift ab dem Jahr nach der Geburt bis zum Jahr, in dem
+  das Kind 16 wird, eine pro Jahr.
+- `family.py` (#32): Familienzulagen nach Alter des Kindes (bis 15 Kinder-, 16–24
+  Ausbildungszulage, Beträge überschreibbar), EO im Geburtsjahr (80 %, Tageshöchstbetrag; Mutter
+  98, anderer Elternteil 14 Taggelder, Zwillinge nicht doppelt) und was nach Kinderkosten und
+  Sparen bleibt. Kinderkosten pro Phase in heutigen Franken, sie steigen mit der Inflation.
+- Familien-Werte: Stand `FAMILY_RULES_AS_OF`; bei neuen Jahreswerten mitprüfen (Skill
+  `jahreswerte`).

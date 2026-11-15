@@ -236,6 +236,24 @@ class TestMortgage:
         assert indirect.paths.pillar3a[11] > direct.paths.pillar3a[11]
         assert indirect.plan.total_interest > direct.plan.total_interest
 
+    def test_3a_per_year_counts_its_highest_amount_from_the_purchase(self):
+        # Life phases: 3a 7'000 until the purchase at 45, then 0 and 3'000; 3'000 counts.
+        per_year = [7_000] * 10 + [0] * 10 + [3_000] * 10
+        pots = (self.POTS[0], Pot(per_year, 0.04, 40_000), self.POTS[2])
+
+        result = plan(
+            pots=pots,
+            purchase_age=45,
+            pillar3a=0,
+            pillar2=0,
+            savings=200_000,
+            amortisation=mortgage.INDIRECT,
+        )
+
+        assert result.outcome.plan.annual_pledged == pytest.approx(
+            config.PILLAR3A_ANNUAL_MAX - 3_000
+        )
+
     def test_retirement_check_uses_the_pension_after_the_withdrawal(self):
         result = self.later(pillar2=50_000, ahv_annual=30_000)
         retirement = result.outcome.retirement

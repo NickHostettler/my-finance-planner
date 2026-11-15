@@ -3,7 +3,8 @@
 Mit dem Finanzplan siehst du, wie sich dein Vorsorgevermögen bis zur Pensionierung entwickeln
 könnte: 2. Säule (Pensionskasse), Säule 3a, freies Sparen (3b) und eine grobe AHV-Schätzung.
 Wer ein Eigenheim plant, sieht zusätzlich, ob der Kauf tragbar ist und was er für die Vorsorge
-bedeutet.
+bedeutet. Mit **Lebensphasen** siehst du, was Teilzeit, ein Unterbruch oder Kinder für deine
+Vorsorge heissen.
 
 > **Keine Beratung.** Alle Werte sind vereinfachte Schätzungen ohne Gewähr. Für verbindliche
 > Zahlen gelten dein Pensionskassenausweis, dein AHV-Auszug und eine Fachperson. Der Bereich
@@ -21,9 +22,10 @@ bedeutet.
 
 - **Links: deine Eingaben**, in Gruppen zum Auf- und Zuklappen. Auf dem **Handy** sind sie hinter
   dem Menü-Symbol **☰** oben links; ein zweiter Tipp darauf blendet sie wieder aus.
-- **Rechts: die Ergebnisse** in vier Laschen: **Übersicht** (Kennzahlen, AHV, Vermögensentwicklung),
+- **Rechts: die Ergebnisse** in fünf Laschen: **Übersicht** (Kennzahlen, AHV, Vermögensentwicklung),
   **Vorsorge** (Vergleich, Zusammensetzung, dein Sparplan), **Wohneigentum** (Tragbarkeit,
-  Vorbezug, Hypothek) und **Annahmen** (wie gerechnet wird, mit Quellen).
+  Vorbezug, Hypothek), **Lebensphasen** (Vorsorgelücke gegenüber 100 %, Familie) und
+  **Annahmen** (wie gerechnet wird, mit Quellen).
 - **Oben rechts: „Szenarien“** zum Speichern und Laden.
 
 ## So gehst du vor
@@ -40,9 +42,11 @@ bedeutet.
 5. **Säule 3a und 3b:** monatliche Beträge eingeben. Bei 3a kannst du mit *Maximalbetrag
    einsetzen* das Modell-Limit übernehmen. Die angenommene Lohnzunahme verändert die 3a- und
    3b-Beträge nicht; dazu die angenommene Rendite wählen.
-6. **Wohneigentum** (freiwillig): siehe nächster Abschnitt. Ohne geplanten Kauf bleibt alles
+6. **Lebensphasen & Familie** (freiwillig): siehe Abschnitt unten. Ohne Phasen rechnet die App
+   mit deinem heutigen Einkommen bis zur Pensionierung.
+7. **Wohneigentum** (freiwillig): siehe nächster Abschnitt. Ohne geplanten Kauf bleibt alles
    wie bisher.
-7. Die Ergebnisse rechts aktualisieren sich sofort. Mit *Nominal* bzw. *Real · heutige
+8. Die Ergebnisse rechts aktualisieren sich sofort. Mit *Nominal* bzw. *Real · heutige
    Kaufkraft* über den Laschen wechselst du, ob die Inflation herausgerechnet wird.
 
 ## Wohneigentum planen
@@ -116,6 +120,73 @@ Bruttoeinkommen CHF 160’000, Kauf 25 Jahre vor der Pensionierung:
 
 Die Regeln, Quellen und der Stand stehen in der Lasche **Annahmen**. Steuern rechnet die App
 nicht; der Eigenmietwert entfällt ab dem 1. Januar 2029.
+
+## Lebensphasen und Familie planen
+
+In der Gruppe **Lebensphasen & Familie** links **„Phasen planen“** wählen. Die App beginnt mit
+einer Phase: 100 % mit deinem Einkommen von oben bis zur Pensionierung.
+
+1. **Phasen anlegen:** Jede Phase hat ein **„Bis Alter“**, ein **Pensum** in Prozent, das
+   **Einkommen pro Monat** (netto oder brutto wie oben, in heutigen Franken; die Lohnzunahme
+   kommt dazu) und **Kinderkosten pro Monat** (Kita, Betreuung, Lebenshaltung). Die erste Phase
+   beginnt heute, jede weitere im Jahr danach, die letzte dauert bis zur Pensionierung. So
+   entstehen keine Lücken.
+2. **Vorlagen** als Startpunkt: **100 %**, **Teilzeit mit Kindern** (3 Jahre 100 %, 7 Jahre
+   60 %, danach 80 %) oder **Unterbruch** (2 Jahre ohne Erwerb). **„+ Phase“** teilt die letzte
+   Phase in der Mitte, **„− Phase“** entfernt sie. Danach Alter und Beträge anpassen.
+3. **Koordinationsabzug:** Gesetzlich zieht die Pensionskasse auch bei Teilzeit den vollen Abzug
+   ab (*Fix*). Viele Kassen passen ihn ans Pensum an (*Nach Pensum*). Das Reglement deiner
+   Kasse sagt, was gilt.
+4. **Kinder:** dein Alter bei jeder Geburt, auch für geplante Kinder (höchstens vier). Dazu, ob
+   du die **Mutter** (14 Wochen Mutterschaftsurlaub) oder der **andere Elternteil** (2 Wochen)
+   bist, ob die AHV-**Erziehungsgutschriften** ganz oder hälftig zählen (verheiratet: hälftig),
+   und die **Kinder- und Ausbildungszulage** deines Kantons.
+
+Das zeigt die Lasche **Lebensphasen**:
+
+- **Vorsorgelücke bei Pensionierung:** wie viel weniger Kapital in 2. Säule, 3a und 3b du mit
+  deinen Phasen hast als mit 100 % bis zur Pensionierung, dazu die **AHV-Lücke pro Monat**.
+- **Pensum und Einkommen** über die Jahre (★ = Geburt) und beide **Kapitalkurven**.
+- **Pro Phase:** Einkommen, versicherter Lohn, Beitrag an die Pensionskasse und 3a-Limit.
+- **Familie:** Familienzulagen, Erwerbsersatz bei der Geburt, Lohnausfall und Kinderkosten bis
+  zur Pensionierung, die Jahre mit Erziehungsgutschrift.
+- **Hinweise:** wenn Kinderkosten und Sparen das Einkommen übersteigen, und Möglichkeiten, eine
+  Lücke zu verkleinern. Das sind Hinweise, keine Beratung.
+
+Mit Phasen rechnen auch **Übersicht**, **Vorsorge** und **Wohneigentum** mit deinem Plan.
+
+### Begriffe
+
+- **Pensum:** dein Arbeitspensum in Prozent einer Vollzeitstelle.
+- **Eintrittsschwelle:** Erst ab einem Jahreslohn über CHF 23’040 bist du obligatorisch in der
+  Pensionskasse versichert.
+- **Koordinationsabzug:** Von deinem Lohn zieht die Pensionskasse CHF 26’880 ab; nur der Rest
+  ist versichert. Weil der Abzug gesetzlich bei Teilzeit gleich hoch bleibt, sinkt der
+  versicherte Lohn stärker als das Einkommen („Teilzeitfalle“).
+- **Grosse 3a:** Ohne Pensionskasse darfst du bis 20 % des Erwerbseinkommens in die Säule 3a
+  einzahlen, höchstens CHF 36’864. Ohne Erwerbseinkommen gar nichts.
+- **Erziehungsgutschriften:** Die AHV rechnet dir für jedes Jahr mit einem Kind unter 16 einen
+  Betrag von CHF 46’080 zum Einkommen dazu (eine Gutschrift pro Jahr). Verheiratete teilen sie.
+- **Familienzulagen:** mindestens CHF 215 pro Kind und Monat bis 16, danach CHF 268 bis
+  höchstens 25 (in Ausbildung); viele Kantone zahlen mehr.
+- **EO (Erwerbsersatz):** Bei der Geburt bekommst du 80 % deines Lohns, höchstens CHF 220 pro
+  Tag. Der Rest fehlt, wenn der Arbeitgeber nicht mehr bezahlt.
+- **Beitragslücke:** In Jahren ohne Erwerb musst du die AHV-Beiträge selbst als
+  Nichterwerbstätige zahlen. Verheiratete sind gedeckt, wenn der Partner mindestens den
+  doppelten Mindestbeitrag bezahlt.
+
+### Beispiel
+
+Einkommen CHF 7’500 pro Monat bei 100 %, danach 60 % mit CHF 4’500 (Vorlage „Teilzeit mit
+Kindern“):
+
+- Jahreslohn bei 100 %: CHF 90’000, versichert sind CHF 90’000 − 26’880 = **CHF 63’120**.
+- Bei 60 %: CHF 54’000. Mit fixem Abzug versichert CHF 54’000 − 26’880 = **CHF 27’120**, also
+  57 % weniger, obwohl das Einkommen nur 40 % tiefer ist.
+- Mit dem Abzug nach Pensum (60 % × 26’880 = 16’128) sind es **CHF 37’872**, also wie beim
+  Einkommen 40 % weniger.
+
+Die Regeln, Quellen und der Stand stehen in der Lasche **Annahmen**.
 
 ## Szenarien vergleichen
 

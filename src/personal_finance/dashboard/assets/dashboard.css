@@ -290,6 +290,12 @@ body {
   text-align: right;
 }
 
+/* Amounts in the phase table stay on one line; the table scrolls inside its card (#33). */
+.phase-table th,
+.phase-table td {
+  white-space: nowrap;
+}
+
 .assumption-title {
   font-size: 13px;
   font-weight: 700;

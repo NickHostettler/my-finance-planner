@@ -9,12 +9,16 @@
 A web app that projects how Swiss retirement savings could develop until retirement: the
 occupational pension (2nd pillar/BVG), tax-advantaged pillar 3a, free savings (3b), and a rough
 AHV state-pension estimate. Since v1.1 it also checks whether a planned home purchase is
-affordable and what it does to the retirement savings. It is deployed for a small group of friends: each one uses it in
-their own browser, and **no personal financial data is ever stored on the server**.
+affordable and what it does to the retirement savings; since v1.2 it shows what part time,
+career breaks and children do to the pension compared with working full time. It is deployed
+for a small group of friends: each one uses it in their own browser, and **no personal
+financial data is ever stored on the server**.
 
 ![Dashboard: inputs on the left, projected retirement capital, AHV estimate and growth chart in tabs on the right](docs/images/dashboard.png)
 
 ![Home ownership tab: purchase money prefilled with the highest amounts at the purchase age, traffic light for affordability, equity, mortgage, monthly housing costs, the maximum price with the money used and with all money available, and the equity needed versus available](docs/images/wohneigentum.png)
+
+![Life phases tab: gap in retirement capital and AHV compared with full time, workload and income over the years with the births, both capital curves, and the phase inputs on the left](docs/images/lebensphasen.png)
 
 ### Highlights
 
@@ -25,7 +29,7 @@ their own browser, and **no personal financial data is ever stored on the server
 - **Secure deployment:** Dockerized (multi-stage build, non-root user, read-only filesystem) and
   served by gunicorn on Render's free tier. The shared-password login (HTTP Basic Auth,
   constant-time comparison) **fails closed**: the container refuses to start without a password.
-- **CI/CD:** GitHub Actions runs linting, a format check and 510+ tests (100 % line and branch
+- **CI/CD:** GitHub Actions runs linting, a format check and 700+ tests (100 % line and branch
   coverage) on Linux and Windows, Playwright
   browser tests and a Docker build with smoke tests on every pull request. Render deploys only
   commits whose checks passed.
@@ -40,6 +44,12 @@ their own browser, and **no personal financial data is ever stored on the server
   amortisation, net wealth over time and affordability in retirement. The purchase money is
   prefilled with the most the projection allows at the purchase age (v1.1.1), next to the
   highest price that all available money would allow. Every rule is a constant with its source.
+- **Life phases and family (v1.2):** the working life in phases with their own workload and
+  income; the 2nd pillar follows the BVG rules for part time (entry threshold, coordination
+  deduction fixed or by workload), pillar 3a switches to the large limit without a pension
+  fund, the AHV estimate counts lower incomes and education credits. Children bring family
+  allowances, parental leave (EO) and child costs. The result is the pension gap in CHF
+  compared with full time, and every other tab follows the plan.
 - **Clean architecture:** `core/` (pure domain logic) → `storage/` → `dashboard/` (UI);
   dependencies only point inwards.
 
@@ -48,8 +58,9 @@ Render · GitHub Actions ·
 pytest · Playwright · uv · ruff
 
 **Workflow:** Every change went through an issue, a feature branch and a reviewed pull request
-with green CI (milestones [v1.0](https://github.com/NickHostettler/my-finance-planner/milestone/1)
-and [v1.1](https://github.com/NickHostettler/my-finance-planner/milestone/2),
+with green CI (milestones [v1.0](https://github.com/NickHostettler/my-finance-planner/milestone/1),
+[v1.1](https://github.com/NickHostettler/my-finance-planner/milestone/2) and
+[v1.2](https://github.com/NickHostettler/my-finance-planner/milestone/3),
 [releases](https://github.com/NickHostettler/my-finance-planner/releases)).
 Developed with the help of an AI coding assistant (Claude Code), which is noted in the commit
 messages.
@@ -73,6 +84,7 @@ Ein Python-Paket für private Finanzplanung nach dem Schweizer Rentensystem (1.,
 - **Startguthaben**: Bereits vorhandene Guthaben in der 2. Säule, 3a und 3b fliessen in die Projektion ein
 - **Transparente Modellannahmen**: Renditen, nominale Werte ohne Inflationsbereinigung, Vereinfachungen der BVG-Schätzung und nicht berücksichtigte Faktoren werden bei der Prognose ausgewiesen
 - **Wohneigentum**: Tragbarkeit und Eigenmittel mit Ampel, maximaler Kaufpreis, Vorbezug aus 2. Säule und 3a (WEF), direkte oder indirekte Amortisation, Nettovermögen und Tragbarkeit im Alter. Die Kaufmittel werden mit den Höchstbeträgen zum Kaufalter vorbelegt; daneben stehen der Eigenmittelbedarf und der höchste Kaufpreis mit allen verfügbaren Mitteln
+- **Lebensphasen & Familie**: Erwerbsleben in Phasen mit Pensum und Einkommen (Vorlagen für Teilzeit mit Kindern und Unterbruch), Teilzeitregeln der 2. Säule mit fixem oder pensumabhängigem Koordinationsabzug, grosse 3a ohne Pensionskasse, AHV mit Erziehungsgutschriften, Familienzulagen, Erwerbsersatz bei Geburt und Kinderkosten; Vergleich mit 100 % als Vorsorgelücke in CHF
 - **Nominale und reale Prognose**: Umschaltbare Anzeige in zukünftigen CHF oder kaufkraftbereinigten heutigen CHF unter Verwendung der konfigurierten jährlichen Inflation
 - **AHV-Rente**: Unverbindliche Schätzung anhand des durchschnittlichen Jahreseinkommens und der Beitragsjahre als separates Ruhestandseinkommen; 13 Jahreszahlungen sind berücksichtigt, die AHV wird nicht zum Vorsorgekapital addiert
 - **Szenarien im eigenen Browser**: Dashboard-Eingaben lassen sich benannt speichern, laden und löschen; ein erneut gespeicherter Name aktualisiert das bestehende Szenario. Die Daten bleiben im Browser des Nutzers, der Server speichert nichts
@@ -250,14 +262,21 @@ src/personal_finance/
 ├── wsgi.py                # Einstiegspunkt für gunicorn (Produktion)
 ├── gunicorn_conf.py       # gunicorn-Einstellungen aus Umgebungsvariablen
 ├── core/                  # Reine Fachlogik – keine Abhängigkeit zu Dash/Storage
-│   ├── ahv.py             # AHV-Rentenschätzung
+│   ├── ahv.py             # AHV-Rentenschätzung, Erziehungsgutschriften
 │   ├── deductions.py      # Lohnabzüge Brutto → Netto
 │   ├── income.py          # Einkommen normalisieren (Monat/Jahr, Brutto/Netto)
 │   ├── pillar_2.py        # 2. Säule (BVG)
 │   ├── pillar_3a.py       # 3a (gebundene Vorsorge)
 │   ├── pillar_3b.py       # 3b (freie Vorsorge)
 │   ├── projection.py      # Zinseszins-Projektion
-│   └── savings.py         # Sparquote / Sparbetrag
+│   ├── savings.py         # Sparquote / Sparbetrag
+│   ├── home.py            # Wohneigentum: Eigenmittel, Tragbarkeit, max. Kaufpreis
+│   ├── wef.py             # Vorbezug aus 2. Säule und 3a
+│   ├── mortgage.py        # Hypothek, Amortisation, Tragbarkeit im Alter
+│   ├── home_plan.py       # Kauf in der Prognose (mit/ohne Kauf)
+│   ├── life_phases.py     # Lebensphasen: Pensum und Einkommen pro Jahr
+│   ├── part_time.py       # Teilzeit: 2. Säule, 3a-Limit, AHV, Vergleich mit 100 %
+│   └── family.py          # Familienzulagen, Erwerbsersatz, Kinderkosten
 ├── storage/
 │   └── browser_store.py   # Szenarien im Browser (reine Funktionen, kein Server-Speicher)
 └── dashboard/             # Dash-UI
@@ -267,14 +286,17 @@ src/personal_finance/
     ├── layout.py          # Seitenaufbau
     ├── components.py      # Wiederverwendbare UI-Bausteine
     ├── figures.py         # Plotly-Grafiken
-    ├── results.py         # Ergebnisbereich
+    ├── results.py         # Ergebnisbereich (Übersicht, Vorsorge, Annahmen)
+    ├── home_view.py       # Lasche Wohneigentum
+    ├── life_view.py       # Lebensphasen: Eingaben und Lasche
     ├── callbacks.py       # Interaktionen
     ├── theme.py           # Farben
     └── assets/            # CSS (wird von Dash automatisch geladen)
 
 tests/
 ├── unit/                  # Fachlogik
-└── ui/                    # Dashboard-Layout & Callbacks
+├── ui/                    # Dashboard-Layout & Callbacks
+└── e2e/                   # Browser-Tests (Playwright)
 
 examples/                  # Beispielskripte
 docs/                      # Weitere Dokumentation (Installation)

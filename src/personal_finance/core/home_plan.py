@@ -344,6 +344,12 @@ def plan_purchase(
     before = [0.0] * at_purchase
     property_value = before + [assessment.price] * (years - at_purchase + 1)
 
+    # The pledged 3a payments share the yearly 3a limit with the 3a plan; with life phases the
+    # plan pays a different amount each year, so the highest one from the purchase on counts.
+    plan_3a = pot_3a.annual_contribution
+    if isinstance(plan_3a, Sequence):
+        plan_3a = max(plan_3a[at_purchase:], default=0.0)
+
     def outcome(mode: str) -> MortgageOutcome:
         plan = mortgage.amortisation_plan(
             assessment.mortgage,
@@ -353,8 +359,7 @@ def plan_purchase(
             inputs.mortgage_rate,
             mode,
             pledged_return=pot_3a.annual_return,
-            # The pledged 3a payments share the yearly 3a limit with the 3a plan.
-            pledged_cap=max(0.0, config.PILLAR3A_ANNUAL_MAX - pot_3a.annual_contribution),
+            pledged_cap=max(0.0, config.PILLAR3A_ANNUAL_MAX - plan_3a),
         )
         pledged_3a = before + list(plan.pledged_3a)
         paths = Paths(
