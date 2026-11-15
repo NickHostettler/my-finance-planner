@@ -1,16 +1,17 @@
-"""Rendering of the "Wohneigentum" result tab."""
+"""Rendering of the "Wohneigentum" result tab (one person or a household, v1.3)."""
 
-from typing import Optional
+from typing import Optional, Union
 
 import dash_mantine_components as dmc
 from dash import html
 
 from personal_finance import config
 from personal_finance.core import home, mortgage
-from personal_finance.core.home_plan import HomePlan
+from personal_finance.core.home_plan import HomePlan, PersonPurchase
 from personal_finance.core.projection import deflate
 from personal_finance.dashboard.components import chart_card, metric_card, money, section_card
 from personal_finance.dashboard.figures import wealth_figure, withdrawal_figure
+from personal_finance.dashboard.household_view import contributions_card
 
 # Traffic light: status -> (lit lamp, text colour tone)
 _LIGHTS = {
@@ -105,7 +106,7 @@ def equity_card(plan: HomePlan):
 
     return section_card(
         "Eigenmittel: Bedarf und verfügbare Mittel",
-        f"Kauf mit {plan.purchase_age} Jahren · Beträge zum Kaufzeitpunkt, nominal",
+        f"{plan.timing} · Beträge zum Kaufzeitpunkt, nominal",
         [
             dmc.Text("Mindestens nötig", fw=600, size="sm"),
             html.Div(
@@ -158,8 +159,17 @@ def equity_card(plan: HomePlan):
     )
 
 
-def pension_money_section(plan: HomePlan, display_basis: str):
-    """Money from the 2nd pillar and 3a (WEF) and its effect on the retirement capital."""
+def pension_money_section(
+    plan: Union[HomePlan, PersonPurchase],
+    display_basis: str,
+    label: str = "",
+    with_hints: bool = True,
+):
+    """Money from the 2nd pillar and 3a (WEF) and its effect on the retirement capital.
+
+    ``plan`` is the plan of one person or one person of a household (``label``).
+    """
+    of = f" von {label}" if label else ""
     real = display_basis == "real"
     inflation = config.INFLATION_RATE if real else 0
     without, with_purchase = plan.without_purchase, plan.with_purchase
@@ -190,13 +200,15 @@ def pension_money_section(plan: HomePlan, display_basis: str):
     ]
     notes = [dmc.Text(reason, size="xs", c="dimmed") for reason in limit.reasons]
     if plan.savings_outside_3b > 0:
+        whose = f"das freie Vermögen von {label}" if label else "dein freies Vermögen"
+        where = f"bei {label}" if label else "links"
         notes.append(
             dmc.Alert(
-                f"Laut Prognose reicht dein freies Vermögen (3b) zum Kaufzeitpunkt nicht für "
-                f"das Ersparte. Das Modell nimmt an, dass die fehlenden "
+                f"Laut Prognose reicht {whose} (3b) zum Kaufzeitpunkt nicht für das "
+                f"Ersparte. Das Modell nimmt an, dass die fehlenden "
                 f"{money(plan.savings_outside_3b)} von ausserhalb kommen, z. B. von einem "
-                "Sparkonto, einer Schenkung oder einem Erbvorbezug. Trage dein vorhandenes "
-                "Vermögen links unter «Bisherige Guthaben» ein, damit es mitgerechnet wird.",
+                "Sparkonto, einer Schenkung oder einem Erbvorbezug. Trage das vorhandene "
+                f"Vermögen {where} unter «Bisherige Guthaben» ein, damit es mitgerechnet wird.",
                 title="Erspartes ausserhalb der Prognose",
                 color="yellow",
                 variant="light",
@@ -205,19 +217,39 @@ def pension_money_section(plan: HomePlan, display_basis: str):
             )
         )
 
+    hints = _hints(
+        "Gut zu wissen zum Vorbezug",
+        [
+            "Ein Vorbezug senkt nicht nur das Alterskapital: Je nach Kasse sinken auch "
+            "die Leistungen bei Invalidität und Tod. Eine Zusatzversicherung kann die "
+            "Lücke schliessen.",
+            "Beim Verkauf des Eigenheims musst du den Vorbezug zurückzahlen. "
+            f"Einkäufe der letzten {config.WEF_BUY_IN_LOCK_YEARS} Jahre dürfen nicht "
+            "vorbezogen werden.",
+            "Der Bezug wird separat und zu einem tieferen Satz als Kapitalleistung "
+            "besteuert. Das Tool berechnet diese Steuer nicht; sie hängt von Kanton, "
+            "Gemeinde und Betrag ab.",
+            "Statt eines Vorbezugs kannst du das Guthaben auch verpfänden: Das Geld "
+            "bleibt in der Kasse und die Leistungen bleiben gleich, dafür gewährt die "
+            "Bank eine höhere Hypothek. Die Wohnkosten steigen entsprechend.",
+            "Pensionskassen dürfen strengere Regeln haben (z. B. eine frühere Frist vor "
+            "der Pensionierung). Prüfe das Reglement deiner Kasse.",
+        ],
+    )
     return dmc.Stack(
         [
+            *([dmc.Title(label, order=4, className="card-title person-title")] if label else []),
             dmc.SimpleGrid(
                 [
                     metric_card(
-                        "2. Säule bei Pensionierung",
+                        f"2. Säule{of} bei Pensionierung",
                         money(pillar2_with[-1]),
                         gap(pillar2_without[-1], pillar2_with[-1]),
                         "green",
                         "Ⅱ",
                     ),
                     metric_card(
-                        "3a bei Pensionierung",
+                        f"3a{of} bei Pensionierung",
                         money(pillar3a_with[-1]),
                         gap(pillar3a_without[-1], pillar3a_with[-1]),
                         "blue",
@@ -231,7 +263,7 @@ def pension_money_section(plan: HomePlan, display_basis: str):
                 [
                     dmc.GridCol(
                         chart_card(
-                            "Vorsorge mit und ohne Kauf",
+                            f"Vorsorge{of} mit und ohne Kauf",
                             f"Gestrichelt ohne Kauf · {basis}",
                             withdrawal_figure(
                                 ages,
@@ -247,7 +279,7 @@ def pension_money_section(plan: HomePlan, display_basis: str):
                     ),
                     dmc.GridCol(
                         section_card(
-                            "Vorsorgegeld für den Kauf (WEF)",
+                            f"Vorsorgegeld{of} für den Kauf (WEF)",
                             "Beträge zum Kaufzeitpunkt, nominal",
                             [html.Div(rows, className="detail-list"), *notes],
                             class_name="wef-card",
@@ -257,25 +289,7 @@ def pension_money_section(plan: HomePlan, display_basis: str):
                 ],
                 gap="md",
             ),
-            _hints(
-                "Gut zu wissen zum Vorbezug",
-                [
-                    "Ein Vorbezug senkt nicht nur das Alterskapital: Je nach Kasse sinken auch "
-                    "die Leistungen bei Invalidität und Tod. Eine Zusatzversicherung kann die "
-                    "Lücke schliessen.",
-                    "Beim Verkauf des Eigenheims musst du den Vorbezug zurückzahlen. "
-                    f"Einkäufe der letzten {config.WEF_BUY_IN_LOCK_YEARS} Jahre dürfen nicht "
-                    "vorbezogen werden.",
-                    "Der Bezug wird separat und zu einem tieferen Satz als Kapitalleistung "
-                    "besteuert. Das Tool berechnet diese Steuer nicht; sie hängt von Kanton, "
-                    "Gemeinde und Betrag ab.",
-                    "Statt eines Vorbezugs kannst du das Guthaben auch verpfänden: Das Geld "
-                    "bleibt in der Kasse und die Leistungen bleiben gleich, dafür gewährt die "
-                    "Bank eine höhere Hypothek. Die Wohnkosten steigen entsprechend.",
-                    "Pensionskassen dürfen strengere Regeln haben (z. B. eine frühere Frist vor "
-                    "der Pensionierung). Prüfe das Reglement deiner Kasse.",
-                ],
-            ),
+            *([hints] if with_hints else []),
         ],
         gap="md",
     )
@@ -303,11 +317,14 @@ def mortgage_section(plan: HomePlan, display_basis: str):
     at_retirement = (1 + inflation) ** (len(debt) - 1)  # nominal -> chosen basis
     amortisation = outcome.plan
     assessment = plan.assessment
+    # A household is computed until the first retirement (v1.3).
+    at = "bei der ersten Pensionierung" if plan.household else "bei Pensionierung"
+    until = f"bis zur {plan.horizon}"
 
     cards = dmc.SimpleGrid(
         [
             metric_card(
-                "Hypothek bei Pensionierung",
+                f"Hypothek {at}",
                 money(debt[-1]),
                 f"Start {money(assessment.mortgage)} · {_MODE_LABELS[plan.amortisation]} "
                 "amortisiert",
@@ -315,14 +332,14 @@ def mortgage_section(plan: HomePlan, display_basis: str):
                 "%",
             ),
             metric_card(
-                "Zinskosten bis zur Pensionierung",
+                f"Zinskosten {until}",
                 money(amortisation.total_interest),
                 f"Effektiver Zins {plan.mortgage_rate:.2%} · nominal, ohne Steuern",
                 "gold",
                 "Σ",
             ),
             metric_card(
-                "Nettovermögen bei Pensionierung",
+                f"Nettovermögen {at}",
                 money(net_wealth[-1]),
                 f"Vermögen + Immobilie − Hypothek · ohne Kauf {money(net_without[-1])}",
                 "dark",
@@ -339,7 +356,7 @@ def mortgage_section(plan: HomePlan, display_basis: str):
     outcomes = [plan.outcomes[mode] for mode in mortgage.MODES]
     comparison = section_card(
         "Direkt oder indirekt amortisieren?",
-        f"Bei Pensionierung · {basis} · Zinskosten nominal",
+        f"{at[0].upper()}{at[1:]} · {basis} · Zinskosten nominal",
         [
             dmc.TableScrollContainer(
                 dmc.Table(
@@ -416,7 +433,7 @@ def mortgage_section(plan: HomePlan, display_basis: str):
     ):
         notes.append(
             dmc.Alert(
-                f"In die Säule 3a passen neben deinem 3a-Plan nur noch "
+                f"In die Säule 3a passen neben {'euren 3a-Plänen' if plan.household else 'deinem 3a-Plan'} nur noch "
                 f"{money(amortisation.annual_pledged)} pro Jahr (Limit "
                 f"{money(config.PILLAR3A_ANNUAL_MAX)}). Die restlichen "
                 f"{money(amortisation.annual_direct)} pro Jahr werden direkt amortisiert.",
@@ -453,7 +470,8 @@ def mortgage_section(plan: HomePlan, display_basis: str):
     ]
     retirement_card = section_card(
         "Tragbarkeit im Alter",
-        f"Nach der Pensionierung · {basis} · höchstens ⅓ der Renten",
+        f"{'Wenn beide pensioniert sind' if plan.household else 'Nach der Pensionierung'} · "
+        f"{basis} · höchstens ⅓ der Renten",
         [
             dmc.Group(
                 [
@@ -471,7 +489,11 @@ def mortgage_section(plan: HomePlan, display_basis: str):
                 "Kalkulatorischer Zins auf der Resthypothek plus Unterhalt, verglichen mit AHV "
                 "und Rente aus der 2. Säule. 3a- und freies Vermögen sind nicht eingerechnet."
                 + (
-                    " Für die AHV gib links unter «AHV-Rente» dein Einkommen an."
+                    (
+                        " Für die AHV gebt bei beiden Personen unter «AHV-Rente» das Einkommen an."
+                        if plan.household
+                        else " Für die AHV gib links unter «AHV-Rente» dein Einkommen an."
+                    )
                     if retirement.ahv_income is None
                     else ""
                 ),
@@ -485,9 +507,7 @@ def mortgage_section(plan: HomePlan, display_basis: str):
 
     return dmc.Stack(
         [
-            dmc.Title(
-                "Hypothek und Vermögen bis zur Pensionierung", order=4, className="card-title"
-            ),
+            dmc.Title(f"Hypothek und Vermögen {until}", order=4, className="card-title"),
             cards,
             chart_card(
                 "Vermögen, Hypothek und Nettovermögen",
@@ -596,7 +616,9 @@ def home_section(
                 "↑",
             ),
             metric_card(
-                f"Höchster Kaufpreis mit {plan.purchase_age} Jahren",
+                "Höchster Kaufpreis zum Kaufzeitpunkt"
+                if plan.household
+                else f"Höchster Kaufpreis mit {plan.purchase_age} Jahren",
                 money(max_available.price),
                 f"Mit allen verfügbaren Mitteln ({money(plan.available.total)}) · begrenzt "
                 f"durch {max_available.limited_by}",
@@ -612,7 +634,7 @@ def home_section(
 
     details = section_card(
         "Finanzierung im Detail",
-        f"Kauf mit {plan.purchase_age} Jahren · Beträge zum Kaufzeitpunkt",
+        f"{plan.timing} · Beträge zum Kaufzeitpunkt",
         [
             html.Div(
                 [
@@ -647,7 +669,8 @@ def home_section(
     if plan.gross_income_from_net:
         hints.append(
             dmc.Alert(
-                "Du hast ein Nettoeinkommen angegeben. Banken rechnen mit dem Bruttoeinkommen; "
+                ("Mindestens eine Person hat" if plan.household else "Du hast")
+                + " ein Nettoeinkommen angegeben. Banken rechnen mit dem Bruttoeinkommen; "
                 "hier wird vorsichtig das Nettoeinkommen verwendet. Für eine genauere Prüfung "
                 "trage links unter «Wohneigentum» das Bruttoeinkommen des Haushalts ein.",
                 title="Bruttoeinkommen fehlt",
@@ -684,7 +707,22 @@ def home_section(
                 ],
                 gap="md",
             ),
-            pension_money_section(plan, display_basis),
+            *(
+                [
+                    contributions_card(plan),
+                    *[
+                        pension_money_section(
+                            member,
+                            display_basis,
+                            label=member.label,
+                            with_hints=member is plan.members[-1],
+                        )
+                        for member in plan.members
+                    ],
+                ]
+                if plan.household
+                else [pension_money_section(plan, display_basis)]
+            ),
             mortgage_section(plan, display_basis),
             *hints,
         ],

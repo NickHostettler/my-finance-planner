@@ -12,6 +12,7 @@ import math
 from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional, Tuple
 
+import dash_mantine_components as dmc
 from dash import Input, Output, State, ctx, html, no_update
 
 from personal_finance import config
@@ -19,10 +20,20 @@ from personal_finance.calculator import FinanceCalculator
 from personal_finance.core import ahv
 from personal_finance.core.home_plan import (
     HomeInputs,
+    Member,
+    Paths,
     Pot,
-    available_funds,
-    plan_purchase,
-    suggested_amounts,
+    available_funds_by_member,
+    plan_joint_purchase,
+    suggested_amounts_by_member,
+)
+from personal_finance.core.household import (
+    LABELS,
+    PERSON_B,
+    Household,
+    couple_ahv,
+    shift_birth_ages,
+    validate_household,
 )
 from personal_finance.core.income import normalize_income
 from personal_finance.core.pillar_2 import (
@@ -32,7 +43,7 @@ from personal_finance.core.pillar_2 import (
     validate_salary_growth,
 )
 from personal_finance.core.projection import project_balance
-from personal_finance.dashboard import home_view, life_view
+from personal_finance.dashboard import home_view, household_view, life_view
 from personal_finance.dashboard.app import app
 from personal_finance.dashboard.components import (
     money,
@@ -45,6 +56,7 @@ from personal_finance.dashboard.layout import (
     input_id,
     LAST_INPUTS_STORE_ID,
     NOTICE_STORE_ID,
+    PERSONAL_TABS,
     person_id,
     SCENARIOS_STORE_ID,
     STORAGE_KEY_PREFIX,
@@ -54,12 +66,16 @@ from personal_finance.storage import browser_store
 
 PERSONS = browser_store.PERSON_KEYS  # "a", "b"
 
+# Person A's tabs (and the shared ones) first, so that their positions stay; then the
+# household tab and the personal tabs of person B (v1.3).
 RESULT_SECTION_IDS = [
     "overview-section",
     "pension-section",
     "home-section",
     "life-section",
     "assumptions-section",
+    "household-section",
+    *[person_id(f"{tab}-section", "b") for tab in PERSONAL_TABS],
 ]
 
 
@@ -470,12 +486,15 @@ for _person in PERSONS:
     )(edit_life_phases)
 
 
-# --- purchase money: fill in the highest amounts at the purchase age (#40) -----------
+# --- purchase money: fill in the highest amounts at the purchase age (#40, #42) -----------
 
+_AMOUNT_FIELDS = ("home_savings", "home_pillar3a", "home_pillar2")
+# Savings, 3a and pension fund of person A, then of person B.
 HOME_AMOUNT_IDS = [
-    input_id(browser_store.person_field(field, "a"))
-    for field in ("home_savings", "home_pillar3a", "home_pillar2")
-]  # savings, 3a, pension fund of person A
+    input_id(browser_store.person_field(field, person))
+    for person in PERSONS
+    for field in _AMOUNT_FIELDS
+]
 _PREFILL_TRIGGER_IDS = ["home-plan-input", "home-purchase-age-input"]
 # Everything the projection needs; the amounts themselves are not read (no cycle).
 _PREFILL_STATE_IDS = [
@@ -489,20 +508,22 @@ _HINT_INPUT_IDS = [
 
 
 def _home_maximum(values_by_id):
-    """Available funds and suggested amounts for the planned purchase, or ``None``.
+    """Available funds and suggested amounts of each person for the purchase, or ``None``.
 
     ``None`` if no purchase is planned or the inputs are not valid (the result tabs explain
-    the error).
+    the error). One entry per person: one without a household, two with.
     """
     values = _fields([values_by_id.get(component_id) for component_id in SCENARIO_INPUT_IDS])
+    if values["home_plan"] != "on":
+        return None
     try:
-        base = _projection(values)
-        if values["home_plan"] != "on":
+        _household, people = _persons(values, render=False)
+        if any(person.error for person in people):
             return None
-        available = available_funds(
-            values["home_purchase_age"], base.current_age, base.retirement_age, *base.pots
+        available = available_funds_by_member(
+            values["home_purchase_age"], [_member(person) for person in people]
         )
-        return available, suggested_amounts(values["home_price"], available)
+        return available, suggested_amounts_by_member(values["home_price"], available)
     except ValueError:
         return None
 
@@ -522,7 +543,8 @@ def fill_home_maximum(plan, age, _clicks, skip, *other_values):
 
     Runs when the purchase is planned, when the purchase age changes and on the button. When
     a loaded scenario or the remembered inputs set the purchase (``skip``), their amounts stay.
-    The amounts are capped at what the purchase needs (see ``suggested_amounts``).
+    The amounts are capped at what the purchase needs (see ``suggested_amounts_by_member``);
+    without a household person B's fields stay as they are.
     """
     unchanged = [no_update] * len(HOME_AMOUNT_IDS)
     age = None if age == "" else age
@@ -534,7 +556,21 @@ def fill_home_maximum(plan, age, _clicks, skip, *other_values):
     result = _home_maximum(values_by_id)
     if result is None:
         return [*unchanged, None]
-    return [*result[1], None]
+    amounts = [amount for person in result[1] for amount in person]
+    return [*amounts, *unchanged[len(amounts) :], None]
+
+
+def _amount_hints(available, defaults):
+    savings_hint, pillar3a_hint, pillar2_hint = (hint[0].lower() + hint[1:] for hint in defaults)
+    return [
+        f"Freies Vermögen zum Kaufalter: {money(available.savings)} · {savings_hint}",
+        f"3a zum Kaufalter: {money(available.pillar3a)} · {pillar3a_hint}",
+        (
+            f"Höchstens {money(available.pillar2)} zum Kaufalter · {pillar2_hint}"
+            if available.pillar2 > 0
+            else f"Zum Kaufalter kein Vorbezug möglich · {pillar2_hint}"
+        ),
+    ]
 
 
 @app.callback(
@@ -547,17 +583,11 @@ def update_home_amount_hints(*component_values):
     result = _home_maximum(dict(zip(_HINT_INPUT_IDS, component_values)))
     if result is None:
         return defaults
-    available = result[0]
-    savings_hint, pillar3a_hint, pillar2_hint = (hint[0].lower() + hint[1:] for hint in defaults)
-    return [
-        f"Freies Vermögen zum Kaufalter: {money(available.savings)} · {savings_hint}",
-        f"3a zum Kaufalter: {money(available.pillar3a)} · {pillar3a_hint}",
-        (
-            f"Höchstens {money(available.pillar2)} zum Kaufalter · {pillar2_hint}"
-            if available.pillar2 > 0
-            else f"Zum Kaufalter kein Vorbezug möglich · {pillar2_hint}"
-        ),
-    ]
+    size = len(_AMOUNT_FIELDS)
+    hints = []
+    for index, available in enumerate(result[0]):
+        hints.extend(_amount_hints(available, defaults[index * size : (index + 1) * size]))
+    return hints + defaults[len(hints) :]
 
 
 def update_income_controls(period, income_type, person="a"):
@@ -819,82 +849,254 @@ def _projection(fields: Mapping[str, Any]) -> _Projection:
     )
 
 
+# --- one person in the plan (v1.3: one or two) ---------------------------------------------
+
+
+@dataclass(frozen=True)
+class _Person:
+    """One person's validated inputs, projection and life phases (``error`` if invalid)."""
+
+    key: str  # "a" or "b"
+    label: str  # "" for one person, "Person A" / "Person B" in a household
+    values: Dict[str, Any]  # under person A's names, see person_values
+    base: Optional[_Projection] = None
+    error: Optional[str] = None
+    life: Any = None  # life_view.LifeOutcome, None without (valid) life phases
+    life_tab: Any = None
+    pots: Optional[Tuple[Pot, Pot, Pot]] = None  # with life phases: their contributions
+    ahv_today: Optional[float] = None  # AHV per month in today's CHF, before the couple cap
+
+    def paths(self) -> Paths:
+        """The projection without a purchase (with the life phases, if planned)."""
+        if self.life is not None:
+            return self.life.gap.plan_paths
+        years = self.base.analysis.years_to_retirement
+        return Paths(*(pot.path(years) for pot in self.pots))
+
+
+_CREDIT_CHOICES = {1.0: "full", 0.5: "half", 0.0: "none"}
+
+
+def _household(values) -> Optional[Household]:
+    """The household with two persons, ``None`` for one person. Raises ``ValueError``."""
+    if values["household"] != "on":
+        return None
+    return validate_household(values["household_relationship"], values["household_credits"])
+
+
+def _whole_number(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _persons(values, render: bool = True):
+    """The household (or ``None``) and its persons; ``render`` builds the life tabs.
+
+    With two persons the household decides how the education credits are shared, the
+    children count for person B with the age difference, and the family allowances count
+    once, for the first person with life phases.
+    """
+    household = _household(values)
+    keys = PERSONS if household else PERSONS[:1]
+    planned = [key for key in keys if values[browser_store.person_field("life_plan", key)] == "on"]
+    allowances_at = planned[0] if planned else keys[0]
+    people = []
+    for index, key in enumerate(keys):
+        person = person_values(values, key)
+        label = LABELS[index] if household else ""
+        family_note = None
+        if household:
+            person["life_credit_share"] = _CREDIT_CHOICES[household.credit_shares[index]]
+            if key != allowances_at:
+                person["life_child_allowance"] = person["life_education_allowance"] = 0
+                family_note = (
+                    f"Die Familienzulagen sind bei {LABELS[keys.index(allowances_at)]} gerechnet."
+                )
+        try:
+            base = _projection(person)
+        except ValueError as error:
+            people.append(_Person(key, label, person, error=str(error)))
+            continue
+        offset = 0
+        if key != "a" and _whole_number(values["current_age"]):
+            offset = base.current_age - values["current_age"]
+        life, life_tab = _life_results(
+            base, offset, household, family_note, label=label, render=render
+        )
+        pots = base.pots
+        ahv_today = None
+        if base.ahv_average_income is not None:
+            ahv_today = ahv.estimate_monthly_old_age_pension(
+                base.ahv_average_income, base.ahv_contribution_years
+            )
+        if life is not None:
+            pots = tuple(
+                Pot(contributions, pot.annual_return, pot.initial)
+                for pot, contributions in zip(base.pots, life.contributions)
+            )
+            ahv_today = life.gap.ahv_plan
+        people.append(_Person(key, label, person, base, None, life, life_tab, pots, ahv_today))
+    return household, people
+
+
+def _member(person: _Person, ahv_today: Optional[float] = None) -> Member:
+    """The person in a purchase, with the money from the person's purchase fields."""
+    base, values = person.base, person.values
+    return Member(
+        base.current_age,
+        base.retirement_age,
+        *person.pots,
+        label=person.label,
+        income_annual=base.income_annual,
+        income_is_net=base.income_is_net,
+        ahv_annual_at_retirement=_ahv_annual(base, ahv_today),
+        savings=values["home_savings"],
+        pillar3a=values["home_pillar3a"],
+        pillar2=values["home_pillar2"],
+    )
+
+
+def _validation_message(message: str):
+    return html.Div(
+        [html.Strong("Eingaben prüfen"), html.P(message)],
+        className="validation-message",
+    )
+
+
 @app.callback(
     *[Output(section_id, "children") for section_id in RESULT_SECTION_IDS],
     Output("calculation-notice", "children"),
     *[Input(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
 )
 def update_results(*component_values):
-    """Validate the inputs and render the result tabs (inputs in SCENARIO_INPUT_IDS order)."""
-    try:
-        base = _projection(_fields(component_values))
-    except ValueError as error:
-        message = html.Div(
-            [html.Strong("Eingaben prüfen"), html.P(str(error))],
-            className="validation-message",
-        )
-        return message, message, message, message, message, ""
+    """Validate the inputs and render the result tabs (inputs in SCENARIO_INPUT_IDS order).
 
-    values = base.values
-    # Life phases (#33): an error only shows in their tab; the rest is computed without them.
-    life, life_tab = _life_results(base)
-    pots = base.pots
-    ahv_today = None
-    if life is not None:
-        pots = tuple(
-            Pot(contributions, pot.annual_return, pot.initial)
-            for pot, contributions in zip(base.pots, life.contributions)
+    Outputs in RESULT_SECTION_IDS order: overview, pension, home, life and assumptions (of
+    person A), the household tab and the personal tabs of person B, then the notice.
+    """
+    values = _fields(component_values)
+    try:
+        household, people = _persons(values)
+    except ValueError as error:  # the household choices themselves
+        message = _validation_message(str(error))
+        return [message] * len(RESULT_SECTION_IDS) + [""]
+    if household is None and people[0].error is not None:
+        message = _validation_message(people[0].error)
+        return [message] * len(RESULT_SECTION_IDS) + [""]
+
+    # AHV of both: a married couple gets at most 150 % of the maximum pension (v1.3).
+    ahv_shown = [person.ahv_today for person in people]
+    capped = False
+    if household is not None and all(person.error is None for person in people):
+        couple = couple_ahv(*ahv_shown, household.married)
+        ahv_shown, capped = [couple.person_a, couple.person_b], couple.capped
+
+    plan, home = _home_for(values, household, people, ahv_shown)
+    display_basis = values["display_basis"]
+    sections = {}
+    notices = []
+    for index, person in enumerate(people):
+        if person.error is not None:
+            message = _validation_message(f"{person.label}: {person.error}")
+            sections[person.key] = (message, message, message, message)
+            continue
+        base = person.base
+        member = None if plan is None else plan.members[index]
+        if member is not None:
+            paths = member.with_purchase
+        else:
+            paths = None if person.life is None else person.life.gap.plan_paths
+        overview, pension, assumptions, _ = results_view(
+            income=base.monthly_net_income,
+            current_age=base.current_age,
+            retirement_age=base.retirement_age,
+            assumed_return=float(person.values["assumed_return"]),
+            analysis=base.analysis,
+            pillar3a=base.pillar3a,
+            pillar3b=base.pillar3b,
+            pillar2_mode=person.values["pillar2_mode"],
+            pillar2_return=base.pillar2_return,
+            initial_2=base.pots[0].initial,
+            initial_3a=base.pots[1].initial,
+            initial_3b=base.pots[2].initial,
+            display_basis=display_basis,
+            salary_growth=base.salary_growth,
+            ahv_contribution_years=base.ahv_contribution_years,
+            paths=paths,
+            purchase_note=None if member is None else member.withdrawal_note(),
+            per_year=None if person.life is None else person.life.contributions,
+            ahv_monthly_today=ahv_shown[index],
+            life_note=None if person.life is None else person.life.note(),
+            ahv_note="plafoniert (Ehepaar)" if capped else None,
         )
-        ahv_today = life.gap.ahv_plan
-    plan, home = _home_results(
-        values,
-        current_age=base.current_age,
-        retirement_age=base.retirement_age,
-        income_annual=base.income_annual,
-        income_is_net=base.income_is_net,
-        pots=pots,
-        display_basis=values["display_basis"],
-        ahv_annual_at_retirement=_ahv_annual(base, ahv_today),
-    )
-    if plan is not None:
-        paths = plan.with_purchase
+        life_tab = person.life_tab
+        if household is not None:
+            heading = household_view.person_heading(
+                person.label, base.current_age, base.retirement_age
+            )
+            overview, pension, life_tab = (
+                dmc.Stack([heading, content], gap="md") for content in (overview, pension, life_tab)
+            )
+        sections[person.key] = (overview, pension, life_tab, assumptions)
+        if float(person.values["pillar3a_amount"]) > base.pillar3a.monthly_savings:
+            notices.append(
+                (f"{person.label}: " if person.label else "")
+                + "Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
+                f"{money(base.pillar3a.monthly_savings)} pro Monat begrenzt."
+            )
+
+    overview, pension, life_tab, assumptions = sections["a"]
+    if household is None:
+        household_tab = household_view.planning_hint()
+        person_b = ("", "", "")
     else:
-        paths = None if life is None else life.gap.plan_paths
-    overview, pension, assumptions, notice = results_view(
-        income=base.monthly_net_income,
-        current_age=base.current_age,
-        retirement_age=base.retirement_age,
-        assumed_return=float(values["assumed_return"]),
-        analysis=base.analysis,
-        pillar3a=base.pillar3a,
-        pillar3b=base.pillar3b,
-        pillar2_mode=values["pillar2_mode"],
-        pillar2_return=base.pillar2_return,
-        initial_2=base.pots[0].initial,
-        initial_3a=base.pots[1].initial,
-        initial_3b=base.pots[2].initial,
-        display_basis=values["display_basis"],
-        salary_growth=base.salary_growth,
-        ahv_average_income=base.ahv_average_income,
-        ahv_contribution_years=base.ahv_contribution_years,
-        paths=paths,
-        purchase_note=None if plan is None else plan.withdrawal_note(),
-        per_year=None if life is None else life.contributions,
-        ahv_monthly_today=ahv_today,
-        life_note=None if life is None else life.note(),
+        household_tab = _household_tab(values, household, people, ahv_shown, plan, capped)
+        if people[0].error is None:
+            assumptions = dmc.Stack([assumptions, household_view.assumptions()], gap="md")
+        person_b = sections["b"][:3]
+    return (
+        overview,
+        pension,
+        home,
+        life_tab,
+        assumptions,
+        household_tab,
+        *person_b,
+        " ".join(notices),
     )
-    if float(values["pillar3a_amount"]) > base.pillar3a.monthly_savings:
-        notice = (
-            f"Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
-            f"{money(base.pillar3a.monthly_savings)} pro Monat begrenzt."
+
+
+def _household_tab(values, household, people, ahv_shown, plan, capped):
+    invalid = next((person for person in people if person.error is not None), None)
+    if invalid is not None:
+        return household_view.error_message(f"{invalid.label}: {invalid.error}")
+    summaries = [
+        household_view.PersonSummary(
+            label=person.label,
+            current_age=person.base.current_age,
+            retirement_age=person.base.retirement_age,
+            monthly_net_income=person.base.monthly_net_income,
+            monthly_savings=person.base.pillar3a.monthly_savings
+            + person.base.pillar3b.monthly_savings,
+            paths=person.paths() if plan is None else plan.members[index].with_purchase,
+            ahv_monthly_today=ahv_shown[index],
+            capital_gap=None if person.life is None else person.life.gap.capital_gap,
         )
-    return overview, pension, home, life_tab, assumptions, notice
+        for index, person in enumerate(people)
+    ]
+    return household_view.household_section(
+        summaries,
+        household,
+        plan,
+        display_basis=values["display_basis"],
+        capped=capped,
+        purchase_planned=values["home_plan"] == "on",
+    )
 
 
 def _ahv_annual(base: _Projection, monthly_today: Optional[float] = None) -> Optional[float]:
     """Nominal AHV per year at retirement (13 pensions), like the overview card.
 
-    ``monthly_today`` replaces the estimate from the AHV inputs (life phases).
+    ``monthly_today`` replaces the estimate from the AHV inputs (life phases, couple cap).
     """
     if base.ahv_average_income is None:
         return None
@@ -924,13 +1126,32 @@ def _phase_income_to_net(base: _Projection):
     return to_net
 
 
-def _life_results(base: _Projection):
-    """The plan with life phases (``None`` if off or invalid) and the "Lebensphasen" tab."""
+_CHILD_FIELDS = [f"life_child_{child}" for child in range(1, browser_store.LIFE_CHILDREN + 1)]
+
+
+def _life_results(
+    base: _Projection,
+    birth_offset: int = 0,
+    household: Optional[Household] = None,
+    family_note: Optional[str] = None,
+    label: str = "",
+    render: bool = True,
+):
+    """The plan with life phases (``None`` if off or invalid) and the "Lebensphasen" tab.
+
+    ``birth_offset``: how much older person B is than person A (the children are entered
+    with person A's ages).
+    """
     values = base.values
     if values["life_plan"] != "on":
-        return None, life_view.life_section(None)
+        return None, life_view.life_section(None) if render else None
     pillar2 = base.analysis.pillar2
     try:
+        if birth_offset:
+            shifted = shift_birth_ages(
+                [values[field] for field in _CHILD_FIELDS], 0, birth_offset, label or PERSON_B
+            )
+            values = {**values, **dict(zip(_CHILD_FIELDS, shifted))}
         outcome = life_view.plan_life(
             values,
             current_age=base.current_age,
@@ -950,8 +1171,15 @@ def _life_results(base: _Projection):
             ahv_contribution_years=base.ahv_contribution_years,
         )
     except ValueError as error:
-        return None, life_view.life_section(None, str(error))
-    return outcome, life_view.life_section(outcome, display_basis=values["display_basis"])
+        return None, life_view.life_section(None, str(error)) if render else None
+    if not render:
+        return outcome, None
+    return outcome, life_view.life_section(
+        outcome,
+        display_basis=values["display_basis"],
+        household=household,
+        family_note=family_note if outcome.birth_ages else None,
+    )
 
 
 def _percent_to_rate(value):
@@ -961,20 +1189,8 @@ def _percent_to_rate(value):
     return value
 
 
-def _home_results(
-    values,
-    current_age,
-    retirement_age,
-    income_annual,
-    income_is_net,
-    pots,
-    display_basis,
-    ahv_annual_at_retirement,
-):
-    """The planned purchase (``None`` if none or invalid) and the "Wohneigentum" tab."""
-    if values["home_plan"] != "on":
-        return None, home_view.home_section(None)
-    inputs = HomeInputs(
+def _home_inputs(values) -> HomeInputs:
+    return HomeInputs(
         price=values["home_price"],
         savings=values["home_savings"],
         pillar3a=values["home_pillar3a"],
@@ -985,19 +1201,40 @@ def _home_results(
         mortgage_rate=_percent_to_rate(values["home_mortgage_rate"]),
         amortisation=values["home_amortisation"],
     )
+
+
+def _home_for(values, household, people, ahv_shown):
+    """The planned purchase (``None`` if none or invalid) and the "Wohneigentum" tab."""
+    if values["home_plan"] != "on":
+        return None, home_view.home_section(None)
+    invalid = next((person for person in people if person.error is not None), None)
+    if invalid is not None:
+        return None, home_view.home_section(None, f"{invalid.label}: {invalid.error}")
+    members = [_member(person, ahv) for person, ahv in zip(people, ahv_shown)]
     try:
-        plan = plan_purchase(
-            inputs,
-            current_age,
-            retirement_age,
-            income_annual,
-            income_is_net,
-            *pots,
-            ahv_annual_at_retirement=ahv_annual_at_retirement,
-        )
+        plan = plan_joint_purchase(_home_inputs(values), members)
     except ValueError as error:
         return None, home_view.home_section(None, str(error))
-    return plan, home_view.home_section(plan, display_basis=display_basis)
+    return plan, home_view.home_section(plan, display_basis=values["display_basis"])
+
+
+@app.callback(
+    Output("result-person-control", "style"),
+    *[
+        Output(person_id(f"{tab}-section", person), "style")
+        for tab in PERSONAL_TABS
+        for person in PERSONS
+    ],
+    Input(input_id("household"), "value"),
+    Input("result-person-input", "value"),
+)
+def update_result_person(household, person):
+    """With two persons: show the personal results of the chosen person."""
+    show_b = household == "on" and person == "b"
+    return [
+        _SHOWN if household == "on" else _HIDDEN,
+        *[_HIDDEN if show_b else _SHOWN, _SHOWN if show_b else _HIDDEN] * len(PERSONAL_TABS),
+    ]
 
 
 # Phones: the burger in the header shows or hides the inputs column (runs in the browser).

@@ -98,6 +98,22 @@ body {
   gap: var(--mantine-spacing-sm);
 }
 
+/* Household (v1.3): one or two persons, then the shared inputs. */
+.household-switch {
+  display: grid;
+  margin-bottom: var(--mantine-spacing-md);
+}
+
+.shared-eyebrow {
+  margin: var(--mantine-spacing-md) 0 var(--mantine-spacing-xs);
+}
+
+.person-heading {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /* --- results (right column) -------------------------------------------------------- */
 
 .main-area {
@@ -293,6 +309,14 @@ body {
 /* Amounts in the phase table stay on one line; the table scrolls inside its card (#33). */
 .phase-table th,
 .phase-table td {
+  white-space: nowrap;
+}
+
+/* Household tables: amounts stay on one line, the table scrolls inside its card. */
+.household-table th,
+.household-table td:not(:first-child),
+.contributions-table th,
+.contributions-table td:not(:first-child) {
   white-space: nowrap;
 }
 

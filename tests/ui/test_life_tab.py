@@ -30,7 +30,7 @@ FULL_TIME = {"life_plan": "on", "life_1_workload": 100, "life_1_income": 7_200}
 
 
 def tabs(**overrides):
-    overview, pension, home, life, assumptions, notice = results(**{**LIFE, **overrides})
+    overview, pension, home, life, assumptions, *_, notice = results(**{**LIFE, **overrides})
     return SimpleNamespace(
         overview=overview, pension=pension, home=home, life=life, assumptions=assumptions
     )

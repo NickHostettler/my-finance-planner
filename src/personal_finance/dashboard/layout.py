@@ -28,6 +28,8 @@ NOTICE_STORE_ID = "pf-notice"
 HOME_PREFILL_SKIP_STORE_ID = "home-prefill-skip"
 
 NAVBAR_WIDTH = 350
+# Result tabs with the results of one person (person B: "b-overview-section", ...).
+PERSONAL_TABS = ("overview", "pension", "life")
 MOBILE_BREAKPOINT = 768  # px; below this the inputs move behind the burger menu
 
 CANTONS = [
@@ -869,7 +871,7 @@ _household_group = dmc.AccordionItem(
     [
         dmc.AccordionControl(
             "Haushalt",
-            icon=dmc.ThemeIcon("⚭", variant="light", size="md", radius="md"),
+            icon=dmc.ThemeIcon("A+B", variant="light", size="md", radius="md"),
         ),
         dmc.AccordionPanel(
             dmc.Stack(
@@ -1048,14 +1050,34 @@ _results = html.Div(
                         ),
                     ]
                 ),
-                dmc.SegmentedControl(
-                    id="display-basis-input",
-                    data=[
-                        {"label": "Nominal", "value": "nominal"},
-                        {"label": "Real · heutige Kaufkraft", "value": "real"},
+                dmc.Group(
+                    [
+                        html.Div(
+                            dmc.SegmentedControl(
+                                id="result-person-input",
+                                data=[
+                                    {"label": "Person A", "value": "a"},
+                                    {"label": "Person B", "value": "b"},
+                                ],
+                                value="a",
+                                size="xs",
+                                color="forest",
+                            ),
+                            id="result-person-control",
+                            title="Persönliche Ergebnisse von",
+                            style={"display": "none"},
+                        ),
+                        dmc.SegmentedControl(
+                            id="display-basis-input",
+                            data=[
+                                {"label": "Nominal", "value": "nominal"},
+                                {"label": "Real · heutige Kaufkraft", "value": "real"},
+                            ],
+                            value="nominal",
+                            size="xs",
+                        ),
                     ],
-                    value="nominal",
-                    size="xs",
+                    gap="xs",
                 ),
             ],
             justify="space-between",
@@ -1071,13 +1093,32 @@ _results = html.Div(
                         dmc.TabsTab("Vorsorge", value="pension"),
                         dmc.TabsTab("Wohneigentum", value="home"),
                         dmc.TabsTab("Lebensphasen", value="life"),
+                        dmc.TabsTab("Haushalt", value="household"),
                         dmc.TabsTab("Annahmen", value="assumptions"),
                     ]
                 ),
-                dmc.TabsPanel(html.Div(id="overview-section"), value="overview", pt="md"),
-                dmc.TabsPanel(html.Div(id="pension-section"), value="pension", pt="md"),
+                # Personal tabs: the results of person A and (hidden) person B (v1.3).
+                *[
+                    dmc.TabsPanel(
+                        [
+                            html.Div(id=f"{tab}-section"),
+                            html.Div(id=f"b-{tab}-section", style={"display": "none"}),
+                        ],
+                        value=tab,
+                        pt="md",
+                    )
+                    for tab in PERSONAL_TABS[:2]
+                ],
                 dmc.TabsPanel(html.Div(id="home-section"), value="home", pt="md"),
-                dmc.TabsPanel(html.Div(id="life-section"), value="life", pt="md"),
+                dmc.TabsPanel(
+                    [
+                        html.Div(id="life-section"),
+                        html.Div(id="b-life-section", style={"display": "none"}),
+                    ],
+                    value="life",
+                    pt="md",
+                ),
+                dmc.TabsPanel(html.Div(id="household-section"), value="household", pt="md"),
                 dmc.TabsPanel(html.Div(id="assumptions-section"), value="assumptions", pt="md"),
             ],
             id="result-tabs",
