@@ -35,6 +35,18 @@ eigenes CSS nur in `assets/dashboard.css`.
   Pensionierung. Mit Phasen rechnen Übersicht, Vorsorge und Wohneigentum über `paths`,
   `per_year` und `ahv_monthly_today` in `results_view`. Neue Ergebnis-Tabs verschieben die
   Position in `RESULT_SECTION_IDS`; Tests, die Tabs entpacken, nachziehen.
+- **Haushalt (v1.3):** Person B hat dieselben Elemente wie Person A mit dem Präfix `b-`
+  (`layout.person_id`, `layout.input_id`). Steuer-Callbacks einer Person (Einkommen, 2. Säule,
+  3a, Lebensphasen) werden in einer Schleife für beide registriert; dieselbe Funktion darf
+  mehrfach registriert werden. Ereignis-IDs von Person B mit `_unprefixed` auf die von A
+  zurückführen.
+- `update_results` rechnet jede Person mit `_persons` (wie ein Einzelplan, `person_values`) und
+  führt sie dann zusammen: Plafonierung, gemeinsamer Kauf (`plan_joint_purchase`), Tab
+  „Haushalt“ (`household_view.py`). Ausgaben: zuerst die fünf bisherigen Tabs (Person A und
+  gemeinsame), dann `household-section` und die Tabs von Person B, zuletzt der Hinweis. So
+  bleiben die Indizes der bisherigen Tests gleich.
+- Ein Fehler bei einer Person erscheint in ihren Tabs („Person B: …“) sowie in „Wohneigentum“
+  und „Haushalt“; die andere Person rechnet weiter. Ohne Haushalt zeigt jeder Tab die Meldung.
 - Plotly: Mit festen `tickvals` greift `ticksuffix` nicht, die Beschriftung über `ticktext`
   setzen.
 - Felder ein- und ausblenden über `style={"display": ...}` per Callback (siehe

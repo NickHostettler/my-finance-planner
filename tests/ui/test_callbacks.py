@@ -55,6 +55,12 @@ VALID_INPUTS = {
     "home_amortisation": "direct",
     # Life phases (v1.2): not planned.
     **{field: browser_store.FIELD_DEFAULTS.get(field) for field in browser_store.LIFE_FIELDS},
+    # Household (v1.3): one person; person B with the start values.
+    **{
+        field: browser_store.FIELD_DEFAULTS.get(field)
+        for field in browser_store.SCENARIO_FIELDS
+        if field.startswith(("household", browser_store.PERSON_B_PREFIX))
+    },
 }
 
 
@@ -152,7 +158,7 @@ def test_salary_growth_increases_projected_pillar2_contributions():
 
 
 def test_results_fill_all_tabs():
-    overview, pension, home, life, assumptions, _ = results()
+    overview, pension, home, life, assumptions, household, *_ = results()
 
     texts = [repr(section) for section in (overview, pension, home, life, assumptions)]
     assert "Projiziertes Vorsorgekapital" in texts[0]
@@ -160,6 +166,7 @@ def test_results_fill_all_tabs():
     assert "Wohneigentum planen" in texts[2]
     assert "Lebensphasen planen" in texts[3]
     assert "Modell statt Beratung" in texts[4]
+    assert "Zu zweit planen" in repr(household)
 
 
 # --- the "Wohneigentum" tab (issue #25) ----------------------------------------------------
@@ -261,7 +268,7 @@ def test_home_tab_explains_why_a_purchase_is_tight_or_not_affordable(overrides, 
     ],
 )
 def test_invalid_home_inputs_show_a_message_only_in_the_home_tab(overrides, message):
-    overview, _, home, _, _, _ = results(**{**HOME, **overrides})
+    overview, _, home, *_ = results(**{**HOME, **overrides})
 
     assert home.className == "validation-message"
     assert "Wohneigentum" in home.children[0].children

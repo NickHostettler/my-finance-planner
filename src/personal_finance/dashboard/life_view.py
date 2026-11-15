@@ -11,6 +11,7 @@ from dash import html
 from personal_finance import config
 from personal_finance.core import ahv
 from personal_finance.core.family import Family, FamilyYear, family_years
+from personal_finance.core.household import Household
 from personal_finance.core.life_phases import BY_WORKLOAD, LifePhase, validate_phases
 from personal_finance.core.part_time import PensionGap, Pillar2Setup, compare_with_full_time
 from personal_finance.core.projection import deflate
@@ -114,6 +115,9 @@ def child_birth_ages(values: Mapping[str, Any]) -> Tuple[int, ...]:
 
 # --- the plan with life phases -------------------------------------------------------------
 
+# The stored choice for the education credits; "none" only in a household (v1.3).
+CREDIT_SHARES = {"full": 1.0, "half": 0.5, "none": 0.0}
+
 
 @dataclass(frozen=True)
 class LifeOutcome:
@@ -190,7 +194,7 @@ def plan_life(
         ahv_average_income=ahv_average_income,
         ahv_contribution_years=ahv_contribution_years,
         child_birth_ages=births,
-        credit_share=0.5 if values["life_credit_share"] == "half" else 1.0,
+        credit_share=CREDIT_SHARES.get(values["life_credit_share"], 1.0),
     )
     yearly = gap.yearly
     family = family_years(
@@ -325,7 +329,7 @@ def _phase_table(outcome: LifeOutcome):
     )
 
 
-def _family_card(outcome: LifeOutcome):
+def _family_card(outcome: LifeOutcome, note: Optional[str] = None):
     years = outcome.family
     allowances = sum(year.allowances for year in years)
     leave = sum(year.leave_allowance for year in years)
@@ -346,12 +350,15 @@ def _family_card(outcome: LifeOutcome):
     return section_card(
         "Familie",
         "Summen ab heute, nominal · Zulagen nach Alter der Kinder",
-        [html.Div(rows, className="detail-list")],
+        [
+            html.Div(rows, className="detail-list"),
+            *([dmc.Text(note, size="xs", c="dimmed", mt="xs")] if note else []),
+        ],
         class_name="family-card",
     )
 
 
-def _hints(outcome: LifeOutcome) -> List[Any]:
+def _hints(outcome: LifeOutcome, household: Optional[Household] = None) -> List[Any]:
     gap = outcome.gap
     alerts = []
     short = [year for year in outcome.family if year.costs_exceed_income]
@@ -386,12 +393,24 @@ def _hints(outcome: LifeOutcome) -> List[Any]:
             f"Erwerbseinkommens, höchstens {money(config.PILLAR3A_LARGE_MAX)}."
         )
     if gap.years_without_income:
-        tips.append(
-            f"Ohne Erwerb (mit {age_ranges(gap.years_without_income)}) zahlst du die "
-            "AHV-Beiträge selbst als Nichterwerbstätige, sonst fehlen Beitragsjahre. "
-            "Verheiratete sind gedeckt, wenn der Partner mindestens den doppelten "
-            "Mindestbeitrag zahlt."
-        )
+        without = f"Ohne Erwerb (mit {age_ranges(gap.years_without_income)})"
+        if household is None:
+            tips.append(
+                f"{without} zahlst du die AHV-Beiträge selbst als Nichterwerbstätige, sonst "
+                "fehlen Beitragsjahre. Verheiratete sind gedeckt, wenn der Partner mindestens "
+                "den doppelten Mindestbeitrag zahlt."
+            )
+        elif household.married:
+            tips.append(
+                f"{without} bist du in der AHV gedeckt, wenn die andere Person mindestens den "
+                "doppelten Mindestbeitrag zahlt. Sonst zahlst du selbst als "
+                "Nichterwerbstätige, damit keine Beitragsjahre fehlen."
+            )
+        else:
+            tips.append(
+                f"{without} zahlst du die AHV-Beiträge selbst als Nichterwerbstätige: Ohne Ehe "
+                "deckt dich die andere Person nicht. Sonst fehlen Beitragsjahre."
+            )
     if tips:
         alerts.append(
             dmc.Alert(
@@ -410,8 +429,14 @@ def life_section(
     outcome: Optional[LifeOutcome],
     error: Optional[str] = None,
     display_basis: str = "nominal",
+    household: Optional[Household] = None,
+    family_note: Optional[str] = None,
 ):
-    """Contents of the tab: hint without life phases, the error, or the comparison."""
+    """Contents of the tab: hint without life phases, the error, or the comparison.
+
+    With two persons, ``household`` adapts the AHV hints and ``family_note`` explains where
+    the family allowances are counted.
+    """
     if error is not None:
         return error_message(error)
     if outcome is None:
@@ -496,11 +521,11 @@ def life_section(
             dmc.Grid(
                 [
                     dmc.GridCol(_phase_table(outcome), span={"base": 12, "lg": 7}),
-                    dmc.GridCol(_family_card(outcome), span={"base": 12, "lg": 5}),
+                    dmc.GridCol(_family_card(outcome, family_note), span={"base": 12, "lg": 5}),
                 ],
                 gap="md",
             ),
-            *_hints(outcome),
+            *_hints(outcome, household),
         ],
         gap="md",
     )

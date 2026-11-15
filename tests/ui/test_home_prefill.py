@@ -15,11 +15,14 @@ from personal_finance.dashboard.callbacks import (
     restore_last_inputs,
     update_home_amount_hints,
 )
+from personal_finance.dashboard.callbacks import HOME_AMOUNT_IDS
 from personal_finance.dashboard.layout import HOME_AMOUNT_HINTS
 from personal_finance.storage import browser_store
 from tests.ui.test_callbacks import HOME, VALID_INPUTS, home_tab, texts
 
-UNCHANGED = [no_update, no_update, no_update, None]
+# One person: person B's purchase fields (3 to 5) stay as they are.
+KEEP_B = [no_update] * 3
+UNCHANGED = [no_update] * 3 + KEEP_B + [None]
 
 
 def components(**overrides):
@@ -56,7 +59,7 @@ def hints(**overrides):
 def test_planning_a_purchase_fills_the_highest_amounts():
     # Today (35): free assets 200'000, no 3a, PK 100'000. Price 1'000'000 + 30'000 costs:
     # savings 200'000 (170'000 hard equity after the costs), the PK may add its 100'000.
-    assert fill() == [200_000, 0, 100_000, None]
+    assert fill() == [200_000, 0, 100_000, *KEEP_B, None]
 
 
 def test_a_later_purchase_uses_the_projection_at_that_age():
@@ -69,7 +72,7 @@ def test_a_later_purchase_uses_the_projection_at_that_age():
 
 def test_no_more_than_the_purchase_needs():
     # Price 150'000 + 4'500 costs: the free assets alone pay for it.
-    assert fill(home_price=150_000) == [154_500, 0, 0, None]
+    assert fill(home_price=150_000) == [154_500, 0, 0, *KEEP_B, None]
 
 
 def test_loading_keeps_the_loaded_amounts_once():
@@ -87,6 +90,7 @@ def test_button_fills_even_right_after_loading():
         200_000,
         0,
         100_000,
+        *KEEP_B,
         None,
     ]
 
@@ -113,7 +117,7 @@ def test_loading_a_scenario_or_the_last_inputs_sets_the_guard():
 
     loaded = copy_context().run(_load)
     restored = restore_last_inputs(
-        1, browser_store.make_last_inputs(dict(store["scenarios"]["Kauf"]["values"]))
+        1, browser_store.make_last_inputs(browser_store.load_scenario(store, "Kauf"))
     )
 
     assert loaded[4 + len(SCENARIO_INPUT_IDS)] == {"plan": "on", "age": 45}
@@ -125,13 +129,15 @@ def test_loading_a_scenario_or_the_last_inputs_sets_the_guard():
 
 
 def test_hints_show_the_highest_amounts_at_the_purchase_age():
-    savings, pillar3a, pillar2 = hints()
+    savings, pillar3a, pillar2, *person_b = hints()
 
     assert (
         savings == "Freies Vermögen zum Kaufalter: CHF 200’000 · inkl. Geld für die Kaufnebenkosten"
     )
     assert pillar3a == "3a zum Kaufalter: CHF 0 · zählt als harte Eigenmittel"
     assert pillar2 == "Höchstens CHF 100’000 zum Kaufalter · zählt nicht als harte Eigenmittel"
+    # One person: person B's fields keep their texts.
+    assert person_b == [HOME_AMOUNT_HINTS[i] for i in HOME_AMOUNT_IDS[3:]]
 
 
 def test_hints_without_an_advance_withdrawal():
@@ -140,7 +146,7 @@ def test_hints_without_an_advance_withdrawal():
 
 
 def test_hints_without_a_planned_purchase_are_the_defaults():
-    assert hints(home_plan="off") == list(HOME_AMOUNT_HINTS.values())
+    assert hints(home_plan="off") == [HOME_AMOUNT_HINTS[i] for i in HOME_AMOUNT_IDS]
 
 
 # --- the "Wohneigentum" tab ------------------------------------------------------------

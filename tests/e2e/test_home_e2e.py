@@ -44,7 +44,8 @@ def test_home_purchase_survives_reload_and_is_stored_in_the_scenario(alice):
     assert _digits(page, "#home-pillar2-input") == PILLAR2
     scenarios = json.loads(alice.local_storage()["pf-scenarios"])["scenarios"]
     stored = scenarios["Mit Eigenheim"]["values"]
-    assert (stored["home_plan"], stored["home_price"], stored["home_pillar2"]) == (
+    household, person_a = stored["household"], stored["persons"]["a"]
+    assert (household["home_plan"], household["home_price"], person_a["home_pillar2"]) == (
         "on",
         int(PRICE),
         int(PILLAR2),

@@ -28,6 +28,8 @@ NOTICE_STORE_ID = "pf-notice"
 HOME_PREFILL_SKIP_STORE_ID = "home-prefill-skip"
 
 NAVBAR_WIDTH = 350
+# Result tabs with the results of one person (person B: "b-overview-section", ...).
+PERSONAL_TABS = ("overview", "pension", "life")
 MOBILE_BREAKPOINT = 768  # px; below this the inputs move behind the burger menu
 
 CANTONS = [
@@ -186,247 +188,354 @@ _header = dmc.AppShellHeader(
 
 # --- inputs (left) -----------------------------------------------------------------------
 
-_income_group = _group(
-    "income",
-    "Einkommen & Alter",
-    "CHF",
-    [
-        number_input(
-            "monthly-income-input",
-            "Dein monatliches Nettoeinkommen",
-            5000,
-            0,
-            100,
-            "CHF/Monat",
-            description="Frei verfügbares Einkommen nach Abzügen.",
-        ),
-        segmented(
-            "income-period-input",
-            "Zeitraum",
-            [{"label": "Monatlich", "value": "monthly"}, {"label": "Jährlich", "value": "yearly"}],
-            "monthly",
-        ),
-        segmented(
-            "income-type-input",
-            "Einkommensart",
-            [{"label": "Netto", "value": "net"}, {"label": "Brutto", "value": "gross"}],
-            "net",
-        ),
-        html.Div(
-            select(
-                "canton-input",
-                "Kanton für Nettoschätzung",
-                [{"label": f"{name} ({code})", "value": code} for code, name in CANTONS],
-                "ZH",
-                "Nur für Brutto relevant; wird zur groben Steuer-Nettoschätzung verwendet.",
-                searchable=True,
+# Exceptions to the rule "field name with dashes + -input" (ids from before v1.3).
+_INPUT_ID_EXCEPTIONS = {
+    "income": "monthly-income-input",
+    "initial_3a": "pillar3a-initial-input",
+    "initial_3b": "pillar3b-initial-input",
+    "initial_2": "pillar2-initial-input",
+    "assumed_return": "return-input",
+}
+PERSON_B_ID_PREFIX = "b-"
+
+
+def person_id(component_id: str, person: str = "a") -> str:
+    """Component id of a person's element: "income-preview" (A) or "b-income-preview" (B)."""
+    return component_id if person == "a" else PERSON_B_ID_PREFIX + component_id
+
+
+def life_input_id(field: str) -> str:
+    """Component id of a life phase field: "life_1_to" -> "life-1-to-input"."""
+    return field.replace("_", "-") + "-input"
+
+
+def input_id(field: str) -> str:
+    """Component id of the input for a stored field (``browser_store.SCENARIO_FIELDS``).
+
+    "income" -> "monthly-income-input", "b_income" -> "b-monthly-income-input",
+    "home_price" -> "home-price-input". The one place that links fields and inputs.
+    """
+    if field.startswith(browser_store.PERSON_B_PREFIX):
+        return person_id(input_id(field[len(browser_store.PERSON_B_PREFIX) :]), "b")
+    return _INPUT_ID_EXCEPTIONS.get(field) or field.replace("_", "-") + "-input"
+
+
+def _person_groups(person: str):
+    """The input groups of one person (the same for person A and person B)."""
+    defaults = browser_store.PERSON_DEFAULTS if person == "a" else browser_store.PERSON_B_DEFAULTS
+
+    def pid(component_id: str) -> str:
+        return person_id(component_id, person)
+
+    def field_id(field: str) -> str:
+        return input_id(browser_store.person_field(field, person))
+
+    income = _group(
+        "income",
+        "Einkommen & Alter",
+        "CHF",
+        [
+            number_input(
+                field_id("income"),
+                "Dein monatliches Nettoeinkommen",
+                defaults["income"],
+                0,
+                100,
+                "CHF/Monat",
+                description="Frei verfügbares Einkommen nach Abzügen.",
             ),
-            id="canton-control",
-            style={"display": "none"},
-        ),
-        dmc.Text(id="income-preview", className="income-preview"),
-        dmc.SimpleGrid(
-            [
-                number_input(
-                    "current-age-input", "Aktuelles Alter", 35, 18, 1, "Jahre", 80, decimals=0
-                ),
-                number_input(
-                    "retirement-age-input",
-                    "Pensionierung mit",
-                    65,
-                    config.MIN_RETIREMENT_AGE,
-                    1,
-                    "Jahren",
-                    config.MAX_RETIREMENT_AGE + 5,
-                    decimals=0,
-                ),
-            ],
-            cols=2,
-            spacing="sm",
-        ),
-        number_input(
-            "salary-growth-input",
-            "Jährliche Lohnzunahme",
-            browser_store.FIELD_DEFAULTS["salary_growth"],
-            0,
-            0.1,
-            "%",
-            config.SALARY_GROWTH_MAX * 100,
-            description=(
-                "Nominal pro Jahr. Mit dem Lohn steigen die Beiträge an die 2. Säule; "
-                "3a- und 3b-Beträge bleiben fest."
+            segmented(
+                field_id("income_period"),
+                "Zeitraum",
+                [
+                    {"label": "Monatlich", "value": "monthly"},
+                    {"label": "Jährlich", "value": "yearly"},
+                ],
+                defaults["income_period"],
             ),
-        ),
-    ],
-)
-
-_balances_group = _group(
-    "balances",
-    "Bisherige Guthaben",
-    "Σ",
-    [
-        dmc.Text("Deine bereits vorhandenen Guthaben in der Vorsorge.", size="xs", c="dimmed"),
-        number_input(
-            "pillar2-initial-input",
-            "2. Säule (Pensionskasse)",
-            0,
-            0,
-            1000,
-            "CHF",
-            description="Stand gemäss aktuellem PK-Ausweis",
-        ),
-        number_input(
-            "pillar3a-initial-input",
-            "Säule 3a",
-            0,
-            0,
-            1000,
-            "CHF",
-            description="Optional; leer entspricht 0 CHF",
-        ),
-        number_input(
-            "pillar3b-initial-input",
-            "Freies Vermögen 3b",
-            0,
-            0,
-            1000,
-            "CHF",
-            description="Optional; leer entspricht 0 CHF",
-        ),
-    ],
-)
-
-_ahv_group = _group(
-    "ahv",
-    "AHV-Rente",
-    "AHV",
-    [
-        dmc.Text(
-            "Die AHV ist eine Rente und kein persönliches Altersguthaben. Die unverbindliche "
-            "Schätzung verwendet dein durchschnittliches Jahreseinkommen und die Beitragsjahre "
-            "bei Pensionierung.",
-            size="xs",
-            c="dimmed",
-        ),
-        number_input(
-            "ahv-average-income-input",
-            "Massgebendes durchschnittliches Jahreseinkommen",
-            100000,
-            0,
-            1000,
-            "CHF/Jahr",
-            description="Für die Schätzung; wenn möglich aus IK/AHV-Auszug",
-        ),
-        number_input(
-            "ahv-contribution-years-input",
-            "Beitragsjahre bei Pensionierung",
-            44,
-            0,
-            1,
-            "von 44",
-            44,
-            description="Anpassen, falls du Beitragslücken erwartest",
-            decimals=0,
-        ),
-    ],
-)
-
-_pillar2_group = _group(
-    "pillar2",
-    "2. Säule (Pensionskasse)",
-    "Ⅱ",
-    [
-        segmented(
-            "pillar2-mode-input",
-            "Berechnungsgrundlage",
-            [
-                {"label": "BVG-Schätzung", "value": "minimum"},
-                {"label": "Eigene PK-Werte", "value": "custom"},
-            ],
-            "minimum",
-            "Die BVG-Schätzung ist vereinfacht; dein PK-Ausweis ist genauer.",
-        ),
-        html.Div(
-            [
-                number_input(
-                    "pillar2-employee-input", "Dein Beitrag (Arbeitnehmer)", None, 0, 10, "CHF/Mt."
-                ),
-                number_input(
-                    "pillar2-employer-input", "Beitrag Arbeitgeber", None, 0, 10, "CHF/Mt."
-                ),
-                number_input(
-                    "pillar2-return-input", "Verzinsung gemäss PK-Ausweis", None, 0, 0.05, "%", 20
-                ),
-            ],
-            id="pillar2-custom-fields",
-            className="field-stack",
-            style={"display": "none"},
-        ),
-    ],
-)
-
-_pillar3a_group = _group(
-    "pillar3a",
-    "Säule 3a",
-    "3a",
-    [
-        number_input(
-            "pillar3a-amount-input",
-            "Monatlicher 3a-Betrag",
-            350,
-            0,
-            0.01,
-            "CHF/Mt.",
-            config.PILLAR3A_MONTHLY_MAX,
-            description=(
-                f"Modell-Limit: {money(config.PILLAR3A_ANNUAL_MAX)}/Jahr "
-                f"(ca. {money(config.PILLAR3A_MONTHLY_MAX, 2)}/Monat)"
+            segmented(
+                field_id("income_type"),
+                "Einkommensart",
+                [{"label": "Netto", "value": "net"}, {"label": "Brutto", "value": "gross"}],
+                defaults["income_type"],
             ),
-        ),
-        dmc.Button(
-            "Maximalbetrag einsetzen",
-            id="pillar3a-max-button",
-            n_clicks=0,
-            variant="light",
-            size="xs",
-            fullWidth=True,
-        ),
-    ],
-)
+            html.Div(
+                select(
+                    field_id("canton"),
+                    "Kanton für Nettoschätzung",
+                    [{"label": f"{name} ({code})", "value": code} for code, name in CANTONS],
+                    defaults["canton"],
+                    "Nur für Brutto relevant; wird zur groben Steuer-Nettoschätzung verwendet.",
+                    searchable=True,
+                ),
+                id=pid("canton-control"),
+                style={"display": "none"},
+            ),
+            dmc.Text(id=pid("income-preview"), className="income-preview"),
+            dmc.SimpleGrid(
+                [
+                    number_input(
+                        field_id("current_age"),
+                        "Aktuelles Alter",
+                        defaults["current_age"],
+                        18,
+                        1,
+                        "Jahre",
+                        80,
+                        decimals=0,
+                    ),
+                    number_input(
+                        field_id("retirement_age"),
+                        "Pensionierung mit",
+                        defaults["retirement_age"],
+                        config.MIN_RETIREMENT_AGE,
+                        1,
+                        "Jahren",
+                        config.MAX_RETIREMENT_AGE + 5,
+                        decimals=0,
+                    ),
+                ],
+                cols=2,
+                spacing="sm",
+            ),
+            number_input(
+                field_id("salary_growth"),
+                "Jährliche Lohnzunahme",
+                defaults["salary_growth"],
+                0,
+                0.1,
+                "%",
+                config.SALARY_GROWTH_MAX * 100,
+                description=(
+                    "Nominal pro Jahr. Mit dem Lohn steigen die Beiträge an die 2. Säule; "
+                    "3a- und 3b-Beträge bleiben fest."
+                ),
+            ),
+        ],
+    )
 
-_pillar3b_group = _group(
-    "pillar3b",
-    "Freies Sparen 3b & Rendite",
-    "3b",
-    [
-        number_input(
-            "pillar3b-amount-input",
-            "Monatlicher 3b-Beitrag",
-            500,
-            0,
-            100,
-            "CHF/Mt.",
-            description="Flexibles Sparen ohne 3a-Modell-Limit",
-        ),
-        segmented(
-            "return-input",
-            "Angenommene Rendite",
-            RETURN_OPTIONS,
-            "0.04",
-            "Vorsichtig · ausgewogen · chancenorientiert; gilt für 3a und 3b",
-        ),
-    ],
-)
+    balances = _group(
+        "balances",
+        "Bisherige Guthaben",
+        "Σ",
+        [
+            dmc.Text("Bereits vorhandene Guthaben in der Vorsorge.", size="xs", c="dimmed"),
+            number_input(
+                field_id("initial_2"),
+                "2. Säule (Pensionskasse)",
+                defaults["initial_2"],
+                0,
+                1000,
+                "CHF",
+                description="Stand gemäss aktuellem PK-Ausweis",
+            ),
+            number_input(
+                field_id("initial_3a"),
+                "Säule 3a",
+                defaults["initial_3a"],
+                0,
+                1000,
+                "CHF",
+                description="Optional; leer entspricht 0 CHF",
+            ),
+            number_input(
+                field_id("initial_3b"),
+                "Freies Vermögen 3b",
+                defaults["initial_3b"],
+                0,
+                1000,
+                "CHF",
+                description="Optional; leer entspricht 0 CHF",
+            ),
+        ],
+    )
+
+    ahv_group = _group(
+        "ahv",
+        "AHV-Rente",
+        "AHV",
+        [
+            dmc.Text(
+                "Die AHV ist eine Rente und kein persönliches Altersguthaben. Die unverbindliche "
+                "Schätzung verwendet das durchschnittliche Jahreseinkommen und die Beitragsjahre "
+                "bei Pensionierung.",
+                size="xs",
+                c="dimmed",
+            ),
+            number_input(
+                field_id("ahv_average_income"),
+                "Massgebendes durchschnittliches Jahreseinkommen",
+                defaults["ahv_average_income"],
+                0,
+                1000,
+                "CHF/Jahr",
+                description="Für die Schätzung; wenn möglich aus IK/AHV-Auszug",
+            ),
+            number_input(
+                field_id("ahv_contribution_years"),
+                "Beitragsjahre bei Pensionierung",
+                defaults["ahv_contribution_years"],
+                0,
+                1,
+                "von 44",
+                44,
+                description="Anpassen, falls Beitragslücken zu erwarten sind",
+                decimals=0,
+            ),
+        ],
+    )
+
+    pillar2 = _group(
+        "pillar2",
+        "2. Säule (Pensionskasse)",
+        "Ⅱ",
+        [
+            segmented(
+                field_id("pillar2_mode"),
+                "Berechnungsgrundlage",
+                [
+                    {"label": "BVG-Schätzung", "value": "minimum"},
+                    {"label": "Eigene PK-Werte", "value": "custom"},
+                ],
+                defaults["pillar2_mode"],
+                "Die BVG-Schätzung ist vereinfacht; der PK-Ausweis ist genauer.",
+            ),
+            html.Div(
+                [
+                    number_input(
+                        field_id("pillar2_employee"),
+                        "Beitrag Arbeitnehmer",
+                        None,
+                        0,
+                        10,
+                        "CHF/Mt.",
+                    ),
+                    number_input(
+                        field_id("pillar2_employer"), "Beitrag Arbeitgeber", None, 0, 10, "CHF/Mt."
+                    ),
+                    number_input(
+                        field_id("pillar2_return"),
+                        "Verzinsung gemäss PK-Ausweis",
+                        None,
+                        0,
+                        0.05,
+                        "%",
+                        20,
+                    ),
+                ],
+                id=pid("pillar2-custom-fields"),
+                className="field-stack",
+                style={"display": "none"},
+            ),
+        ],
+    )
+
+    pillar3a = _group(
+        "pillar3a",
+        "Säule 3a",
+        "3a",
+        [
+            number_input(
+                field_id("pillar3a_amount"),
+                "Monatlicher 3a-Betrag",
+                defaults["pillar3a_amount"],
+                0,
+                0.01,
+                "CHF/Mt.",
+                config.PILLAR3A_MONTHLY_MAX,
+                description=(
+                    f"Modell-Limit: {money(config.PILLAR3A_ANNUAL_MAX)}/Jahr "
+                    f"(ca. {money(config.PILLAR3A_MONTHLY_MAX, 2)}/Monat)"
+                ),
+            ),
+            dmc.Button(
+                "Maximalbetrag einsetzen",
+                id=pid("pillar3a-max-button"),
+                n_clicks=0,
+                variant="light",
+                size="xs",
+                fullWidth=True,
+            ),
+        ],
+    )
+
+    pillar3b = _group(
+        "pillar3b",
+        "Freies Sparen 3b & Rendite",
+        "3b",
+        [
+            number_input(
+                field_id("pillar3b_amount"),
+                "Monatlicher 3b-Beitrag",
+                defaults["pillar3b_amount"],
+                0,
+                100,
+                "CHF/Mt.",
+                description="Flexibles Sparen ohne 3a-Modell-Limit",
+            ),
+            segmented(
+                field_id("assumed_return"),
+                "Angenommene Rendite",
+                RETURN_OPTIONS,
+                str(defaults["assumed_return"]),
+                "Vorsichtig · ausgewogen · chancenorientiert; gilt für 3a und 3b",
+            ),
+        ],
+    )
+    return [income, balances, ahv_group, pillar2, pillar3a, pillar3b, _life_group(person)]
+
 
 _home_defaults = browser_store.FIELD_DEFAULTS
 
-# Hints below the purchase money fields; with a planned purchase a callback adds the highest
-# amount at the purchase age (#40).
-HOME_AMOUNT_HINTS = {
+# Hints below the purchase money fields of both persons; with a planned purchase a callback
+# adds the highest amount at the purchase age (#40, #42).
+_HOME_AMOUNT_TEXTS = {
     "home-savings-input": "Inkl. Geld für die Kaufnebenkosten",
     "home-pillar3a-input": "Zählt als harte Eigenmittel",
     "home-pillar2-input": "Zählt nicht als harte Eigenmittel",
 }
+HOME_AMOUNT_HINTS = {
+    person_id(component_id, person): text
+    for person in browser_store.PERSON_KEYS
+    for component_id, text in _HOME_AMOUNT_TEXTS.items()
+}
+
+
+def _home_amounts(person: str):
+    """The money one person puts into the purchase."""
+    defaults = browser_store.PERSON_DEFAULTS if person == "a" else browser_store.PERSON_B_DEFAULTS
+    labels = {
+        "home_savings": "Erspartes und Wertschriften",
+        "home_pillar3a": "Aus der Säule 3a",
+        "home_pillar2": "Aus der Pensionskasse (Vorbezug)",
+    }
+    fields = [
+        number_input(
+            input_id(browser_store.person_field(field, person)),
+            label,
+            defaults[field],
+            0,
+            1000,
+            "CHF",
+            description=HOME_AMOUNT_HINTS[input_id(browser_store.person_field(field, person))],
+        )
+        for field, label in labels.items()
+    ]
+    title = dmc.Text(
+        "Person A" if person == "a" else "Person B",
+        id=person_id("home-amounts-title", person),
+        fw=600,
+        size="sm",
+        c="forest",
+        style={"display": "none"},
+    )
+    return html.Div(
+        [title, *fields],
+        id=person_id("home-amounts", person),
+        className="field-stack",
+        style=None if person == "a" else {"display": "none"},
+    )
+
 
 _home_group = _group(
     "home",
@@ -468,36 +577,12 @@ _home_group = _group(
                 dmc.Text(
                     "Wird mit den Höchstbeträgen zum Kaufalter ausgefüllt, sobald du den Kauf "
                     "planst oder das Kaufalter änderst. Du kannst weniger einsetzen.",
+                    id="home-amounts-hint",
                     size="xs",
                     c="dimmed",
                 ),
-                number_input(
-                    "home-savings-input",
-                    "Erspartes und Wertschriften",
-                    _home_defaults["home_savings"],
-                    0,
-                    1000,
-                    "CHF",
-                    description=HOME_AMOUNT_HINTS["home-savings-input"],
-                ),
-                number_input(
-                    "home-pillar3a-input",
-                    "Aus der Säule 3a",
-                    _home_defaults["home_pillar3a"],
-                    0,
-                    1000,
-                    "CHF",
-                    description=HOME_AMOUNT_HINTS["home-pillar3a-input"],
-                ),
-                number_input(
-                    "home-pillar2-input",
-                    "Aus der Pensionskasse (Vorbezug)",
-                    _home_defaults["home_pillar2"],
-                    0,
-                    1000,
-                    "CHF",
-                    description=HOME_AMOUNT_HINTS["home-pillar2-input"],
-                ),
+                _home_amounts("a"),
+                _home_amounts("b"),
                 dmc.Button(
                     "Höchstbeträge zum Kaufalter einsetzen",
                     id="home-max-button",
@@ -514,7 +599,7 @@ _home_group = _group(
                     0,
                     1000,
                     "CHF/Jahr",
-                    description="Leer = aus deinen Einkommensangaben",
+                    description="Leer = aus den Einkommensangaben",
                 ),
                 number_input(
                     "home-imputed-rate-input",
@@ -535,7 +620,7 @@ _home_group = _group(
                     0.05,
                     "%",
                     15,
-                    description="Dein erwarteter Zins für die Zinskosten",
+                    description="Der erwartete Zins für die Zinskosten",
                 ),
                 segmented(
                     "home-amortisation-input",
@@ -545,7 +630,7 @@ _home_group = _group(
                         {"label": "Indirekt über 3a", "value": "indirect"},
                     ],
                     _home_defaults["home_amortisation"],
-                    "Direkt sinkt die Schuld jedes Jahr; indirekt sparst du in ein verpfändetes "
+                    "Direkt sinkt die Schuld jedes Jahr; indirekt spart ihr in ein verpfändetes "
                     "3a-Konto.",
                 ),
             ],
@@ -557,20 +642,15 @@ _home_group = _group(
 )
 
 
-def life_input_id(field: str) -> str:
-    """Component id of a life phase field: "life_1_to" -> "life-1-to-input"."""
-    return field.replace("_", "-") + "-input"
-
-
 _life_defaults = browser_store.FIELD_DEFAULTS
 
 
-def _life_row(row: int):
+def _life_row(row: int, person: str = "a"):
     """One phase: until age, workload, income and child costs (hidden while unused)."""
 
     def field(part: str, label: str, step: float, unit: str, maximum=None, decimals=None):
         return number_input(
-            life_input_id(f"life_{row}_{part}"),
+            input_id(browser_store.person_field(f"life_{row}_{part}", person)),
             label,
             None,
             0,
@@ -582,12 +662,14 @@ def _life_row(row: int):
 
     return html.Div(
         [
-            dmc.Text(f"Phase {row}", id=f"life-row-{row}-title", fw=600, size="sm"),
+            dmc.Text(
+                f"Phase {row}", id=person_id(f"life-row-{row}-title", person), fw=600, size="sm"
+            ),
             dmc.SimpleGrid(
                 [
                     html.Div(
                         field("to", "Bis Alter", 1, "J.", config.MAX_RETIREMENT_AGE, 0),
-                        id=f"life-row-{row}-to",
+                        id=person_id(f"life-row-{row}-to", person),
                     ),
                     field("workload", "Pensum", 10, "%", 100),
                     field("income", "Einkommen", 100, "CHF/Mt."),
@@ -598,159 +680,255 @@ def _life_row(row: int):
                 verticalSpacing="xs",
             ),
         ],
-        id=f"life-row-{row}",
+        id=person_id(f"life-row-{row}", person),
         className="life-row",
         style={"display": "none"},
     )
 
 
-_life_group = _group(
-    "life",
-    "Lebensphasen & Familie",
-    "↻",
+def _life_group(person: str = "a"):
+    """Life phases of one person: workload and income per phase, pension fund, EO, credits."""
+    defaults = browser_store.PERSON_DEFAULTS if person == "a" else browser_store.PERSON_B_DEFAULTS
+
+    def pid(component_id: str) -> str:
+        return person_id(component_id, person)
+
+    def field_id(field: str) -> str:
+        return input_id(browser_store.person_field(field, person))
+
+    def button(label: str, component_id: str):
+        return dmc.Button(
+            label, id=pid(component_id), n_clicks=0, variant="light", size="compact-xs"
+        )
+
+    return _group(
+        "life",
+        "Lebensphasen & Familie",
+        "↻",
+        [
+            segmented(
+                field_id("life_plan"),
+                "Erwerbsleben",
+                [
+                    {"label": "Wie heute", "value": "off"},
+                    {"label": "Phasen planen", "value": "on"},
+                ],
+                defaults["life_plan"],
+                "Teilzeit, Unterbrüche und Kinder bis zur Pensionierung. «Wie heute» rechnet mit "
+                "dem Einkommen von oben.",
+            ),
+            html.Div(
+                [
+                    dmc.Text(
+                        "Einkommen pro Monat wie oben (netto oder brutto), in heutigen Franken; "
+                        "die Lohnzunahme kommt dazu. Die erste Phase beginnt heute, die letzte "
+                        "dauert bis zur Pensionierung.",
+                        size="xs",
+                        c="dimmed",
+                    ),
+                    dmc.Group(
+                        [
+                            button("100 %", "life-template-full"),
+                            button("Teilzeit mit Kindern", "life-template-kids"),
+                            button("Unterbruch", "life-template-break"),
+                        ],
+                        gap=6,
+                    ),
+                    *[
+                        _life_row(row, person)
+                        for row in range(1, browser_store.LIFE_PHASE_ROWS + 1)
+                    ],
+                    dmc.Group(
+                        [
+                            dmc.Button(
+                                "+ Phase",
+                                id=pid("life-add-button"),
+                                n_clicks=0,
+                                variant="light",
+                                size="xs",
+                            ),
+                            dmc.Button(
+                                "− Phase",
+                                id=pid("life-remove-button"),
+                                n_clicks=0,
+                                variant="subtle",
+                                size="xs",
+                            ),
+                        ],
+                        gap="xs",
+                        grow=True,
+                    ),
+                    segmented(
+                        field_id("life_coordination"),
+                        "Koordinationsabzug der Pensionskasse",
+                        [
+                            {"label": "Fix (BVG)", "value": "fixed"},
+                            {"label": "Nach Pensum", "value": "workload"},
+                        ],
+                        defaults["life_coordination"],
+                        "Gesetzlich gilt der volle Abzug auch bei Teilzeit; viele Kassen passen "
+                        "ihn ans Pensum an. Siehe PK-Reglement.",
+                    ),
+                    dmc.Text(
+                        "Die Kinder stehen bei den gemeinsamen Angaben unter «Kinder».",
+                        id=pid("life-children-note"),
+                        size="xs",
+                        c="dimmed",
+                    ),
+                    segmented(
+                        field_id("life_role"),
+                        "Urlaub bei der Geburt (EO)",
+                        [
+                            {"label": "Mutter · 14 Wo.", "value": "mother"},
+                            {"label": "Anderer · 2 Wo.", "value": "other"},
+                        ],
+                        defaults["life_role"],
+                    ),
+                    html.Div(
+                        segmented(
+                            field_id("life_credit_share"),
+                            "AHV-Erziehungsgutschriften",
+                            [
+                                {"label": "Ganz", "value": "full"},
+                                {"label": "Hälftig (verheiratet)", "value": "half"},
+                            ],
+                            defaults["life_credit_share"],
+                        ),
+                        id=pid("life-credit-share-control"),
+                    ),
+                ],
+                id=pid("life-fields"),
+                className="field-stack",
+                style={"display": "none"},
+            ),
+        ],
+    )
+
+
+_children_group = dmc.AccordionItem(
     [
-        segmented(
-            "life-plan-input",
-            "Erwerbsleben",
-            [
-                {"label": "Wie heute", "value": "off"},
-                {"label": "Phasen planen", "value": "on"},
-            ],
-            _life_defaults["life_plan"],
-            "Teilzeit, Unterbrüche und Kinder bis zur Pensionierung. «Wie heute» rechnet mit "
-            "deinem Einkommen von oben.",
+        dmc.AccordionControl(
+            "Kinder",
+            icon=dmc.ThemeIcon("♡", variant="light", size="md", radius="md"),
         ),
-        html.Div(
-            [
-                dmc.Text(
-                    "Einkommen pro Monat wie oben (netto oder brutto), in heutigen Franken; die "
-                    "Lohnzunahme kommt dazu. Die erste Phase beginnt heute, die letzte dauert bis "
-                    "zur Pensionierung.",
-                    size="xs",
-                    c="dimmed",
-                ),
-                dmc.Group(
-                    [
-                        dmc.Button(
-                            "100 %",
-                            id="life-template-full",
-                            n_clicks=0,
-                            variant="light",
-                            size="compact-xs",
-                        ),
-                        dmc.Button(
-                            "Teilzeit mit Kindern",
-                            id="life-template-kids",
-                            n_clicks=0,
-                            variant="light",
-                            size="compact-xs",
-                        ),
-                        dmc.Button(
-                            "Unterbruch",
-                            id="life-template-break",
-                            n_clicks=0,
-                            variant="light",
-                            size="compact-xs",
-                        ),
-                    ],
-                    gap=6,
-                ),
-                *[_life_row(row) for row in range(1, browser_store.LIFE_PHASE_ROWS + 1)],
-                dmc.Group(
-                    [
-                        dmc.Button(
-                            "+ Phase", id="life-add-button", n_clicks=0, variant="light", size="xs"
-                        ),
-                        dmc.Button(
-                            "− Phase",
-                            id="life-remove-button",
-                            n_clicks=0,
-                            variant="subtle",
-                            size="xs",
-                        ),
-                    ],
-                    gap="xs",
-                    grow=True,
-                ),
-                segmented(
-                    life_input_id("life_coordination"),
-                    "Koordinationsabzug der Pensionskasse",
-                    [
-                        {"label": "Fix (BVG)", "value": "fixed"},
-                        {"label": "Nach Pensum", "value": "workload"},
-                    ],
-                    _life_defaults["life_coordination"],
-                    "Gesetzlich gilt der volle Abzug auch bei Teilzeit; viele Kassen passen ihn "
-                    "ans Pensum an. Siehe PK-Reglement.",
-                ),
-                dmc.Text("Kinder", fw=600, size="sm", mt="xs"),
-                dmc.Text(
-                    "Dein Alter bei der Geburt, auch für geplante Kinder. Nur Jahrgänge, keine "
-                    "Namen; alles bleibt in diesem Browser.",
-                    size="xs",
-                    c="dimmed",
-                ),
-                dmc.SimpleGrid(
-                    [
-                        number_input(
-                            life_input_id(f"life_child_{child}"),
-                            f"Kind {child}",
-                            None,
-                            0,
-                            1,
-                            "J.",
-                            config.MAX_RETIREMENT_AGE,
-                            decimals=0,
-                        )
-                        for child in range(1, browser_store.LIFE_CHILDREN + 1)
-                    ],
-                    cols=2,
-                    spacing="xs",
-                    verticalSpacing="xs",
-                ),
-                segmented(
-                    life_input_id("life_role"),
-                    "Urlaub bei der Geburt (EO)",
-                    [
-                        {"label": "Mutter · 14 Wo.", "value": "mother"},
-                        {"label": "Anderer · 2 Wo.", "value": "other"},
-                    ],
-                    _life_defaults["life_role"],
-                ),
-                segmented(
-                    life_input_id("life_credit_share"),
-                    "AHV-Erziehungsgutschriften",
-                    [
-                        {"label": "Ganz", "value": "full"},
-                        {"label": "Hälftig (verheiratet)", "value": "half"},
-                    ],
-                    _life_defaults["life_credit_share"],
-                ),
-                number_input(
-                    life_input_id("life_child_allowance"),
-                    "Kinderzulage pro Kind",
-                    _life_defaults["life_child_allowance"],
-                    0,
-                    5,
-                    "CHF/Mt.",
-                    description="Bis 16; Mindestbetrag, viele Kantone zahlen mehr",
-                ),
-                number_input(
-                    life_input_id("life_education_allowance"),
-                    "Ausbildungszulage pro Kind",
-                    _life_defaults["life_education_allowance"],
-                    0,
-                    5,
-                    "CHF/Mt.",
-                    description="Von 16 bis höchstens 25",
-                ),
-            ],
-            id="life-fields",
-            className="field-stack",
-            style={"display": "none"},
+        dmc.AccordionPanel(
+            dmc.Stack(
+                [
+                    dmc.Text(
+                        "Dein Alter bei der Geburt, auch für geplante Kinder. Nur Jahrgänge, "
+                        "keine Namen; alles bleibt in diesem Browser. Zählt für Lebensphasen.",
+                        id="life-children-hint",
+                        size="xs",
+                        c="dimmed",
+                    ),
+                    dmc.SimpleGrid(
+                        [
+                            number_input(
+                                life_input_id(f"life_child_{child}"),
+                                f"Kind {child}",
+                                None,
+                                0,
+                                1,
+                                "J.",
+                                config.MAX_RETIREMENT_AGE,
+                                decimals=0,
+                            )
+                            for child in range(1, browser_store.LIFE_CHILDREN + 1)
+                        ],
+                        cols=2,
+                        spacing="xs",
+                        verticalSpacing="xs",
+                    ),
+                    number_input(
+                        life_input_id("life_child_allowance"),
+                        "Kinderzulage pro Kind",
+                        _life_defaults["life_child_allowance"],
+                        0,
+                        5,
+                        "CHF/Mt.",
+                        description="Bis 16; Mindestbetrag, viele Kantone zahlen mehr",
+                    ),
+                    number_input(
+                        life_input_id("life_education_allowance"),
+                        "Ausbildungszulage pro Kind",
+                        _life_defaults["life_education_allowance"],
+                        0,
+                        5,
+                        "CHF/Mt.",
+                        description="Von 16 bis höchstens 25",
+                    ),
+                ],
+                gap="sm",
+            )
         ),
     ],
+    value="children",
+    id="children-group",
+    style={"display": "none"},
 )
+
+_household_group = dmc.AccordionItem(
+    [
+        dmc.AccordionControl(
+            "Haushalt",
+            icon=dmc.ThemeIcon("A+B", variant="light", size="md", radius="md"),
+        ),
+        dmc.AccordionPanel(
+            dmc.Stack(
+                [
+                    segmented(
+                        input_id("household_relationship"),
+                        "Zusammenleben",
+                        [
+                            {"label": "Verheiratet", "value": "married"},
+                            {"label": "Nicht verheiratet", "value": "unmarried"},
+                        ],
+                        _home_defaults["household_relationship"],
+                        "«Verheiratet» gilt auch für eine eingetragene Partnerschaft. Wirkt auf "
+                        "die AHV (Plafonierung) und die Erziehungsgutschriften.",
+                    ),
+                    html.Div(
+                        segmented(
+                            input_id("household_credits"),
+                            "AHV-Erziehungsgutschriften",
+                            [
+                                {"label": "Hälftig", "value": "half"},
+                                {"label": "Ganz A", "value": "a"},
+                                {"label": "Ganz B", "value": "b"},
+                            ],
+                            _home_defaults["household_credits"],
+                            "Ohne Ehe nach Vereinbarung; verheiratet immer hälftig.",
+                        ),
+                        id="household-credits-control",
+                        style={"display": "none"},
+                    ),
+                ],
+                gap="sm",
+            )
+        ),
+    ],
+    value="household",
+    id="household-group",
+    style={"display": "none"},
+)
+
+
+def _accordion(items, component_id: str, value):
+    return dmc.Accordion(
+        items,
+        id=component_id,
+        multiple=True,
+        value=value,
+        variant="separated",
+        chevronPosition="right",
+        # Collapsed groups are hidden with display:none. Mantine's default (React's
+        # <Activity>) defers updates inside them, which left Dash waiting forever for the
+        # fields in closed groups on slow machines (seen in CI).
+        keepMounted=True,
+        keepMountedMode="display-none",
+        className="input-groups",
+    )
+
 
 _navbar = dmc.AppShellNavbar(
     [
@@ -761,28 +939,52 @@ _navbar = dmc.AppShellNavbar(
             c="dimmed",
             mb="sm",
         ),
-        dmc.Accordion(
+        html.Div(
             [
-                _income_group,
-                _balances_group,
-                _ahv_group,
-                _pillar2_group,
-                _pillar3a_group,
-                _pillar3b_group,
-                _life_group,
-                _home_group,
+                segmented(
+                    input_id("household"),
+                    "Planung für",
+                    [
+                        {"label": "Eine Person", "value": "off"},
+                        {"label": "Zwei Personen", "value": "on"},
+                    ],
+                    _home_defaults["household"],
+                    "Zu zweit: je eigene Vorsorge, dazu Haushalt, Kinder und ein gemeinsamer Kauf.",
+                ),
+                html.Div(
+                    segmented(
+                        "input-person-input",
+                        "Eingaben von",
+                        [
+                            {"label": "Person A", "value": "a"},
+                            {"label": "Person B", "value": "b"},
+                        ],
+                        "a",
+                    ),
+                    id="input-person-control",
+                    style={"display": "none"},
+                ),
             ],
-            multiple=True,
-            value=["income", "balances"],
-            variant="separated",
-            chevronPosition="right",
-            # Collapsed groups are hidden with display:none. Mantine's default (React's
-            # <Activity>) defers updates inside them, which left Dash waiting forever for the
-            # fields in closed groups on slow machines (seen in CI).
-            keepMounted=True,
-            keepMountedMode="display-none",
-            className="input-groups",
+            className="field-stack household-switch",
         ),
+        html.Div(
+            _accordion(_person_groups("a"), "person-a-groups", ["income", "balances"]),
+            id="person-a-inputs",
+            className="person-inputs",
+        ),
+        html.Div(
+            _accordion(_person_groups("b"), "person-b-groups", ["income", "balances"]),
+            id="person-b-inputs",
+            className="person-inputs",
+            style={"display": "none"},
+        ),
+        dmc.Text(
+            "GEMEINSAM",
+            id="shared-eyebrow",
+            className="eyebrow shared-eyebrow",
+            style={"display": "none"},
+        ),
+        _accordion([_household_group, _children_group, _home_group], "shared-groups", []),
     ],
     p="md",
     className="input-navbar",
@@ -848,14 +1050,34 @@ _results = html.Div(
                         ),
                     ]
                 ),
-                dmc.SegmentedControl(
-                    id="display-basis-input",
-                    data=[
-                        {"label": "Nominal", "value": "nominal"},
-                        {"label": "Real · heutige Kaufkraft", "value": "real"},
+                dmc.Group(
+                    [
+                        html.Div(
+                            dmc.SegmentedControl(
+                                id="result-person-input",
+                                data=[
+                                    {"label": "Person A", "value": "a"},
+                                    {"label": "Person B", "value": "b"},
+                                ],
+                                value="a",
+                                size="xs",
+                                color="forest",
+                            ),
+                            id="result-person-control",
+                            title="Persönliche Ergebnisse von",
+                            style={"display": "none"},
+                        ),
+                        dmc.SegmentedControl(
+                            id="display-basis-input",
+                            data=[
+                                {"label": "Nominal", "value": "nominal"},
+                                {"label": "Real · heutige Kaufkraft", "value": "real"},
+                            ],
+                            value="nominal",
+                            size="xs",
+                        ),
                     ],
-                    value="nominal",
-                    size="xs",
+                    gap="xs",
                 ),
             ],
             justify="space-between",
@@ -871,13 +1093,32 @@ _results = html.Div(
                         dmc.TabsTab("Vorsorge", value="pension"),
                         dmc.TabsTab("Wohneigentum", value="home"),
                         dmc.TabsTab("Lebensphasen", value="life"),
+                        dmc.TabsTab("Haushalt", value="household"),
                         dmc.TabsTab("Annahmen", value="assumptions"),
                     ]
                 ),
-                dmc.TabsPanel(html.Div(id="overview-section"), value="overview", pt="md"),
-                dmc.TabsPanel(html.Div(id="pension-section"), value="pension", pt="md"),
+                # Personal tabs: the results of person A and (hidden) person B (v1.3).
+                *[
+                    dmc.TabsPanel(
+                        [
+                            html.Div(id=f"{tab}-section"),
+                            html.Div(id=f"b-{tab}-section", style={"display": "none"}),
+                        ],
+                        value=tab,
+                        pt="md",
+                    )
+                    for tab in PERSONAL_TABS[:2]
+                ],
                 dmc.TabsPanel(html.Div(id="home-section"), value="home", pt="md"),
-                dmc.TabsPanel(html.Div(id="life-section"), value="life", pt="md"),
+                dmc.TabsPanel(
+                    [
+                        html.Div(id="life-section"),
+                        html.Div(id="b-life-section", style={"display": "none"}),
+                    ],
+                    value="life",
+                    pt="md",
+                ),
+                dmc.TabsPanel(html.Div(id="household-section"), value="household", pt="md"),
                 dmc.TabsPanel(html.Div(id="assumptions-section"), value="assumptions", pt="md"),
             ],
             id="result-tabs",

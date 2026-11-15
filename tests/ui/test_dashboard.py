@@ -74,6 +74,12 @@ def _results(
         *home,
         salary_growth,
         *life,
+        # Household (v1.3): one person; person B with the start values.
+        *[
+            browser_store.FIELD_DEFAULTS.get(field)
+            for field in browser_store.SCENARIO_FIELDS
+            if field.startswith(("household", browser_store.PERSON_B_PREFIX))
+        ],
     )
 
 
@@ -630,7 +636,7 @@ def test_results_are_split_into_overview_pension_and_assumption_tabs():
         if component.__class__.__name__ == "TabsTab"
     ]
 
-    assert tab_values == ["overview", "pension", "home", "life", "assumptions"]
+    assert tab_values == ["overview", "pension", "home", "life", "household", "assumptions"]
     assert tabs.value == "overview"
     # Hidden tabs stay mounted so they always show the latest results.
     assert tabs.keepMounted is True
@@ -639,6 +645,10 @@ def test_results_are_split_into_overview_pension_and_assumption_tabs():
         "pension-section",
         "home-section",
         "assumptions-section",
+        "household-section",
+        "b-overview-section",
+        "b-pension-section",
+        "b-life-section",
     ):
         assert _component(section_id) is not None
 
@@ -668,12 +678,13 @@ def test_burger_toggles_the_inputs_column_in_the_browser():
 def test_hidden_inputs_and_tabs_are_not_deferred_by_react_activity():
     # React's <Activity> defers updates in hidden content; Dash then never finishes loading
     # the fields in closed input groups (CI). Hidden parts must use display:none instead.
-    accordion = next(
+    accordions = [
         component
         for component in app.layout._traverse()
         if component.__class__.__name__ == "Accordion"
-    )
+    ]
 
-    for component in (accordion, _component("result-tabs")):
+    assert len(accordions) == 3  # person A, person B and the household
+    for component in (*accordions, _component("result-tabs")):
         assert component.keepMounted is True
         assert component.keepMountedMode == "display-none"

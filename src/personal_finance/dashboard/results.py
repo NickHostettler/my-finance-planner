@@ -63,7 +63,6 @@ def results_view(
     initial_2: float,
     initial_3a: float,
     initial_3b: float,
-    ahv_average_income: Optional[float],
     ahv_contribution_years: int,
     display_basis: str = "nominal",
     salary_growth: float = 0,
@@ -72,14 +71,16 @@ def results_view(
     per_year=None,
     ahv_monthly_today: Optional[float] = None,
     life_note: Optional[str] = None,
+    ahv_note: Optional[str] = None,
 ) -> Tuple[object, object, object, str]:
     """Return the overview, pension and assumption tabs and the calculation notice.
 
     ``paths`` (nominal 2nd pillar, 3a and 3b balances per year) replaces the projection of
     the savings plan, e.g. with the withdrawals for a planned home purchase; then
     ``purchase_note`` explains it in the overview. With life phases (#33) ``per_year`` gives
-    the contributions of each year (2nd pillar, 3a, 3b), ``ahv_monthly_today`` replaces the
-    AHV estimate and ``life_note`` explains it.
+    the contributions of each year (2nd pillar, 3a, 3b) and ``life_note`` explains them.
+    ``ahv_monthly_today`` is the AHV estimate per month in today's CHF (``None``: no AHV
+    inputs); ``ahv_note`` adds to the AHV card, e.g. the cap of a married couple (v1.3).
     """
     pillar2 = analysis.pillar2
     years = analysis.years_to_retirement
@@ -90,16 +91,8 @@ def results_view(
         if real
         else "Nominale CHF · ohne Inflationsbereinigung"
     )
-    if ahv_monthly_today is not None:
-        ahv_estimated_today = ahv_monthly_today
-    elif ahv_average_income is not None:
-        ahv_estimated_today = ahv.estimate_monthly_old_age_pension(
-            ahv_average_income, ahv_contribution_years
-        )
-    else:
-        ahv_estimated_today = None
     ahv_estimated_display = ahv.project_pension_basis(
-        ahv_estimated_today,
+        ahv_monthly_today,
         years,
         config.INFLATION_RATE,
         display_basis,
@@ -224,6 +217,7 @@ def results_view(
                                         f"{money(ahv_estimated_display * 13)} pro Jahr inkl. "
                                         f"13. Rente · {ahv_contribution_years}/"
                                         f"{ahv.FULL_CONTRIBUTION_YEARS} Beitragsjahre"
+                                        + (f" · {ahv_note}" if ahv_note else "")
                                         if ahv_estimated_display is not None
                                         else "Durchschnittliches Jahreseinkommen eingeben"
                                     ),

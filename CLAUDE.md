@@ -92,12 +92,17 @@ Die Shell ist Windows PowerShell. `gh` ist evtl. nicht im PATH:
 
 ## Neues Eingabefeld: Checkliste
 
-1. `storage/browser_store.py` → `SCENARIO_FIELDS`: Feld anhängen. Die Reihenfolge muss
-   **exakt** der von `dashboard/callbacks.py` → `SCENARIO_INPUT_IDS` entsprechen, denn
-   `values_to_inputs` arbeitet über die Position.
-2. `FIELD_DEFAULTS`: Standardwert eintragen, sonst laden ältere Szenarien das Feld leer.
-   Felder, deren leerer Wert etwas bedeutet (z. B. „leer = heute“), bekommen bewusst keinen.
-3. `dashboard/layout.py`: Feld mit demselben Standardwert anlegen, am besten aus
-   `FIELD_DEFAULTS` gelesen.
+1. `storage/browser_store.py`: Gehört das Feld zu einer Person, kommt es in `PERSON_FIELDS`
+   **und** an der passenden Stelle in `SCENARIO_FIELDS` (Person B erhält es automatisch mit
+   `b_`). Gemeinsame Felder kommen nur in `SCENARIO_FIELDS`. Die ID des Eingabefelds folgt aus
+   dem Namen (`layout.input_id`: `home_price` → `home-price-input`, `b_income` →
+   `b-monthly-income-input`). Ausnahmen stehen in `_INPUT_ID_EXCEPTIONS`.
+2. `FIELD_DEFAULTS` (bzw. `PERSON_DEFAULTS`): Standardwert eintragen, sonst laden ältere
+   Szenarien das Feld leer. Felder, deren leerer Wert etwas bedeutet (z. B. „leer = heute“),
+   bekommen bewusst keinen.
+3. `dashboard/layout.py`: Feld mit der ID `input_id(feld)` und demselben Standardwert anlegen.
+   Persönliche Felder in `_person_groups`, dann gibt es sie für beide Personen.
 4. Testdaten nachziehen (Liste in `tests/CLAUDE.md`) und testen, dass ein Szenario aus einer
    älteren Version ohne das Feld noch lädt.
+5. Ändert sich der Aufbau der gespeicherten Daten, `STORAGE_VERSION` erhöhen und die Migration
+   in `browser_store.from_stored` ergänzen (die einzige Stelle für Migrationen).

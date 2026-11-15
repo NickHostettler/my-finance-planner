@@ -2,10 +2,11 @@
 
 For each width and tab: page width (no horizontal scrolling), JavaScript errors, and a
 full-page screenshot. With ``--home`` a home purchase is planned first, so that the
-"Wohneigentum" tab shows all its content; with ``--life`` life phases with a child (both
-options can be combined).
+"Wohneigentum" tab shows all its content; with ``--life`` life phases with a child; with
+``--household`` two persons (the personal tabs are then checked for both; with ``--home`` the
+purchase is joint). The options can be combined.
 
-    uv run python scripts/ui_check.py <output folder> [--home] [--life]
+    uv run python scripts/ui_check.py <output folder> [--home] [--life] [--household]
 
 Needs the e2e dependency group (``uv sync --group e2e``, ``uv run playwright install
 chromium``). Exit code 1 if a tab scrolls sideways or the page reports errors.
@@ -22,7 +23,8 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 VIEWPORTS = {"phone": {"width": 390, "height": 844}, "desktop": {"width": 1440, "height": 1000}}
-TABS = ["Übersicht", "Vorsorge", "Wohneigentum", "Lebensphasen", "Annahmen"]
+TABS = ["Übersicht", "Vorsorge", "Wohneigentum", "Lebensphasen", "Haushalt", "Annahmen"]
+PERSONAL_TABS = ["Übersicht", "Vorsorge", "Lebensphasen"]
 IDLE = "() => !document.querySelector('[data-dash-is-loading=\"true\"]')"
 PAGE_WIDTH = "() => document.documentElement.scrollWidth"
 # Outermost elements that are wider than the screen while their parent is not.
@@ -66,6 +68,25 @@ def fill(page, selector: str, value: str) -> None:
     idle(page)
 
 
+def plan_household(page, phone: bool) -> None:
+    """Two persons: person B is 33 and has own balances."""
+    if phone:
+        page.click("#navbar-burger")
+        page.wait_for_timeout(500)
+    page.locator("#household-input").get_by_text("Zwei Personen").click()
+    idle(page)
+    page.locator("#input-person-input").get_by_text("Person B").click()
+    idle(page)
+    fill(page, "#b-current-age-input", "33")
+    fill(page, "#b-pillar2-initial-input", "90000")
+    fill(page, "#b-pillar3b-initial-input", "80000")
+    page.locator("#input-person-input").get_by_text("Person A").click()
+    idle(page)
+    if phone:
+        page.click("#navbar-burger")
+        page.wait_for_timeout(500)
+
+
 def plan_home_purchase(page, phone: bool) -> None:
     if phone:
         page.click("#navbar-burger")
@@ -89,13 +110,15 @@ def plan_life_phases(page, phone: bool) -> None:
     if phone:
         page.click("#navbar-burger")
         page.wait_for_timeout(500)
-    page.locator(".input-navbar").get_by_text("Lebensphasen & Familie", exact=True).click()
+    page.locator("#person-a-inputs").get_by_text("Lebensphasen & Familie", exact=True).click()
     page.wait_for_timeout(300)
     page.locator("#life-plan-input").get_by_text("Phasen planen").click()
     idle(page)
     page.get_by_role("button", name="Teilzeit mit Kindern").click()
     idle(page)
     fill(page, "#life-2-costs-input", "1500")
+    page.locator("#shared-groups").get_by_text("Kinder", exact=True).click()
+    page.wait_for_timeout(300)
     fill(page, "#life-child-1-input", "37")
     if phone:
         page.click("#navbar-burger")
@@ -108,6 +131,9 @@ def main() -> int:
     parser.add_argument("--home", action="store_true", help="vorher einen Kauf planen")
     parser.add_argument(
         "--life", action="store_true", help="vorher Lebensphasen mit einem Kind planen"
+    )
+    parser.add_argument(
+        "--household", action="store_true", help="vorher eine zweite Person erfassen"
     )
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -126,13 +152,21 @@ def main() -> int:
                 idle(page)
                 if page.locator("#welcome-dismiss").is_visible():
                     page.click("#welcome-dismiss")
+                if args.household:
+                    plan_household(page, phone=name == "phone")
                 if args.life:
                     plan_life_phases(page, phone=name == "phone")
                 if args.home:
                     plan_home_purchase(page, phone=name == "phone")
-                for tab in TABS:
+                views = [(tab, "") for tab in TABS]
+                if args.household:
+                    views += [(tab, "B") for tab in PERSONAL_TABS]
+                for tab, person in views:
+                    if person:
+                        page.locator("#result-person-input").get_by_text("Person B").click()
                     page.get_by_role("tab", name=tab).click()
                     idle(page)
+                    tab = f"{tab}-{person}" if person else tab
                     width = page.evaluate(PAGE_WIDTH)
                     status = "ok" if width <= viewport["width"] else "ZU BREIT"
                     print(f"{name:8} {tab:13} Seitenbreite {width:5} px  {status}")
