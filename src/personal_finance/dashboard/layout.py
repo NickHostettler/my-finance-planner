@@ -393,6 +393,100 @@ _pillar3b_group = _group(
     ],
 )
 
+_home_defaults = browser_store.FIELD_DEFAULTS
+
+_home_group = _group(
+    "home",
+    "Wohneigentum",
+    "⌂",
+    [
+        segmented(
+            "home-plan-input",
+            "Eigenheim",
+            [
+                {"label": "Kein Kauf geplant", "value": "off"},
+                {"label": "Kauf planen", "value": "on"},
+            ],
+            _home_defaults["home_plan"],
+            "Selbst bewohntes Eigentum. Ohne Kauf bleibt die Prognose unverändert.",
+        ),
+        html.Div(
+            [
+                number_input(
+                    "home-price-input",
+                    "Kaufpreis",
+                    _home_defaults["home_price"],
+                    0,
+                    10000,
+                    "CHF",
+                ),
+                number_input(
+                    "home-purchase-age-input",
+                    "Kauf mit Alter",
+                    None,
+                    18,
+                    1,
+                    "Jahren",
+                    config.MAX_RETIREMENT_AGE,
+                    description="Leer = heute (dein aktuelles Alter)",
+                    decimals=0,
+                ),
+                dmc.Text("Eigenkapital für den Kauf", fw=600, size="sm", mt="xs"),
+                number_input(
+                    "home-savings-input",
+                    "Erspartes und Wertschriften",
+                    _home_defaults["home_savings"],
+                    0,
+                    1000,
+                    "CHF",
+                    description="Inkl. Geld für die Kaufnebenkosten",
+                ),
+                number_input(
+                    "home-pillar3a-input",
+                    "Aus der Säule 3a",
+                    _home_defaults["home_pillar3a"],
+                    0,
+                    1000,
+                    "CHF",
+                    description="Zählt als harte Eigenmittel",
+                ),
+                number_input(
+                    "home-pillar2-input",
+                    "Aus der Pensionskasse (Vorbezug)",
+                    _home_defaults["home_pillar2"],
+                    0,
+                    1000,
+                    "CHF",
+                    description="Zählt nicht als harte Eigenmittel",
+                ),
+                dmc.Text("Tragbarkeit", fw=600, size="sm", mt="xs"),
+                number_input(
+                    "home-gross-income-input",
+                    "Bruttoeinkommen des Haushalts",
+                    None,
+                    0,
+                    1000,
+                    "CHF/Jahr",
+                    description="Leer = aus deinen Einkommensangaben",
+                ),
+                number_input(
+                    "home-imputed-rate-input",
+                    "Kalkulatorischer Zins",
+                    _home_defaults["home_imputed_rate"],
+                    0,
+                    0.25,
+                    "%",
+                    15,
+                    description="So rechnen Banken die Tragbarkeit, nicht dein echter Zins",
+                ),
+            ],
+            id="home-fields",
+            className="field-stack",
+            style={"display": "none"},
+        ),
+    ],
+)
+
 _navbar = dmc.AppShellNavbar(
     [
         dmc.Text("DEINE AUSGANGSLAGE", className="eyebrow"),
@@ -410,6 +504,7 @@ _navbar = dmc.AppShellNavbar(
                 _pillar2_group,
                 _pillar3a_group,
                 _pillar3b_group,
+                _home_group,
             ],
             multiple=True,
             value=["income", "balances"],

@@ -31,9 +31,27 @@ def sample_values(**overrides):
         "display_basis": "real",
         "ahv_average_income": 65000,
         "ahv_contribution_years": 41,
+        "home_plan": "on",
+        "home_price": 1_100_000,
+        "home_purchase_age": 40,
+        "home_savings": 180_000,
+        "home_pillar3a": 30_000,
+        "home_pillar2": 50_000,
+        "home_gross_income": 190_000,
+        "home_imputed_rate": 4.5,
     }
     values.update(overrides)
     return values
+
+
+# A scenario saved with v1.0.0 (before home ownership): exactly these fields.
+V1_0_FIELDS = [
+    "income", "income_period", "income_type", "canton", "current_age", "retirement_age",
+    "savings_mode", "savings_rate", "pillar3a_amount", "pillar3b_amount", "initial_3a",
+    "initial_3b", "initial_2", "pillar2_mode", "pillar2_employee", "pillar2_employer",
+    "pillar2_return", "assumed_return", "display_basis", "ahv_average_income",
+    "ahv_contribution_years",
+]
 
 
 class TestScenarios:
@@ -126,6 +144,29 @@ class TestUntrustedBrowserData:
         assert loaded["display_basis"] == "nominal"
         assert loaded["ahv_contribution_years"] == 44
         assert loaded["ahv_average_income"] is None
+
+    def test_scenarios_from_v1_0_load_without_home_purchase(self):
+        old = {field: sample_values()[field] for field in V1_0_FIELDS}
+        state = {"version": 1, "scenarios": {"Vor 1.1": {"values": old, "updated_at": ""}}}
+
+        loaded = store.load_scenario(state, "Vor 1.1")
+
+        assert {field: loaded[field] for field in V1_0_FIELDS} == old
+        # No purchase planned, the home fields get their defaults (empty: buy now).
+        assert loaded["home_plan"] == "off"
+        assert loaded["home_price"] == store.FIELD_DEFAULTS["home_price"]
+        assert loaded["home_imputed_rate"] == 5.0
+        assert loaded["home_purchase_age"] is None
+        assert loaded["home_gross_income"] is None
+        assert store.values_from_inputs(store.values_to_inputs(loaded)) == loaded
+
+    def test_remembered_inputs_from_v1_0_get_home_defaults(self):
+        old = {field: sample_values()[field] for field in V1_0_FIELDS}
+
+        restored = store.read_last_inputs({"version": 1, "values": old})
+
+        assert restored["home_plan"] == "off"
+        assert restored["home_pillar2"] == 0
 
 
 class TestLastInputs:

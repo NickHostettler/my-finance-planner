@@ -66,7 +66,17 @@ SCENARIO_INPUT_IDS = [
     "display-basis-input",
     "ahv-average-income-input",
     "ahv-contribution-years-input",
+    "home-plan-input",
+    "home-price-input",
+    "home-purchase-age-input",
+    "home-savings-input",
+    "home-pillar3a-input",
+    "home-pillar2-input",
+    "home-gross-income-input",
+    "home-imputed-rate-input",
 ]
+# Same order as the stored fields (browser_store.SCENARIO_FIELDS).
+_BASE_INPUT_COUNT = SCENARIO_INPUT_IDS.index("home-plan-input")
 
 # The return switch (SegmentedControl) only knows text values; stored values are numbers.
 _RETURN_INPUT_INDEX = SCENARIO_INPUT_IDS.index("return-input")
@@ -248,6 +258,15 @@ def update_pillar2_controls(mode):
 
 
 @app.callback(
+    Output("home-fields", "style"),
+    Input("home-plan-input", "value"),
+)
+def update_home_controls(plan):
+    """Show the home ownership fields only while a purchase is planned."""
+    return {"display": "grid" if plan == "on" else "none"}
+
+
+@app.callback(
     Output("monthly-income-input", "label"),
     Output("monthly-income-input", "rightSection"),
     Output("monthly-income-input", "rightSectionWidth"),
@@ -309,6 +328,7 @@ def update_income_preview(amount, period, income_type, age, canton):
 )
 def update_results(*component_values):
     """Validate the inputs and render the three result tabs (same order as the inputs)."""
+    values = _from_components(component_values)
     (
         income,
         income_period,
@@ -331,7 +351,7 @@ def update_results(*component_values):
         display_basis,
         ahv_average_income,
         ahv_contribution_years,
-    ) = _from_components(component_values)
+    ) = values[:_BASE_INPUT_COUNT]
 
     def show_error(message: str):
         error = html.Div(

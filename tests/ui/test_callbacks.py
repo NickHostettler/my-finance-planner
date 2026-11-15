@@ -43,6 +43,14 @@ VALID_INPUTS = {
     "display_basis": "nominal",
     "ahv_average_income": None,
     "ahv_contribution_years": 44,
+    "home_plan": "off",
+    "home_price": 900_000,
+    "home_purchase_age": None,
+    "home_savings": 200_000,
+    "home_pillar3a": 0,
+    "home_pillar2": 0,
+    "home_gross_income": None,
+    "home_imputed_rate": 5,
 }
 
 

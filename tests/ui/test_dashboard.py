@@ -8,6 +8,7 @@ from personal_finance.core.projection import project_balance
 from personal_finance.dashboard import app
 from personal_finance.dashboard.callbacks import (
     SCENARIO_INPUT_IDS,
+    update_home_controls,
     update_pillar2_controls,
     update_results,
     update_savings_controls,
@@ -15,6 +16,7 @@ from personal_finance.dashboard.callbacks import (
 from personal_finance.dashboard.components import chart_card, money
 from personal_finance import config
 from personal_finance.core import ahv
+from personal_finance.storage import browser_store
 
 
 def _update_dashboard(**inputs):
@@ -42,6 +44,7 @@ def _results(
     display_basis="nominal",
     ahv_average_income=None,
     ahv_contribution_years=44,
+    home=("off", 900_000, None, 200_000, 0, 0, None, 5),
 ):
     return update_results(
         5000,
@@ -65,6 +68,7 @@ def _results(
         display_basis,
         ahv_average_income,
         ahv_contribution_years,
+        *home,
     )
 
 
@@ -422,6 +426,22 @@ def test_pillar2_custom_inputs_follow_selected_mode(mode, expected_display):
     assert update_pillar2_controls(mode)["display"] == expected_display
 
 
+def test_home_fields_are_hidden_until_a_purchase_is_planned():
+    assert _component("home-plan-input").value == "off"
+    assert _component("home-fields").style == {"display": "none"}
+    assert update_home_controls("on") == {"display": "grid"}
+    assert update_home_controls("off") == {"display": "none"}
+
+
+def test_home_inputs_start_with_the_stored_defaults():
+    defaults = browser_store.FIELD_DEFAULTS
+
+    assert _component("home-price-input").value == defaults["home_price"]
+    assert _component("home-imputed-rate-input").value == defaults["home_imputed_rate"]
+    assert _component("home-purchase-age-input").value is None
+    assert _component("home-gross-income-input").value is None
+
+
 def test_custom_pillar2_contributions_and_interest_are_projected():
     content, notice = _update_dashboard(
         initial_2=10000,
@@ -595,6 +615,13 @@ def test_every_scenario_input_is_in_the_layout_and_inputs_fold_away_on_phones():
     ids = {getattr(component, "id", None) for component in app.layout._traverse()}
 
     assert set(SCENARIO_INPUT_IDS) <= ids
+    # One input field per stored value, in the same order (values_to_inputs relies on it).
+    assert len(SCENARIO_INPUT_IDS) == len(browser_store.SCENARIO_FIELDS)
+    assert [
+        field.replace("_", "-") + "-input"
+        for field in browser_store.SCENARIO_FIELDS
+        if field.startswith("home_")
+    ] == [component_id for component_id in SCENARIO_INPUT_IDS if component_id.startswith("home-")]
     shell = _component("app-shell")
     assert shell.navbar["collapsed"] == {"mobile": True}
     assert _component("navbar-burger").opened is False

@@ -42,12 +42,29 @@ SCENARIO_FIELDS: Dict[str, str] = {
     "display_basis": "text",
     "ahv_average_income": "number",
     "ahv_contribution_years": "integer",
+    # Home ownership (v1.1). Amounts in CHF at the time of the purchase, rates in percent.
+    "home_plan": "text",
+    "home_price": "number",
+    "home_purchase_age": "integer",
+    "home_savings": "number",
+    "home_pillar3a": "number",
+    "home_pillar2": "number",
+    "home_gross_income": "number",
+    "home_imputed_rate": "number",
 }
 
-# Defaults for fields added after the first release (kept from the former SQLite store).
+# Defaults for fields added after the first release. Older scenarios and remembered inputs
+# do not contain them; they are filled in here, so that those scenarios still load.
+# Fields without a default (e.g. home_purchase_age: empty = buy now) stay empty.
 FIELD_DEFAULTS: Dict[str, Any] = {
     "display_basis": "nominal",
     "ahv_contribution_years": 44,
+    "home_plan": "off",
+    "home_price": 900_000,
+    "home_savings": 200_000,
+    "home_pillar3a": 0,
+    "home_pillar2": 0,
+    "home_imputed_rate": 5.0,
 }
 
 
