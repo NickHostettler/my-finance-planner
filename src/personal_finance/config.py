@@ -145,6 +145,25 @@ HOME_PURCHASE_COSTS_RATE = 0.03
 # Ab diesem Anteil der Wohnkosten am Bruttoeinkommen gilt ein Kauf als "knapp" tragbar.
 HOME_TIGHT_COST_TO_INCOME = 0.30
 
+# --- Wohneigentumsförderung (WEF): Geld aus der 2. Säule und der Säule 3a ---------------
+# Quellen: BVG (SR 831.40) Art. 30c und Art. 79b Abs. 3, WEFV (SR 831.411) Art. 5,
+# BVV 3 (SR 831.461.3) Art. 3. Die Reglemente der Pensionskassen können strenger sein.
+WEF_BVG_SOURCE_URL = "https://www.fedlex.admin.ch/eli/cc/1983/797_797_797/de#art_30_c"
+# WEFV Art. 5: Mindestbetrag eines Vorbezugs (ausser für Anteilscheine von
+# Wohnbaugenossenschaften) und nur alle 5 Jahre ein Vorbezug.
+WEF_PILLAR2_MIN_AMOUNT = 20_000
+WEF_MIN_YEARS_BETWEEN_WITHDRAWALS = 5
+# BVG Art. 30c Abs. 2: Ab Alter 50 höchstens das Guthaben im Alter 50 oder die Hälfte des
+# aktuellen Guthabens (der höhere Betrag).
+WEF_PILLAR2_HALF_RULE_AGE = 50
+# BVG Art. 30c Abs. 1: Vorbezug bis 3 Jahre vor den Altersleistungen. Das Modell rechnet
+# mit dem Referenzalter 65 oder einer früheren Pensionierung. Manche Kassen setzen die
+# Frist früher an (z. B. ab dem frühestmöglichen Rentenalter).
+WEF_REFERENCE_AGE = 65
+WEF_PILLAR2_DEADLINE_YEARS = 3
+# BVG Art. 79b Abs. 3: Einkäufe der letzten 3 Jahre dürfen nicht vorbezogen werden.
+WEF_BUY_IN_LOCK_YEARS = 3
+
 # ================================================================================
 # VALIDIERUNGS-GRENZEN
 # ================================================================================
