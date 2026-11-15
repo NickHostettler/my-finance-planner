@@ -12,7 +12,7 @@ from dash import Input, Output, State, ctx, html, no_update
 from personal_finance import config
 from personal_finance.calculator import FinanceCalculator
 from personal_finance.core import ahv
-from personal_finance.core.home_plan import HomeInputs, plan_purchase
+from personal_finance.core.home_plan import HomeInputs, Pot, plan_purchase
 from personal_finance.core.income import normalize_income
 from personal_finance.core.pillar_2 import Pillar2Result
 from personal_finance.core.projection import project_balance
@@ -479,6 +479,21 @@ def update_results(*component_values):
         pillar3a = calculator.calculate_pillar3a(monthly_amount=float(pillar3a_amount))
         requested_3a_monthly = float(pillar3a_amount)
     pillar3b = calculator.calculate_pillar3b(monthly_amount=float(pillar3b_amount))
+    pots = (
+        Pot(analysis.pillar2.annual_contribution_total, pillar2_return_decimal, float(initial_2)),
+        Pot(pillar3a.annual_savings, float(assumed_return), float(initial_3a)),
+        Pot(pillar3b.annual_savings, float(assumed_return), float(initial_3b)),
+    )
+    plan, home = _home_results(
+        dict(zip(browser_store.SCENARIO_FIELDS, values)),
+        current_age=int(current_age),
+        retirement_age=int(retirement_age),
+        income_annual=(monthly_gross_income if income_type == "gross" else monthly_net_income)
+        * 12,
+        income_is_net=income_type != "gross",
+        pots=pots,
+        display_basis=display_basis,
+    )
     overview, pension, assumptions, notice = results_view(
         income=monthly_net_income,
         current_age=int(current_age),
@@ -497,20 +512,14 @@ def update_results(*component_values):
             None if ahv_average_income is None else float(ahv_average_income)
         ),
         ahv_contribution_years=int(ahv_contribution_years),
+        paths=None if plan is None else plan.with_purchase,
+        purchase_note=None if plan is None else plan.withdrawal_note(),
     )
     if requested_3a_monthly > pillar3a.monthly_savings:
         notice = (
             f"Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
             f"{money(pillar3a.monthly_savings)} pro Monat begrenzt."
         )
-    home = _home_results(
-        dict(zip(browser_store.SCENARIO_FIELDS, values)),
-        current_age=int(current_age),
-        retirement_age=int(retirement_age),
-        income_annual=(monthly_gross_income if income_type == "gross" else monthly_net_income)
-        * 12,
-        income_is_net=income_type != "gross",
-    )
     return overview, pension, home, assumptions, notice
 
 
@@ -521,10 +530,12 @@ def _percent_to_rate(value):
     return value
 
 
-def _home_results(values, current_age, retirement_age, income_annual, income_is_net):
-    """The "Wohneigentum" tab: hint, error message or the assessment of the purchase."""
+def _home_results(
+    values, current_age, retirement_age, income_annual, income_is_net, pots, display_basis
+):
+    """The planned purchase (``None`` if none or invalid) and the "Wohneigentum" tab."""
     if values["home_plan"] != "on":
-        return home_view.home_section(None)
+        return None, home_view.home_section(None)
     inputs = HomeInputs(
         price=values["home_price"],
         savings=values["home_savings"],
@@ -535,10 +546,12 @@ def _home_results(values, current_age, retirement_age, income_annual, income_is_
         imputed_rate=_percent_to_rate(values["home_imputed_rate"]),
     )
     try:
-        plan = plan_purchase(inputs, current_age, retirement_age, income_annual, income_is_net)
+        plan = plan_purchase(
+            inputs, current_age, retirement_age, income_annual, income_is_net, *pots
+        )
     except ValueError as error:
-        return home_view.home_section(None, str(error))
-    return home_view.home_section(plan)
+        return None, home_view.home_section(None, str(error))
+    return plan, home_view.home_section(plan, display_basis=display_basis)
 
 
 # Phones: the burger in the header shows or hides the inputs column (runs in the browser).

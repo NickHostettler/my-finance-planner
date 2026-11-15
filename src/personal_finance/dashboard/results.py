@@ -7,7 +7,7 @@ from dash import html
 
 from personal_finance import config
 from personal_finance.core import ahv
-from personal_finance.core.projection import project_balance
+from personal_finance.core.projection import deflate, project_balance
 from personal_finance.dashboard.components import (
     chart_card,
     metric_card,
@@ -66,8 +66,15 @@ def results_view(
     ahv_average_income: Optional[float],
     ahv_contribution_years: int,
     display_basis: str = "nominal",
+    paths=None,
+    purchase_note: Optional[str] = None,
 ) -> Tuple[object, object, object, str]:
-    """Return the contents of the three result tabs and the calculation notice."""
+    """Return the overview, pension and assumption tabs and the calculation notice.
+
+    ``paths`` (nominal 2nd pillar, 3a and 3b balances per year) replaces the projection of
+    the savings plan, e.g. with the withdrawals for a planned home purchase; then
+    ``purchase_note`` explains it in the overview.
+    """
     pillar2 = analysis.pillar2
     years = analysis.years_to_retirement
     real = display_basis == "real"
@@ -88,15 +95,20 @@ def results_view(
         config.INFLATION_RATE,
         display_basis,
     )
-    pillar2_values = project_balance(
-        pillar2.annual_contribution_total, years, pillar2_return, initial_2, inflation_rate
-    )
-    pillar3a_values = project_balance(
-        pillar3a.annual_savings, years, assumed_return, initial_3a, inflation_rate
-    )
-    pillar3b_values = project_balance(
-        pillar3b.annual_savings, years, assumed_return, initial_3b, inflation_rate
-    )
+    if paths is None:
+        pillar2_values = project_balance(
+            pillar2.annual_contribution_total, years, pillar2_return, initial_2, inflation_rate
+        )
+        pillar3a_values = project_balance(
+            pillar3a.annual_savings, years, assumed_return, initial_3a, inflation_rate
+        )
+        pillar3b_values = project_balance(
+            pillar3b.annual_savings, years, assumed_return, initial_3b, inflation_rate
+        )
+    else:
+        pillar2_values = deflate(paths.pillar2, inflation_rate)
+        pillar3a_values = deflate(paths.pillar3a, inflation_rate)
+        pillar3b_values = deflate(paths.pillar3b, inflation_rate)
     total = pillar2_values[-1] + pillar3a_values[-1] + pillar3b_values[-1]
     ages = list(range(current_age, retirement_age + 1))
     growth = projection_figure(ages, pillar2_values, pillar3a_values, pillar3b_values)
@@ -125,6 +137,11 @@ def results_view(
                 f"{years} Jahre Anlagehorizont · Modellrendite {assumed_return:.0%} für 3a und 3b · "
                 f"{'reale CHF' if real else 'nominale CHF'}",
                 className="results-subtitle",
+            ),
+            *(
+                [dmc.Text(purchase_note, className="results-subtitle purchase-note")]
+                if purchase_note
+                else []
             ),
             dmc.SimpleGrid(
                 [

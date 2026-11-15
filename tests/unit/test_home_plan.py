@@ -5,7 +5,8 @@ import math
 import pytest
 
 from personal_finance.core import home
-from personal_finance.core.home_plan import HomeInputs, plan_purchase, purchase_age
+from personal_finance.core.home_plan import HomeInputs, Pot, plan_purchase, purchase_age
+from personal_finance.core.projection import project_balance
 
 INPUTS = HomeInputs(
     price=1_000_000,
@@ -18,14 +19,19 @@ INPUTS = HomeInputs(
 )
 
 
+# No contributions and no return: the balances stay the same until the purchase.
+POTS = (Pot(0, 0, 100_000), Pot(0, 0, 0), Pot(0, 0, 200_000))
+
+
 def plan(inputs=INPUTS, current_age=35, retirement_age=65, income=200_000, income_is_net=False,
-         **changes):
+         pots=POTS, **changes):
     return plan_purchase(
         HomeInputs(**{**inputs.__dict__, **changes}),
         current_age,
         retirement_age,
         income,
         income_is_net,
+        *pots,
     )
 
 
@@ -86,3 +92,84 @@ class TestPlan:
     def test_invalid_inputs_raise_a_german_message(self, changes, message):
         with pytest.raises(ValueError, match=message):
             plan(**changes)
+
+
+class TestWithdrawals:
+    """Issue #26: the pension fund, 3a and savings drop at the purchase."""
+
+    POTS = (Pot(10_000, 0.02, 150_000), Pot(7_000, 0.04, 40_000), Pot(6_000, 0.04, 100_000))
+
+    def later(self, **changes):
+        arguments = dict(purchase_age=45, pillar3a=50_000, pillar2=80_000, savings=170_000)
+        return plan(pots=self.POTS, **{**arguments, **changes})
+
+    def test_balances_drop_at_the_purchase_and_grow_on_afterwards(self):
+        result = self.later()
+        pot_2, pot_3a, pot_3b = self.POTS
+
+        assert result.without_purchase.pillar2 == pot_2.path(30)
+        assert result.with_purchase.pillar2 == project_balance(
+            10_000, 30, 0.02, 150_000, withdrawals={10: 80_000}
+        )
+        assert result.with_purchase.pillar3a == pot_3a.path(30, {10: 50_000})
+        assert result.with_purchase.pillar3b == pot_3b.path(30, {10: 170_000})
+        # Before the purchase nothing changes.
+        assert result.with_purchase.pillar2[:10] == result.without_purchase.pillar2[:10]
+        balance_2, balance_3a, balance_3b = result.balances_at_purchase
+        assert balance_2 == pot_2.path(30)[10]
+        assert result.with_purchase.pillar2[10] == pytest.approx(balance_2 - 80_000)
+        assert (result.pillar2_used, result.pillar3a_used, result.savings) == (
+            80_000, 50_000, 170_000
+        )
+
+    def test_retirement_capital_is_lower_with_the_purchase(self):
+        result = self.later()
+
+        assert result.with_purchase.pillar2[-1] < result.without_purchase.pillar2[-1]
+        assert result.with_purchase.pillar3a[-1] < result.without_purchase.pillar3a[-1]
+
+    def test_from_50_the_projected_balance_at_50_counts(self):
+        result = self.later(purchase_age=55, pillar2=20_000)
+        balance_at_50 = self.POTS[0].path(30)[15]
+
+        assert result.pillar2_limit.maximum == pytest.approx(
+            max(balance_at_50, result.balances_at_purchase[0] / 2)
+        )
+
+    def test_already_older_than_50_uses_half(self):
+        result = plan(pots=self.POTS, current_age=52, pillar2=60_000)
+
+        assert result.pillar2_limit.maximum == pytest.approx(75_000)
+
+    def test_savings_beyond_the_free_assets_come_from_outside(self):
+        result = plan(pots=(Pot(0, 0, 100_000), Pot(0, 0, 0), Pot(0, 0, 50_000)))
+
+        assert result.savings_outside_3b == 120_000
+        assert result.with_purchase.pillar3b == [0.0] * 31
+
+    @pytest.mark.parametrize(
+        ("changes", "message"),
+        [
+            ({"pillar2": 400_000}, "Pensionskasse sind zum Kaufzeitpunkt höchstens"),
+            ({"pillar3a": 500_000}, "Säule 3a sind zum Kaufzeitpunkt höchstens"),
+        ],
+    )
+    def test_amounts_beyond_the_balances_are_rejected(self, changes, message):
+        with pytest.raises(ValueError, match=message):
+            self.later(**changes)
+
+    def test_note_lists_only_what_is_taken(self):
+        note = self.later().withdrawal_note()
+
+        assert note.startswith("Mit dem geplanten Kauf mit 45 Jahren: Vorbezug Pensionskasse "
+                               "CHF 80’000, Bezug 3a CHF 50’000, Erspartes aus dem freien "
+                               "Vermögen CHF 170’000 sind ab dann abgezogen.")
+        only_3a = plan(savings=0, pillar3a=0, pillar2=0, price=100_000,
+                       pots=(Pot(0, 0, 0), Pot(0, 0, 0), Pot(0, 0, 0)))
+        assert only_3a.withdrawal_note() is None
+
+
+def test_projection_without_withdrawals_is_unchanged():
+    assert project_balance(1000, 3, 0.05, 500) == project_balance(1000, 3, 0.05, 500, 0, {})
+    assert project_balance(0, 1, 0, 100, withdrawals={0: 30}) == [70, 70]
+    assert project_balance(0, 2, 0, 100, withdrawals={1: 300}) == [100, 0, 0]

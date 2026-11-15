@@ -8,7 +8,9 @@ from dash import html
 from personal_finance import config
 from personal_finance.core import home
 from personal_finance.core.home_plan import HomePlan
-from personal_finance.dashboard.components import metric_card, money, section_card
+from personal_finance.core.projection import deflate
+from personal_finance.dashboard.components import chart_card, metric_card, money, section_card
+from personal_finance.dashboard.figures import withdrawal_figure
 
 # Traffic light: status -> (lit lamp, text colour tone)
 _LIGHTS = {
@@ -81,7 +83,139 @@ def error_message(message: str):
     )
 
 
-def home_section(plan: Optional[HomePlan], error: Optional[str] = None):
+def _hints(title: str, items):
+    return dmc.Alert(
+        dmc.List([dmc.ListItem(item) for item in items], size="sm", spacing=4),
+        title=title,
+        color="gray",
+        variant="light",
+        radius="lg",
+    )
+
+
+def pension_money_section(plan: HomePlan, display_basis: str):
+    """Money from the 2nd pillar and 3a (WEF) and its effect on the retirement capital."""
+    real = display_basis == "real"
+    inflation = config.INFLATION_RATE if real else 0
+    without, with_purchase = plan.without_purchase, plan.with_purchase
+    pillar2_without = deflate(without.pillar2, inflation)
+    pillar2_with = deflate(with_purchase.pillar2, inflation)
+    pillar3a_without = deflate(without.pillar3a, inflation)
+    pillar3a_with = deflate(with_purchase.pillar3a, inflation)
+    current_age = plan.purchase_age - plan.years_until_purchase
+    ages = list(range(current_age, current_age + len(pillar2_with)))
+    basis = "heutige Kaufkraft" if real else "nominal"
+
+    def gap(without_value: float, with_value: float) -> str:
+        return f"ohne Kauf {money(without_value)} · {money(with_value - without_value)}"
+
+    balance_2, balance_3a, balance_3b = plan.balances_at_purchase
+    limit = plan.pillar2_limit
+    rows = [
+        _detail_row("Pensionskasse zum Kaufzeitpunkt (Prognose)", money(balance_2)),
+        _detail_row(
+            "Möglicher Vorbezug",
+            money(limit.maximum) if limit.maximum > 0 else "nicht möglich",
+        ),
+        _detail_row("Geplanter Vorbezug", money(plan.pillar2_used)),
+        _detail_row("Säule 3a zum Kaufzeitpunkt (Prognose)", money(balance_3a)),
+        _detail_row("Geplanter Bezug 3a", money(plan.pillar3a_used)),
+        _detail_row("Freies Vermögen 3b zum Kaufzeitpunkt (Prognose)", money(balance_3b)),
+        _detail_row("Erspartes für den Kauf", money(plan.savings)),
+    ]
+    notes = [dmc.Text(reason, size="xs", c="dimmed") for reason in limit.reasons]
+    if plan.savings_outside_3b > 0:
+        notes.append(
+            dmc.Alert(
+                f"Laut Prognose reicht dein freies Vermögen (3b) zum Kaufzeitpunkt nicht für "
+                f"das Ersparte. Das Modell nimmt an, dass die fehlenden "
+                f"{money(plan.savings_outside_3b)} von ausserhalb kommen, z. B. von einem "
+                "Sparkonto, einer Schenkung oder einem Erbvorbezug. Trage dein vorhandenes "
+                "Vermögen links unter «Bisherige Guthaben» ein, damit es mitgerechnet wird.",
+                title="Erspartes ausserhalb der Prognose",
+                color="yellow",
+                variant="light",
+                radius="lg",
+                className="home-savings-hint",
+            )
+        )
+
+    return dmc.Stack(
+        [
+            dmc.SimpleGrid(
+                [
+                    metric_card(
+                        "2. Säule bei Pensionierung",
+                        money(pillar2_with[-1]),
+                        gap(pillar2_without[-1], pillar2_with[-1]),
+                        "green",
+                        "Ⅱ",
+                    ),
+                    metric_card(
+                        "3a bei Pensionierung",
+                        money(pillar3a_with[-1]),
+                        gap(pillar3a_without[-1], pillar3a_with[-1]),
+                        "blue",
+                        "3a",
+                    ),
+                ],
+                cols={"base": 1, "xs": 2},
+                spacing="md",
+            ),
+            dmc.Grid(
+                [
+                    dmc.GridCol(
+                        chart_card(
+                            "Vorsorge mit und ohne Kauf",
+                            f"Gestrichelt ohne Kauf · {basis}",
+                            withdrawal_figure(
+                                ages, pillar2_without, pillar2_with, pillar3a_without,
+                                pillar3a_with,
+                            ),
+                            height=320,
+                            class_name="withdrawal-card",
+                        ),
+                        span={"base": 12, "lg": 7},
+                    ),
+                    dmc.GridCol(
+                        section_card(
+                            "Vorsorgegeld für den Kauf (WEF)",
+                            "Beträge zum Kaufzeitpunkt, nominal",
+                            [html.Div(rows, className="detail-list"), *notes],
+                            class_name="wef-card",
+                        ),
+                        span={"base": 12, "lg": 5},
+                    ),
+                ],
+                gap="md",
+            ),
+            _hints(
+                "Gut zu wissen zum Vorbezug",
+                [
+                    "Ein Vorbezug senkt nicht nur das Alterskapital: Je nach Kasse sinken auch "
+                    "die Leistungen bei Invalidität und Tod. Eine Zusatzversicherung kann die "
+                    "Lücke schliessen.",
+                    "Beim Verkauf des Eigenheims musst du den Vorbezug zurückzahlen. "
+                    f"Einkäufe der letzten {config.WEF_BUY_IN_LOCK_YEARS} Jahre dürfen nicht "
+                    "vorbezogen werden.",
+                    "Der Bezug wird separat und zu einem tieferen Satz als Kapitalleistung "
+                    "besteuert. Das Tool berechnet diese Steuer nicht; sie hängt von Kanton, "
+                    "Gemeinde und Betrag ab.",
+                    "Statt eines Vorbezugs kannst du das Guthaben auch verpfänden: Das Geld "
+                    "bleibt in der Kasse und die Leistungen bleiben gleich, dafür gewährt die "
+                    "Bank eine höhere Hypothek. Die Wohnkosten steigen entsprechend.",
+                    "Pensionskassen dürfen strengere Regeln haben (z. B. eine frühere Frist vor "
+                    "der Pensionierung). Prüfe das Reglement deiner Kasse.",
+                ],
+            ),
+        ],
+        gap="md",
+    )
+
+
+def home_section(
+    plan: Optional[HomePlan], error: Optional[str] = None, display_basis: str = "nominal"
+):
     """Contents of the tab: hint without a purchase, the error, or the assessment."""
     if error is not None:
         return error_message(error)
@@ -225,6 +359,7 @@ def home_section(plan: Optional[HomePlan], error: Optional[str] = None):
                 gap="md",
             ),
             details,
+            pension_money_section(plan, display_basis),
             *hints,
         ],
         gap="md",

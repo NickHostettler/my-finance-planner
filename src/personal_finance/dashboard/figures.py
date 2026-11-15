@@ -76,6 +76,42 @@ def projection_figure(
     return figure
 
 
+def withdrawal_figure(
+    ages: List[int],
+    pillar2_without: List[float],
+    pillar2_with: List[float],
+    pillar3a_without: List[float],
+    pillar3a_with: List[float],
+) -> go.Figure:
+    """2nd pillar and 3a with the withdrawals for the purchase (solid) and without (dotted)."""
+    figure = go.Figure()
+    series = [
+        ("2. Säule ohne Kauf", pillar2_without, COLORS["green"], "dot"),
+        ("2. Säule mit Kauf", pillar2_with, COLORS["green"], "solid"),
+        ("3a ohne Kauf", pillar3a_without, COLORS["blue"], "dot"),
+        ("3a mit Kauf", pillar3a_with, COLORS["blue"], "solid"),
+    ]
+    for label, values, color, dash in series:
+        figure.add_trace(
+            go.Scatter(
+                x=ages,
+                y=values,
+                name=label,
+                mode="lines",
+                line={"color": color, "width": 2.5 if dash == "solid" else 1.8, "dash": dash},
+                hovertemplate=f"<b>{label}</b><br>Alter %{{x}}<br>%{{y:,.0f}} CHF<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        **chart_layout(
+            height=320,
+            hovermode="x unified",
+            xaxis={"showgrid": False, "zeroline": False, "title": None, "dtick": 5},
+        )
+    )
+    return figure
+
+
 def composition_figure(
     pillar2,
     pillar3a,

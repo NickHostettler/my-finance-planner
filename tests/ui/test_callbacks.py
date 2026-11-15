@@ -151,6 +151,9 @@ def test_results_fill_all_tabs():
 # --- the "Wohneigentum" tab (issue #25) ----------------------------------------------------
 
 HOME = {
+    # Enough in the pension fund and free assets for the purchase today (age 35).
+    "initial_2": 100_000,
+    "initial_3b": 200_000,
     "home_plan": "on",
     "home_price": 1_000_000,
     "home_savings": 170_000,
@@ -193,8 +196,8 @@ def test_home_tab_shows_the_assessment_with_traffic_light():
     ("overrides", "headline", "reason"),
     [
         ({"home_gross_income": 185_000}, "Knapp tragbar", "nahe an der Grenze"),
-        ({"home_savings": 100_000, "home_pillar2": 130_000}, "Nicht tragbar",
-         "harte Eigenmittel"),
+        ({"home_savings": 100_000, "home_pillar2": 130_000, "initial_2": 200_000},
+         "Nicht tragbar", "harte Eigenmittel"),
         ({"home_gross_income": 120_000}, "Nicht tragbar", "erlaubt ist höchstens"),
     ],
 )
@@ -238,13 +241,102 @@ def test_home_tab_uses_the_income_inputs_without_an_entered_gross_income():
 
 
 def test_without_a_planned_purchase_the_other_tabs_stay_the_same():
-    planned = results(**HOME)
+    # Regression: the "off" switch must give exactly the results of v1.0.
     not_planned = results(**{**HOME, "home_plan": "off"})
+    before_home_ownership = results(initial_2=100_000, initial_3b=200_000)
 
-    assert [repr(section) for section in planned[:2]] == [
-        repr(section) for section in not_planned[:2]
+    assert [repr(section) for section in not_planned[:2]] == [
+        repr(section) for section in before_home_ownership[:2]
     ]
     assert "Wohneigentum planen" in texts(not_planned[2])
+
+
+def test_invalid_purchase_leaves_the_other_tabs_without_purchase():
+    invalid = results(**{**HOME, "home_price": None})
+    not_planned = results(**{**HOME, "home_plan": "off"})
+
+    assert repr(invalid[0]) == repr(not_planned[0])
+
+
+# --- money from the 2nd pillar and 3a (issue #26) ----------------------------------------
+
+
+def metric_values(component):
+    return [
+        node.children
+        for node in component._traverse()
+        if getattr(node, "className", None) == "metric-value"
+    ]
+
+
+def chf(text):
+    return float(text.replace("CHF ", "").replace("’", "").replace("/Monat", ""))
+
+
+def test_withdrawals_lower_the_retirement_capital_in_overview_and_home_tab():
+    planned = results(**{**HOME, "home_pillar3a": 10_000, "initial_3a": 20_000})
+    not_planned = results(**{**HOME, "home_pillar3a": 10_000, "initial_3a": 20_000,
+                             "home_plan": "off"})
+
+    with_purchase, without = metric_values(planned[0]), metric_values(not_planned[0])
+    # Overview: total, 2nd pillar, 3a and 3b are lower after the purchase.
+    for index in range(4):
+        assert chf(with_purchase[index]) < chf(without[index])
+    assert "Mit dem geplanten Kauf mit 35 Jahren: Vorbezug Pensionskasse CHF 60’000, " \
+           "Bezug 3a CHF 10’000, Erspartes aus dem freien Vermögen CHF 170’000" \
+        in texts(planned[0])
+
+    home = texts(planned[2])
+    assert "Vorsorge mit und ohne Kauf" in home
+    assert "Möglicher Vorbezug" in home
+    assert f"ohne Kauf {without[1]}" in home  # 2nd pillar card names the value without purchase
+    figure = next(node.figure for node in planned[2]._traverse() if hasattr(node, "figure")
+                  and node.figure.data[0].name == "2. Säule ohne Kauf")
+    pillar2_without, pillar2_with = figure.data[0].y, figure.data[1].y
+    assert pillar2_without[0] == 100_000
+    assert pillar2_with[0] == 40_000  # 60'000 withdrawn at once
+    assert chf(without[1]) == pytest.approx(pillar2_without[-1], abs=1)
+
+
+def test_real_view_shows_the_home_capital_in_todays_purchasing_power():
+    nominal = texts(results(**HOME)[2])
+    real = texts(results(**{**HOME, "display_basis": "real"})[2])
+
+    assert "Gestrichelt ohne Kauf · nominal" in nominal
+    assert "Gestrichelt ohne Kauf · heutige Kaufkraft" in real
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"home_pillar2": 10_000}, "mindestens CHF 20’000"),
+        ({"home_pillar2": 150_000}, "höchstens CHF 100’000"),
+        ({"home_pillar2": 60_000, "home_purchase_age": 63}, "bis Alter 62"),
+        ({"home_pillar3a": 5_000}, "Säule 3a ist zum Kaufzeitpunkt nicht möglich"),
+        ({"home_pillar3a": -1}, "3a-Geld"),
+    ],
+)
+def test_withdrawals_beyond_the_rules_are_explained(overrides, message):
+    home = results(**{**HOME, **overrides})[2]
+
+    assert home.className == "validation-message"
+    assert message in home.children[1].children
+
+
+def test_from_50_only_the_balance_at_50_or_half_can_be_withdrawn():
+    # Today 55: the balance at 50 is not known, so the model takes half (cautious).
+    home = texts(results(**{**HOME, "current_age": 55, "home_pillar2": 50_000})[2])
+
+    assert "Möglicher Vorbezug" in home
+    assert "CHF 50’000" in home
+    assert "vorsichtig mit der Hälfte" in home
+
+
+def test_savings_beyond_the_free_assets_are_assumed_to_come_from_outside():
+    home = texts(results(**{**HOME, "initial_3b": 50_000})[2])
+
+    assert "Erspartes ausserhalb der Prognose" in home
+    assert "CHF 120’000" in home  # 170'000 savings - 50'000 free assets
 
 
 # --- values coming from the Mantine input fields ------------------------------------------
