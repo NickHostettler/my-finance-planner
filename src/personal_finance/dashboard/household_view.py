@@ -152,8 +152,8 @@ def couple_ahv_text(household: Household, capped: bool) -> str:
         return "Nicht verheiratet: keine Plafonierung, jede Person erhält ihre eigene Rente"
     cap = money(ahv.COUPLE_MAXIMUM_MONTHLY_PENSION)
     if capped:
-        return f"Plafoniert: Ehepaare erhalten zusammen höchstens {cap} (heute)"
-    return f"Unter der Plafonierung für Ehepaare ({cap} heute)"
+        return f"Plafoniert: Ehepaare erhalten zusammen höchstens {cap} (Werte 2027)"
+    return f"Unter der Plafonierung für Ehepaare ({cap}, Werte 2027)"
 
 
 def contributions_card(plan: HomePlan):
@@ -363,7 +363,30 @@ def assumptions():
                 ],
                 size="sm",
                 spacing=4,
-            )
+            ),
+            html.Div(
+                [
+                    html.A(
+                        "Altersrenten der AHV, Plafonierung (Merkblatt 3.01)",
+                        href=ahv.OFFICIAL_LEAFLET_URL,
+                        target="_blank",
+                        rel="noopener noreferrer",
+                    ),
+                    html.A(
+                        "Erziehungsgutschriften (Merkblatt 1.07)",
+                        href=ahv.EDUCATION_CREDIT_URL,
+                        target="_blank",
+                        rel="noopener noreferrer",
+                    ),
+                ],
+                className="assumption-source-links",
+            ),
+            dmc.Text(
+                f"Stand der Werte: {config.FAMILY_RULES_AS_OF}",
+                size="xs",
+                c="dimmed",
+                mt="xs",
+            ),
         ],
         class_name="household-assumptions",
     )

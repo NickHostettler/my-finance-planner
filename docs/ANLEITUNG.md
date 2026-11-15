@@ -4,7 +4,8 @@ Mit dem Finanzplan siehst du, wie sich dein Vorsorgevermögen bis zur Pensionier
 könnte: 2. Säule (Pensionskasse), Säule 3a, freies Sparen (3b) und eine grobe AHV-Schätzung.
 Wer ein Eigenheim plant, sieht zusätzlich, ob der Kauf tragbar ist und was er für die Vorsorge
 bedeutet. Mit **Lebensphasen** siehst du, was Teilzeit, ein Unterbruch oder Kinder für deine
-Vorsorge heissen.
+Vorsorge heissen. **Zu zweit** plant ihr jede Person mit eigener Vorsorge und dazu einen
+gemeinsamen Haushalt mit Kindern und einem gemeinsamen Kauf.
 
 > **Keine Beratung.** Alle Werte sind vereinfachte Schätzungen ohne Gewähr. Für verbindliche
 > Zahlen gelten dein Pensionskassenausweis, dein AHV-Auszug und eine Fachperson. Der Bereich
@@ -22,10 +23,11 @@ Vorsorge heissen.
 
 - **Links: deine Eingaben**, in Gruppen zum Auf- und Zuklappen. Auf dem **Handy** sind sie hinter
   dem Menü-Symbol **☰** oben links; ein zweiter Tipp darauf blendet sie wieder aus.
-- **Rechts: die Ergebnisse** in fünf Laschen: **Übersicht** (Kennzahlen, AHV, Vermögensentwicklung),
+- **Rechts: die Ergebnisse** in sechs Laschen: **Übersicht** (Kennzahlen, AHV, Vermögensentwicklung),
   **Vorsorge** (Vergleich, Zusammensetzung, dein Sparplan), **Wohneigentum** (Tragbarkeit,
-  Vorbezug, Hypothek), **Lebensphasen** (Vorsorgelücke gegenüber 100 %, Familie) und
-  **Annahmen** (wie gerechnet wird, mit Quellen).
+  Vorbezug, Hypothek), **Lebensphasen** (Vorsorgelücke gegenüber 100 %, Familie), **Haushalt**
+  (beide Personen nebeneinander, nur bei zwei Personen) und **Annahmen** (wie gerechnet wird,
+  mit Quellen).
 - **Oben rechts: „Szenarien“** zum Speichern und Laden.
 
 ## So gehst du vor
@@ -44,8 +46,8 @@ Vorsorge heissen.
    3b-Beträge nicht; dazu die angenommene Rendite wählen.
 6. **Lebensphasen & Familie** (freiwillig): siehe Abschnitt unten. Ohne Phasen rechnet die App
    mit deinem heutigen Einkommen bis zur Pensionierung.
-7. **Wohneigentum** (freiwillig): siehe nächster Abschnitt. Ohne geplanten Kauf bleibt alles
-   wie bisher.
+7. **Wohneigentum** (freiwillig, unter **Gemeinsam**): siehe nächster Abschnitt. Ohne geplanten
+   Kauf bleibt alles wie bisher.
 8. Die Ergebnisse rechts aktualisieren sich sofort. Mit *Nominal* bzw. *Real · heutige
    Kaufkraft* über den Laschen wechselst du, ob die Inflation herausgerechnet wird.
 
@@ -137,10 +139,12 @@ einer Phase: 100 % mit deinem Einkommen von oben bis zur Pensionierung.
 3. **Koordinationsabzug:** Gesetzlich zieht die Pensionskasse auch bei Teilzeit den vollen Abzug
    ab (*Fix*). Viele Kassen passen ihn ans Pensum an (*Nach Pensum*). Das Reglement deiner
    Kasse sagt, was gilt.
-4. **Kinder:** dein Alter bei jeder Geburt, auch für geplante Kinder (höchstens vier). Dazu, ob
-   du die **Mutter** (14 Wochen Mutterschaftsurlaub) oder der **andere Elternteil** (2 Wochen)
-   bist, ob die AHV-**Erziehungsgutschriften** ganz oder hälftig zählen (verheiratet: hälftig),
-   und die **Kinder- und Ausbildungszulage** deines Kantons.
+4. Ob du die **Mutter** (14 Wochen Mutterschaftsurlaub) oder der **andere Elternteil**
+   (2 Wochen) bist und ob die AHV-**Erziehungsgutschriften** ganz oder hälftig zählen
+   (verheiratet: hälftig).
+5. **Kinder:** Sobald du Phasen planst, erscheint unter **Gemeinsam** die Gruppe **Kinder**: dein
+   Alter bei jeder Geburt, auch für geplante Kinder (höchstens vier), und die **Kinder- und
+   Ausbildungszulage** deines Kantons.
 
 Das zeigt die Lasche **Lebensphasen**:
 
@@ -188,12 +192,83 @@ Kindern“):
 
 Die Regeln, Quellen und der Stand stehen in der Lasche **Annahmen**.
 
+## Zu zweit planen
+
+Ganz oben links bei **„Planung für“** **„Zwei Personen“** wählen. Dann gibt es zwei Arten von
+Angaben:
+
+- **Persönlich**, für **Person A** und **Person B** getrennt: Einkommen und Alter, bisherige
+  Guthaben, AHV, 2. Säule, 3a und 3b, Lebensphasen. Mit **„Eingaben von“** wechselst du, wessen
+  Angaben du siehst. Die Angaben der einen Person ändern die Prognose der anderen nie.
+- **Gemeinsam** (unten links): **Haushalt** (verheiratet oder nicht), **Kinder** und
+  **Wohneigentum**. Die Kinder trägst du mit dem **Alter von Person A** bei der Geburt ein; für
+  Person B rechnet die App mit dem Altersunterschied. Beim Kauf gibst du das **Kaufalter von
+  Person A** an.
+
+Rechts wählst du über den Laschen **Person A** oder **Person B**: **Übersicht**, **Vorsorge** und
+**Lebensphasen** zeigen die Ergebnisse dieser Person. **Wohneigentum** und **Haushalt** gelten
+für beide.
+
+**Gemeinsamer Kauf:**
+
+1. Jede Person hat eigene Felder für **Erspartes**, **Säule 3a** und **Pensionskasse**. Beim
+   Planen füllt die App die Höchstbeträge beider Personen ein: zuerst das freie Vermögen beider,
+   dann 3a, zuletzt die Pensionskassen, nur so viel, wie der Kauf braucht. Du kannst jeden
+   Betrag einzeln senken.
+2. **Tragbarkeit** mit dem Bruttoeinkommen beider Personen (leer = aus den Einkommensangaben)
+   und den Mitteln beider. Die Regeln (20 % Eigenmittel, davon 10 % hart, Wohnkosten bis ⅓)
+   bleiben gleich.
+3. Jeder Bezug aus 3a oder Pensionskasse wird mit den Regeln **der Person geprüft, deren
+   Guthaben es ist** (Mindestbetrag, Regel ab 50, Frist vor der Pensionierung), und senkt nur
+   **deren** Prognose.
+4. Die Hypothek wird bis zur **ersten Pensionierung** im Haushalt gerechnet; bis dann muss die
+   2. Hypothek amortisiert sein. Die Tragbarkeit im Alter vergleicht die Wohnkosten mit den
+   Renten beider Personen.
+
+Die Lasche **Haushalt** zeigt:
+
+- **Persönliche Vorsorge im Vergleich:** beide Personen nebeneinander, jede bei ihrer eigenen
+  Pensionierung. Das Vorsorgekapital wird **nicht zusammengezählt**, es gehört der jeweiligen
+  Person.
+- Das **Nettoeinkommen** und das **Sparen** beider, die **AHV beider Personen** und den Stand
+  des **gemeinsamen Kaufs**.
+- **Kaufmittel je Person:** wer wie viel aus welcher Quelle einsetzt, dazu der Mindestbedarf an
+  Eigenmitteln und der Anteil, der hart sein muss.
+- Hinweise, die vom **Zusammenleben** abhängen.
+
+**Verheiratet oder nicht?** „Verheiratet“ gilt auch für eine eingetragene Partnerschaft.
+
+| | Verheiratet | Nicht verheiratet |
+|---|---|---|
+| AHV-Renten | zusammen höchstens 150 % der Maximalrente (Stand 2027: CHF 3’840 pro Monat) | jede Person ihre volle Rente |
+| Erziehungsgutschriften | immer hälftig | hälftig oder ganz bei einer Person (nach Vereinbarung) |
+| Ohne Erwerb | gedeckt, wenn die andere Person mindestens den doppelten Mindestbeitrag zahlt | eigene AHV-Beiträge nötig |
+| Vorbezug für den Kauf | schriftliche Zustimmung der Ehepartnerin oder des Ehepartners | viele Kassen begrenzen ihn auf den eigenen Anteil |
+
+Die **Familienzulagen** zählt die App nur einmal, bei der ersten Person mit Lebensphasen.
+Steuern, Güter- und Erbrecht sowie Leistungen bei Tod und Invalidität rechnet die App nicht.
+
+### Beispiel
+
+Person A (35) und Person B (33) kaufen heute für CHF 900’000. A setzt CHF 150’000 Erspartes und
+CHF 120’000 aus der Pensionskasse ein, B CHF 60’000 Erspartes und CHF 80’000 aus der
+Pensionskasse:
+
+- Kaufnebenkosten (3 %): CHF 27’000, bezahlt aus dem Ersparten.
+- Eigenmittel: 210’000 + 200’000 − 27’000 = CHF 383’000, davon hart CHF 183’000. Nötig sind
+  CHF 180’000, davon CHF 90’000 hart: Beides reicht.
+- Die Tragbarkeit rechnet mit dem Einkommen beider Personen.
+- Bei Person B fehlen ab dem Kauf CHF 80’000 in der Pensionskasse, bei Person A CHF 120’000;
+  die Übersicht jeder Person zeigt das.
+
 ## Szenarien vergleichen
 
 - Oben rechts auf **„Szenarien“** klicken, einen **Namen** eingeben (z.B. „Teilzeit ab 55“) und
   **„Speichern“** klicken.
 - Später dort im Auswahlfeld wählen und **„Laden“** klicken.
 - Deine **letzten Eingaben** merkt sich die App automatisch.
+- Ein Szenario speichert beide Personen und die gemeinsamen Angaben. **Ältere Szenarien** (vor
+  der Haushaltsplanung) laden als **Person A**; Person B bekommt die Startwerte.
 
 ## Wo sind meine Daten?
 

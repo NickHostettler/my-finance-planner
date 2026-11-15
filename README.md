@@ -10,7 +10,8 @@ A web app that projects how Swiss retirement savings could develop until retirem
 occupational pension (2nd pillar/BVG), tax-advantaged pillar 3a, free savings (3b), and a rough
 AHV state-pension estimate. Since v1.1 it also checks whether a planned home purchase is
 affordable and what it does to the retirement savings; since v1.2 it shows what part time,
-career breaks and children do to the pension compared with working full time. It is deployed
+career breaks and children do to the pension compared with working full time; since v1.3 a
+couple plans together, each with their own pension and a joint home purchase. It is deployed
 for a small group of friends: each one uses it in their own browser, and **no personal
 financial data is ever stored on the server**.
 
@@ -19,6 +20,8 @@ financial data is ever stored on the server**.
 ![Home ownership tab: purchase money prefilled with the highest amounts at the purchase age, traffic light for affordability, equity, mortgage, monthly housing costs, the maximum price with the money used and with all money available, and the equity needed versus available](docs/images/wohneigentum.png)
 
 ![Life phases tab: gap in retirement capital and AHV compared with full time, workload and income over the years with the births, both capital curves, and the phase inputs on the left](docs/images/lebensphasen.png)
+
+![Household tab: household income, savings, the AHV of both with the cap for married couples, the joint purchase, and both persons' projections side by side; on the left the switch between one and two persons and the inputs of person B](docs/images/haushalt.png)
 
 ### Highlights
 
@@ -50,6 +53,13 @@ financial data is ever stored on the server**.
   fund, the AHV estimate counts lower incomes and education credits. Children bring family
   allowances, parental leave (EO) and child costs. The result is the pension gap in CHF
   compared with full time, and every other tab follows the plan.
+- **Household of two (v1.3):** two persons with their own inputs and their own projections,
+  which are shown side by side and never added up to one retirement capital. Children and a
+  home purchase belong to the household: affordability uses both incomes, each person puts in
+  savings, 3a and pension fund money, every withdrawal is checked against the WEF rules of its
+  owner and lowers only that person's projection. Married couples get the AHV cap of 150 % and
+  share the education credits. Scenarios are stored by household and person with a storage
+  version; scenarios of one person from earlier versions load as person A.
 - **Clean architecture:** `core/` (pure domain logic) → `storage/` → `dashboard/` (UI);
   dependencies only point inwards.
 
@@ -59,8 +69,9 @@ pytest · Playwright · uv · ruff
 
 **Workflow:** Every change went through an issue, a feature branch and a reviewed pull request
 with green CI (milestones [v1.0](https://github.com/NickHostettler/my-finance-planner/milestone/1),
-[v1.1](https://github.com/NickHostettler/my-finance-planner/milestone/2) and
-[v1.2](https://github.com/NickHostettler/my-finance-planner/milestone/3),
+[v1.1](https://github.com/NickHostettler/my-finance-planner/milestone/2),
+[v1.2](https://github.com/NickHostettler/my-finance-planner/milestone/3) and
+[v1.3](https://github.com/NickHostettler/my-finance-planner/milestone/4),
 [releases](https://github.com/NickHostettler/my-finance-planner/releases)).
 Developed with the help of an AI coding assistant (Claude Code), which is noted in the commit
 messages.
@@ -85,6 +96,7 @@ Ein Python-Paket für private Finanzplanung nach dem Schweizer Rentensystem (1.,
 - **Transparente Modellannahmen**: Renditen, nominale Werte ohne Inflationsbereinigung, Vereinfachungen der BVG-Schätzung und nicht berücksichtigte Faktoren werden bei der Prognose ausgewiesen
 - **Wohneigentum**: Tragbarkeit und Eigenmittel mit Ampel, maximaler Kaufpreis, Vorbezug aus 2. Säule und 3a (WEF), direkte oder indirekte Amortisation, Nettovermögen und Tragbarkeit im Alter. Die Kaufmittel werden mit den Höchstbeträgen zum Kaufalter vorbelegt; daneben stehen der Eigenmittelbedarf und der höchste Kaufpreis mit allen verfügbaren Mitteln
 - **Lebensphasen & Familie**: Erwerbsleben in Phasen mit Pensum und Einkommen (Vorlagen für Teilzeit mit Kindern und Unterbruch), Teilzeitregeln der 2. Säule mit fixem oder pensumabhängigem Koordinationsabzug, grosse 3a ohne Pensionskasse, AHV mit Erziehungsgutschriften, Familienzulagen, Erwerbsersatz bei Geburt und Kinderkosten; Vergleich mit 100 % als Vorsorgelücke in CHF
+- **Haushaltsplanung zu zweit**: Person A und Person B mit eigenen Angaben und eigenen Prognosen (nebeneinander, nie zu einem Vorsorgekapital addiert); Kinder, Zusammenleben (verheiratet oder nicht) und ein gemeinsamer Kauf gehören zum Haushalt. Tragbarkeit mit beiden Einkommen, Kaufmittel und WEF-Bezüge je Person, AHV-Plafonierung für Ehepaare
 - **Nominale und reale Prognose**: Umschaltbare Anzeige in zukünftigen CHF oder kaufkraftbereinigten heutigen CHF unter Verwendung der konfigurierten jährlichen Inflation
 - **AHV-Rente**: Unverbindliche Schätzung anhand des durchschnittlichen Jahreseinkommens und der Beitragsjahre als separates Ruhestandseinkommen; 13 Jahreszahlungen sind berücksichtigt, die AHV wird nicht zum Vorsorgekapital addiert
 - **Szenarien im eigenen Browser**: Dashboard-Eingaben lassen sich benannt speichern, laden und löschen; ein erneut gespeicherter Name aktualisiert das bestehende Szenario. Die Daten bleiben im Browser des Nutzers, der Server speichert nichts
@@ -273,7 +285,8 @@ src/personal_finance/
 │   ├── home.py            # Wohneigentum: Eigenmittel, Tragbarkeit, max. Kaufpreis
 │   ├── wef.py             # Vorbezug aus 2. Säule und 3a
 │   ├── mortgage.py        # Hypothek, Amortisation, Tragbarkeit im Alter
-│   ├── home_plan.py       # Kauf in der Prognose (mit/ohne Kauf)
+│   ├── home_plan.py       # Kauf in der Prognose (eine Person oder Haushalt, mit/ohne Kauf)
+│   ├── household.py       # Haushalt: Zusammenleben, Erziehungsgutschriften, AHV-Plafonierung
 │   ├── life_phases.py     # Lebensphasen: Pensum und Einkommen pro Jahr
 │   ├── part_time.py       # Teilzeit: 2. Säule, 3a-Limit, AHV, Vergleich mit 100 %
 │   └── family.py          # Familienzulagen, Erwerbsersatz, Kinderkosten
@@ -289,6 +302,7 @@ src/personal_finance/
     ├── results.py         # Ergebnisbereich (Übersicht, Vorsorge, Annahmen)
     ├── home_view.py       # Lasche Wohneigentum
     ├── life_view.py       # Lebensphasen: Eingaben und Lasche
+    ├── household_view.py  # Lasche Haushalt (zwei Personen)
     ├── callbacks.py       # Interaktionen
     ├── theme.py           # Farben
     └── assets/            # CSS (wird von Dash automatisch geladen)

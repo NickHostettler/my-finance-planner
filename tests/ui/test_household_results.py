@@ -152,7 +152,7 @@ class TestHouseholdTab:
         high = {"ahv_average_income": 92_160, "b_ahv_average_income": 92_160}
         married = tabs(**{**PAIR, **high})
         # 2 x 2'560 = 5'120 > 3'840: both pensions times 0.75 (1'920 today).
-        assert "Plafoniert: Ehepaare erhalten zusammen höchstens CHF 3’840" in texts(
+        assert "Plafoniert: Ehepaare erhalten zusammen höchstens CHF 3’840 (Werte 2027)" in texts(
             married.household
         )
         assert "CHF 3’840/Monat" in texts(married.household)
@@ -178,6 +178,7 @@ class TestHouseholdTab:
 
     def test_household_assumptions(self):
         assert "Haushalt mit zwei Personen" in texts(tabs(**PAIR).assumptions)
+        assert "Plafonierung (Merkblatt 3.01)" in texts(tabs(**PAIR).assumptions)
         assert "Haushalt mit zwei Personen" not in texts(tabs().assumptions)
 
 
