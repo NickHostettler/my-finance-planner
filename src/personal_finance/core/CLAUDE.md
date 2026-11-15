@@ -32,6 +32,17 @@
   `available_funds` und `suggested_amounts` liefern die Höchstbeträge zum Kaufalter (#40):
   Reihenfolge 3b → 3a → Pensionskasse, gekürzt auf Kaufpreis plus Nebenkosten, kein PK-Bezug
   unter dem WEF-Mindestbetrag.
-- Annahmen, die im UI erklärt werden müssen: Immobilie bleibt zum Kaufpreis (keine
+- Annahmen, die im UI erklärt werden müssen (Wohneigentum): Immobilie bleibt zum Kaufpreis (keine
   Wertveränderung); Wohnkosten werden aus dem laufenden Einkommen bezahlt; Erspartes über das
   prognostizierte freie Vermögen hinaus kommt „von ausserhalb“.
+
+## Lebensphasen (v1.2)
+
+- `life_phases.py`: `LifePhase` (Alter von–bis inklusive, Pensum als Dezimalzahl, Einkommen pro
+  Monat auf derselben Basis wie die Einkommenseingabe), `validate_phases` (lückenlos, ohne
+  Überschneidung, von heute bis zum Jahr vor der Pensionierung) und `yearly_plan` (ein Wert pro
+  Jahr, Index 0 = heute). Die Listen gehen direkt in `project_balance`.
+- Regression: `full_time_phase` (eine Phase, 100 %) muss exakt die Reihen ohne Phasen ergeben.
+- Modellannahmen: Phaseneinkommen in heutigen Franken plus Lohnzunahme ab heute; 3a nur in
+  Jahren mit Erwerbseinkommen; eigene PK-Beiträge im Verhältnis zum Einkommen. Die BVG-Regeln
+  für Teilzeit (Eintrittsschwelle, Koordinationsabzug) folgen mit #31.
