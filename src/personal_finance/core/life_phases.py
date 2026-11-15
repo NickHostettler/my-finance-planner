@@ -36,7 +36,8 @@ class LifePhase:
 
     ``workload`` is a decimal (0.6 = 60 %). ``income`` is the monthly income of the phase on
     the same basis as the income input (net or gross). ``pillar3a`` and ``pillar3b`` are the
-    phase's own monthly savings; ``None`` means the amounts of the plan.
+    phase's own monthly savings; ``None`` means the amounts of the plan. ``child_costs`` are
+    the monthly costs for children in the phase (childcare, living), in today's CHF (#32).
     """
 
     from_age: Any
@@ -45,6 +46,7 @@ class LifePhase:
     income: Any
     pillar3a: Any = None
     pillar3b: Any = None
+    child_costs: Any = None
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,7 @@ class YearlyPlan:
     # limit of each year depends on the pension fund (see part_time.pension_years).
     pillar3a: Tuple[float, ...]
     pillar3b: Tuple[float, ...]  # per year
+    child_costs: Tuple[float, ...] = ()  # per year, nominal (with the inflation, #32)
 
     @property
     def annual_income(self) -> List[float]:
@@ -123,6 +126,10 @@ def _checked(phase: Any, number: int) -> LifePhase:
         _optional_amount(
             phase.pillar3b, f"Phase {number}: Der 3b-Betrag muss mindestens 0 CHF betragen."
         ),
+        _optional_amount(
+            phase.child_costs,
+            f"Phase {number}: Die Kinderkosten müssen mindestens 0 CHF betragen.",
+        ),
     )
 
 
@@ -187,7 +194,7 @@ def yearly_plan(
     """
     checked = validate_phases(phases, current_age, retirement_age)
     growth = validate_salary_growth(salary_growth)
-    ages, workload, income, pillar3a, pillar3b = [], [], [], [], []
+    ages, workload, income, pillar3a, pillar3b, child_costs = [], [], [], [], [], []
     for year, age in enumerate(range(current_age, retirement_age)):
         phase = next(phase for phase in checked if phase.from_age <= age <= phase.to_age)
         monthly_income = phase.income * (1 + growth) ** year
@@ -199,7 +206,16 @@ def yearly_plan(
         # Pillar 3a needs an income from work.
         pillar3a.append(monthly_3a * 12 if monthly_income > 0 else 0.0)
         pillar3b.append(monthly_3b * 12)
-    return YearlyPlan(tuple(ages), tuple(workload), tuple(income), tuple(pillar3a), tuple(pillar3b))
+        # MODELLANNAHME: child costs in today's CHF, rising with the inflation.
+        child_costs.append((phase.child_costs or 0.0) * 12 * (1 + config.INFLATION_RATE) ** year)
+    return YearlyPlan(
+        tuple(ages),
+        tuple(workload),
+        tuple(income),
+        tuple(pillar3a),
+        tuple(pillar3b),
+        tuple(child_costs),
+    )
 
 
 FIXED = "fixed"  # coordination deduction in full, also part time (BVG minimum)

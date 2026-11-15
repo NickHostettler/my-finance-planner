@@ -49,5 +49,12 @@
   klein mit PK, gross ohne PK), `ahv_monthly_pension` (Phasen senken den Durchschnitt,
   Erziehungsgutschriften ganz oder hälftig) und `compare_with_full_time` (Vorsorgelücke). Der
   fixe Koordinationsabzug muss exakt die BVG-Schätzung ohne Phasen ergeben (Test).
-- Kinder werden im Kern als **Alter des Elternteils bei der Geburt** übergeben. Gutschrift ab
-  dem Jahr nach der Geburt bis zum Jahr, in dem das Kind 16 wird, eine pro Jahr.
+- Kinder werden im Kern als **Alter des Elternteils bei der Geburt** übergeben
+  (`family.validate_birth_ages`). Gutschrift ab dem Jahr nach der Geburt bis zum Jahr, in dem
+  das Kind 16 wird, eine pro Jahr.
+- `family.py` (#32): Familienzulagen nach Alter des Kindes (bis 15 Kinder-, 16–24
+  Ausbildungszulage, Beträge überschreibbar), EO im Geburtsjahr (80 %, Tageshöchstbetrag; Mutter
+  98, anderer Elternteil 14 Taggelder, Zwillinge nicht doppelt) und was nach Kinderkosten und
+  Sparen bleibt. Kinderkosten pro Phase in heutigen Franken, sie steigen mit der Inflation.
+- Familien-Werte: Stand `FAMILY_RULES_AS_OF`; bei neuen Jahreswerten mitprüfen (Skill
+  `jahreswerte`).

@@ -65,6 +65,33 @@ PILLAR3A_LARGE_MAX = 36_864
 # 3b hat keine Limits - vordefinierte Szenarien sind nur Empfehlungen
 
 # ================================================================================
+# FAMILIE: Familienzulagen und Erwerbsersatz bei Elternschaft (#32)
+# ================================================================================
+
+# Stand der Familien-Werte im Tool. Für 2027 waren bei der Umsetzung noch keine neuen Werte
+# veröffentlicht; die Mindestansätze werden nur bei mindestens 5 Punkten Teuerung angepasst.
+FAMILY_RULES_AS_OF = "November 2026"
+# Familienzulagen (FamZG Art. 3 und 5): Mindestansätze pro Kind und Monat seit 1.1.2025. Die
+# Kantone können mehr zahlen, deshalb ist der Betrag im Tool überschreibbar.
+# Quelle: BSV «Zulagen für Familien», Merkblatt 6.08.
+FAMILY_ALLOWANCE_SOURCE_URL = "https://www.bsv.admin.ch/de/zulagen-fuer-familien"
+CHILD_ALLOWANCE_MONTHLY = 215  # Kinderzulage bis 16
+EDUCATION_ALLOWANCE_MONTHLY = 268  # Ausbildungszulage ab 16, höchstens bis 25
+CHILD_ALLOWANCE_UNTIL_AGE = 16
+EDUCATION_ALLOWANCE_UNTIL_AGE = 25
+# Erwerbsersatz bei Mutter- und Vaterschaft (EOG Art. 16b ff. und 16i ff.): 80 % des
+# durchschnittlichen Erwerbseinkommens (Monatslohn / 30 pro Tag), höchstens 220 Franken pro
+# Tag (erreicht ab 8'250 Franken Monatslohn). Mutter 14 Wochen = 98 Taggelder, anderer
+# Elternteil 2 Wochen = 14 Taggelder. Quelle: BSV «Urlaub und Erwerbsersatz bei Mutterschaft,
+# Vaterschaft und Adoption», Merkblätter 6.02 und 6.04.
+PARENTAL_LEAVE_SOURCE_URL = "https://www.bsv.admin.ch/de/eo-elternschaft"
+PARENTAL_ALLOWANCE_RATE = 0.80
+PARENTAL_ALLOWANCE_DAILY_MAX = 220
+DAYS_PER_MONTH_EO = 30
+MATERNITY_LEAVE_DAYS = 98
+OTHER_PARENT_LEAVE_DAYS = 14
+
+# ================================================================================
 # SCHWEIZER LOHNABZÜGE (Deductions)
 # ================================================================================
 

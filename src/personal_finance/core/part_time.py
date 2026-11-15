@@ -20,6 +20,7 @@ from typing import Any, List, Optional, Sequence, Tuple
 
 from personal_finance import config
 from personal_finance.core import ahv
+from personal_finance.core.family import validate_birth_ages
 from personal_finance.core.home_plan import Paths, Pot
 from personal_finance.core.life_phases import (
     FIXED,
@@ -173,25 +174,13 @@ def pension_years(
     return tuple(years)
 
 
-def _birth_ages(values: Any) -> Tuple[int, ...]:
-    message = "Bitte gib für jedes Kind dein Alter bei der Geburt als ganze Zahl ein."
-    if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
-        raise ValueError(message)
-    ages = []
-    for value in values:
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            raise ValueError(message)
-        ages.append(value)
-    return tuple(ages)
-
-
 def education_credit_ages(child_birth_ages: Any, from_age: int, to_age: int) -> List[int]:
     """The ages from ``from_age`` to ``to_age`` with an education credit.
 
     ``child_birth_ages`` are the parent's ages at the births. A credit counts for the years
     after the birth up to the year in which the child turns 16; one credit per year.
     """
-    births = _birth_ages(child_birth_ages)
+    births = validate_birth_ages(child_birth_ages)
     limit = ahv.EDUCATION_CREDIT_CHILD_AGE
     return [
         age
