@@ -93,6 +93,71 @@ def _hints(title: str, items):
     )
 
 
+def equity_card(plan: HomePlan):
+    """What the price needs at least, what is available at the purchase age and what is used."""
+    result = plan.assessment
+    available = plan.available
+    used_hard = result.hard_funds
+    used_total = result.hard_funds + result.pension_funds
+
+    def status(used: float, needed: float) -> str:
+        return "reicht" if used + 0.005 >= needed else f"es fehlen {money(needed - used)}"
+
+    return section_card(
+        "Eigenmittel: Bedarf und verfügbare Mittel",
+        f"Kauf mit {plan.purchase_age} Jahren · Beträge zum Kaufzeitpunkt, nominal",
+        [
+            dmc.Text("Mindestens nötig", fw=600, size="sm"),
+            html.Div(
+                [
+                    _detail_row(
+                        f"Eigenmittel ({config.HOME_MIN_EQUITY_RATE:.0%} des Kaufpreises)",
+                        money(plan.required_equity),
+                    ),
+                    _detail_row(
+                        f"davon hart, ohne Pensionskasse ({config.HOME_MIN_HARD_EQUITY_RATE:.0%})",
+                        money(plan.required_hard_equity),
+                    ),
+                    _detail_row(
+                        "dazu Kaufnebenkosten aus Erspartem oder 3a",
+                        money(result.purchase_costs),
+                    ),
+                    _detail_row("Mindestbedarf insgesamt", money(plan.required_funds)),
+                ],
+                className="detail-list",
+            ),
+            dmc.Text("Verfügbar zum Kaufalter (Prognose)", fw=600, size="sm", mt="sm"),
+            html.Div(
+                [
+                    _detail_row("Freies Vermögen (3b)", money(available.savings)),
+                    _detail_row("Säule 3a", money(available.pillar3a)),
+                    _detail_row(
+                        "Vorbezug Pensionskasse",
+                        money(available.pillar2) if available.pillar2 > 0 else "nicht möglich",
+                    ),
+                    _detail_row("Verfügbar insgesamt", money(available.total)),
+                ],
+                className="detail-list",
+            ),
+            dmc.Text("Eingesetzt", fw=600, size="sm", mt="sm"),
+            html.Div(
+                [
+                    _detail_row(
+                        f"Hart (Erspartes und 3a) · nötig {money(plan.required_hard_funds)}",
+                        f"{money(used_hard)} · {status(used_hard, plan.required_hard_funds)}",
+                    ),
+                    _detail_row(
+                        f"Insgesamt · nötig {money(plan.required_funds)}",
+                        f"{money(used_total)} · {status(used_total, plan.required_funds)}",
+                    ),
+                ],
+                className="detail-list",
+            ),
+        ],
+        class_name="equity-card",
+    )
+
+
 def pension_money_section(plan: HomePlan, display_basis: str):
     """Money from the 2nd pillar and 3a (WEF) and its effect on the retirement capital."""
     real = display_basis == "real"
@@ -496,6 +561,7 @@ def home_section(
     )
 
     max_price = plan.max_price
+    max_available = plan.max_price_available
     metrics = dmc.SimpleGrid(
         [
             metric_card(
@@ -525,14 +591,24 @@ def home_section(
             metric_card(
                 "Maximal finanzierbarer Kaufpreis",
                 money(max_price.price),
-                f"Mit deinem Eigenkapital und Einkommen · begrenzt durch {max_price.limited_by}",
+                f"Mit dem eingesetzten Eigenkapital · begrenzt durch {max_price.limited_by}",
                 "dark",
                 "↑",
+            ),
+            metric_card(
+                f"Höchster Kaufpreis mit {plan.purchase_age} Jahren",
+                money(max_available.price),
+                f"Mit allen verfügbaren Mitteln ({money(plan.available.total)}) · begrenzt "
+                f"durch {max_available.limited_by}",
+                "dark",
+                "⇡",
             ),
         ],
         cols={"base": 1, "xs": 2},
         spacing="md",
     )
+
+    equity = equity_card(plan)
 
     details = section_card(
         "Finanzierung im Detail",
@@ -601,7 +677,13 @@ def home_section(
                 ],
                 gap="md",
             ),
-            details,
+            dmc.Grid(
+                [
+                    dmc.GridCol(equity, span={"base": 12, "lg": 6}),
+                    dmc.GridCol(details, span={"base": 12, "lg": 6}),
+                ],
+                gap="md",
+            ),
             pension_money_section(plan, display_basis),
             mortgage_section(plan, display_basis),
             *hints,

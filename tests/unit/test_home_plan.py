@@ -6,7 +6,15 @@ import pytest
 
 from personal_finance import config
 from personal_finance.core import home, mortgage
-from personal_finance.core.home_plan import HomeInputs, Pot, plan_purchase, purchase_age
+from personal_finance.core.home_plan import (
+    AvailableFunds,
+    HomeInputs,
+    Pot,
+    available_funds,
+    plan_purchase,
+    purchase_age,
+    suggested_amounts,
+)
 from personal_finance.core.projection import project_balance
 
 INPUTS = HomeInputs(
@@ -250,6 +258,123 @@ class TestMortgage:
     def test_invalid_mortgage_inputs(self, changes, message):
         with pytest.raises(ValueError, match=message):
             self.later(**changes)
+
+
+class TestAvailableFunds:
+    """Issue #40: the most that could go into the purchase at the purchase age."""
+
+    # PK 100'000, 3a 30'000, free assets 200'000; nothing changes until the purchase.
+    POTS = (Pot(0, 0, 100_000), Pot(0, 0, 30_000), Pot(0, 0, 200_000))
+
+    def test_balances_and_wef_limits_now(self):
+        available = available_funds(None, 35, 65, *self.POTS)
+
+        assert available == AvailableFunds(savings=200_000, pillar3a=30_000, pillar2=100_000)
+        assert available.hard == 230_000
+        assert available.total == 330_000
+
+    def test_later_purchase_uses_the_projection_at_that_age(self):
+        pots = TestWithdrawals.POTS
+        result = plan(pots=pots, purchase_age=55, pillar2=20_000)
+
+        available = available_funds(55, 35, 65, *pots)
+
+        assert available == result.available
+        assert available.savings == pytest.approx(result.balances_at_purchase[2])
+        assert available.pillar3a == pytest.approx(result.balances_at_purchase[1])
+        # From 50 the WEF rule limits the pension fund money.
+        assert available.pillar2 == pytest.approx(result.pillar2_limit.maximum)
+        assert available.pillar2 < result.balances_at_purchase[0]
+
+    def test_no_pension_fund_money_shortly_before_retirement(self):
+        # Retirement at 65: an advance withdrawal is possible until 62.
+        assert available_funds(63, 35, 65, *self.POTS).pillar2 == 0
+
+    def test_invalid_purchase_age(self):
+        with pytest.raises(ValueError, match="Kaufalter"):
+            available_funds(70, 35, 65, *self.POTS)
+
+
+class TestSuggestedAmounts:
+    """Issue #40: the fields get the highest amounts, but no more than the purchase needs."""
+
+    def test_everything_available_when_the_purchase_needs_more(self):
+        # Price 1'000'000, purchase costs 30'000: savings 200'000 and 3a 30'000 give 200'000
+        # hard equity after the costs; the pension fund may add up to 800'000.
+        assert suggested_amounts(1_000_000, AvailableFunds(200_000, 30_000, 100_000)) == (
+            200_000,
+            30_000,
+            100_000,
+        )
+
+    def test_savings_first_then_3a_then_the_pension_fund(self):
+        # Price 500'000 + costs 15'000 = 515'000 are covered by the savings alone.
+        amounts = suggested_amounts(500_000, AvailableFunds(600_000, 30_000, 100_000))
+
+        assert amounts == (515_000, 0, 0)
+        assessment = home.assess_purchase(500_000, *amounts, 200_000, 30)
+        assert assessment.total_equity == pytest.approx(500_000)  # no "too much equity" error
+
+    def test_no_pension_fund_money_below_the_minimum_withdrawal(self):
+        # 450'000 + 50'000 - 15'000 costs = 485'000 hard equity: only 15'000 would be open,
+        # less than the minimum advance withdrawal of 20'000.
+        assert suggested_amounts(500_000, AvailableFunds(450_000, 50_000, 100_000)) == (
+            450_000,
+            50_000,
+            0,
+        )
+
+    def test_pension_fund_money_when_savings_do_not_cover_the_costs(self):
+        # 10'000 savings do not cover the 30'000 costs: hard equity 0, the PK may give 300'000.
+        assert suggested_amounts(1_000_000, AvailableFunds(10_000, 0, 300_000)) == (
+            10_000,
+            0,
+            300_000,
+        )
+
+    def test_whole_francs_rounded_down(self):
+        amounts = suggested_amounts(1_000_000, AvailableFunds(100_000.7, 0.9, 25_000.5))
+
+        assert amounts == (100_000, 0, 25_000)
+
+    def test_suggested_amounts_pass_the_wef_checks(self):
+        pots = TestWithdrawals.POTS
+        available = available_funds(55, 35, 65, *pots)
+        savings, pillar3a, pillar2 = suggested_amounts(1_000_000, available)
+
+        result = plan(
+            pots=pots, purchase_age=55, savings=savings, pillar3a=pillar3a, pillar2=pillar2
+        )
+
+        assert (result.savings, result.pillar3a_used, result.pillar2_used) == (
+            savings,
+            pillar3a,
+            pillar2,
+        )
+        assert result.savings_outside_3b == 0
+
+    def test_invalid_price(self):
+        with pytest.raises(ValueError, match="Kaufpreis"):
+            suggested_amounts(None, AvailableFunds(0, 0, 0))
+
+
+def test_highest_price_with_everything_available():
+    # 170'000 savings + 60'000 PK entered; available would be 200'000 free assets and 100'000
+    # PK (3a: 0). The highest price with all of it uses the same rules and income.
+    result = plan()
+
+    assert result.max_price_available == home.max_affordable_price(200_000, 0, 100_000, 200_000, 30)
+    assert result.max_price_available.price > result.max_price.price
+
+
+def test_minimum_equity_of_the_plan():
+    result = plan()
+
+    # Price 1'000'000: 20 % equity, of which 10 % hard; purchase costs 3 % from hard funds.
+    assert result.required_equity == pytest.approx(200_000)
+    assert result.required_hard_equity == pytest.approx(100_000)
+    assert result.required_funds == pytest.approx(230_000)
+    assert result.required_hard_funds == pytest.approx(130_000)
 
 
 def test_projection_without_withdrawals_is_unchanged():

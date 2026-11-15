@@ -29,6 +29,9 @@
   5-Jahres-Regel).
 - `mortgage.py`: direkte/indirekte Amortisation, Tragbarkeit im Alter.
 - `home_plan.py`: verbindet die Eingaben mit den Regeln und der Prognose (mit/ohne Kauf).
+  `available_funds` und `suggested_amounts` liefern die Höchstbeträge zum Kaufalter (#40):
+  Reihenfolge 3b → 3a → Pensionskasse, gekürzt auf Kaufpreis plus Nebenkosten, kein PK-Bezug
+  unter dem WEF-Mindestbetrag.
 - Annahmen, die im UI erklärt werden müssen: Immobilie bleibt zum Kaufpreis (keine
   Wertveränderung); Wohnkosten werden aus dem laufenden Einkommen bezahlt; Erspartes über das
   prognostizierte freie Vermögen hinaus kommt „von ausserhalb“.

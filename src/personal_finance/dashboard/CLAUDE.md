@@ -23,6 +23,12 @@ eigenes CSS nur in `assets/dashboard.css`.
   als `0.05 * 100` (ergibt `5.000000000000001`).
 - Ein Fehler in einem optionalen Bereich (z. B. Wohneigentum) erscheint nur in dessen Tab; die
   übrigen Tabs rechnen ohne diesen Bereich weiter.
+- **Felder per Callback vorbelegen** (z. B. `fill_home_maximum`, #40): Das Laden eines Szenarios
+  oder der letzten Eingaben ändert dieselben Auslöser und würde die geladenen Werte
+  überschreiben. Darum schreiben `manage_scenarios` und `restore_last_inputs` eine Sperre in den
+  `memory`-Store `HOME_PREFILL_SKIP_STORE_ID`; das Vorbelegen überspringt genau diese Änderung.
+  `memory`-Stores sind die einzige Ausnahme von „jeder Store lokal mit `pf-`“ (ein Test prüft
+  beides).
 - Felder ein- und ausblenden über `style={"display": ...}` per Callback (siehe
   `update_home_controls`), nicht durch Entfernen aus dem Layout: Jedes Feld aus
   `SCENARIO_INPUT_IDS` muss immer im Layout stehen.

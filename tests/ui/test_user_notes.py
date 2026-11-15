@@ -114,5 +114,15 @@ def test_every_browser_store_uses_the_prefix_that_delete_all_removes():
 
     assert stores, "expected browser stores in the layout"
     for store in stores:
+        if store.storage_type == "memory":
+            continue  # only in the open page, gone after a reload: nothing to delete
         assert store.storage_type == "local"
         assert store.id.startswith(STORAGE_KEY_PREFIX), store.id
+
+
+def test_only_the_prefill_guard_lives_in_memory():
+    memory = [
+        c.id for c in _components() if isinstance(c, dcc.Store) and c.storage_type == "memory"
+    ]
+
+    assert memory == ["home-prefill-skip"]

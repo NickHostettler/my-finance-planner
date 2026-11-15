@@ -52,3 +52,29 @@ def test_home_purchase_survives_reload_and_is_stored_in_the_scenario(alice):
     page.get_by_role("tab", name="Wohneigentum").click()
     assert page.locator("#home-section .traffic-light").first.is_visible()
     assert alice.errors == []
+
+
+def test_planning_fills_the_highest_amounts_and_a_reload_keeps_reductions(alice):
+    """Issue #40: filled when planning and for another age, but never by loading."""
+    alice.open()
+    page = alice.page
+    _fill(alice, "#pillar2-initial-input", "120000")
+    _fill(alice, "#pillar3b-initial-input", "300000")
+    page.locator(".input-navbar").get_by_text("Wohneigentum", exact=True).click()
+    page.locator("#home-plan-input").get_by_text("Kauf planen").click()
+    alice.wait_until_idle()
+
+    # Buying now for the default price of 900'000: all free assets and the whole PK balance.
+    assert _digits(page, "#home-savings-input") == "300000"
+    assert _digits(page, "#home-pillar3a-input") == "0"
+    assert _digits(page, "#home-pillar2-input") == "120000"
+
+    _fill(alice, "#home-savings-input", "250000")
+    alice.reload()
+    assert _digits(page, "#home-savings-input") == "250000"
+
+    # Another purchase age: the free assets have grown with the 3b plan until then.
+    page.locator(".input-navbar").get_by_text("Wohneigentum", exact=True).click()
+    _fill(alice, "#home-purchase-age-input", "40")
+    assert int(_digits(page, "#home-savings-input")) > 300_000
+    assert alice.errors == []

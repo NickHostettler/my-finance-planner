@@ -23,6 +23,9 @@ STORAGE_KEY_PREFIX = "pf-"
 SCENARIOS_STORE_ID = "pf-scenarios"
 LAST_INPUTS_STORE_ID = "pf-last-inputs"
 NOTICE_STORE_ID = "pf-notice"
+# Only in the open page (not in localStorage): the purchase age that a loaded scenario or the
+# remembered inputs set, so that loading does not fill in the highest amounts (#40).
+HOME_PREFILL_SKIP_STORE_ID = "home-prefill-skip"
 
 NAVBAR_WIDTH = 350
 MOBILE_BREAKPOINT = 768  # px; below this the inputs move behind the burger menu
@@ -417,6 +420,14 @@ _pillar3b_group = _group(
 
 _home_defaults = browser_store.FIELD_DEFAULTS
 
+# Hints below the purchase money fields; with a planned purchase a callback adds the highest
+# amount at the purchase age (#40).
+HOME_AMOUNT_HINTS = {
+    "home-savings-input": "Inkl. Geld für die Kaufnebenkosten",
+    "home-pillar3a-input": "Zählt als harte Eigenmittel",
+    "home-pillar2-input": "Zählt nicht als harte Eigenmittel",
+}
+
 _home_group = _group(
     "home",
     "Wohneigentum",
@@ -454,6 +465,12 @@ _home_group = _group(
                     decimals=0,
                 ),
                 dmc.Text("Eigenkapital für den Kauf", fw=600, size="sm", mt="xs"),
+                dmc.Text(
+                    "Wird mit den Höchstbeträgen zum Kaufalter ausgefüllt, sobald du den Kauf "
+                    "planst oder das Kaufalter änderst. Du kannst weniger einsetzen.",
+                    size="xs",
+                    c="dimmed",
+                ),
                 number_input(
                     "home-savings-input",
                     "Erspartes und Wertschriften",
@@ -461,7 +478,7 @@ _home_group = _group(
                     0,
                     1000,
                     "CHF",
-                    description="Inkl. Geld für die Kaufnebenkosten",
+                    description=HOME_AMOUNT_HINTS["home-savings-input"],
                 ),
                 number_input(
                     "home-pillar3a-input",
@@ -470,7 +487,7 @@ _home_group = _group(
                     0,
                     1000,
                     "CHF",
-                    description="Zählt als harte Eigenmittel",
+                    description=HOME_AMOUNT_HINTS["home-pillar3a-input"],
                 ),
                 number_input(
                     "home-pillar2-input",
@@ -479,7 +496,15 @@ _home_group = _group(
                     0,
                     1000,
                     "CHF",
-                    description="Zählt nicht als harte Eigenmittel",
+                    description=HOME_AMOUNT_HINTS["home-pillar2-input"],
+                ),
+                dmc.Button(
+                    "Höchstbeträge zum Kaufalter einsetzen",
+                    id="home-max-button",
+                    n_clicks=0,
+                    variant="light",
+                    size="xs",
+                    fullWidth=True,
                 ),
                 dmc.Text("Tragbarkeit", fw=600, size="sm", mt="xs"),
                 number_input(
@@ -689,6 +714,7 @@ layout = dmc.MantineProvider(
         dcc.Store(id=SCENARIOS_STORE_ID, storage_type="local"),
         dcc.Store(id=LAST_INPUTS_STORE_ID, storage_type="local"),
         dcc.Store(id=NOTICE_STORE_ID, storage_type="local"),
+        dcc.Store(id=HOME_PREFILL_SKIP_STORE_ID, storage_type="memory"),
         dcc.Interval(id="scenario-initial-load", interval=1, max_intervals=1),
         dcc.Interval(id="last-inputs-initial-load", interval=1, max_intervals=1),
         dcc.ConfirmDialog(
