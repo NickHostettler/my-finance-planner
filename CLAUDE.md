@@ -31,7 +31,8 @@ docs/            ANLEITUNG.md (Nutzer), DEPLOYMENT.md, INSTALLATION.md
 ## Befehle
 
 ```powershell
-uv run ruff check .
+uv run ruff check .                          # Lint
+uv run ruff format .                         # Formatierung; die CI prüft mit --check
 uv run pytest -q --cov --ignore=tests/e2e   # 100 % Line- und Branch-Coverage sind Pflicht
 uv run pytest tests/e2e                      # Browser-Tests; einmalig: uv sync --group e2e
                                              # und uv run playwright install chromium
@@ -46,7 +47,8 @@ Die Shell ist Windows PowerShell. `gh` ist evtl. nicht im PATH:
 - Jede Änderung auf einem eigenen Branch, dann Push und PR gegen `main`. PR-Beschreibung auf
   Deutsch (Zusammenfassung + Tests). Nie direkt auf `main` committen. `main` ist geschützt,
   das Repo ist öffentlich (nur zum Ansehen, proprietäre Lizenz).
-- Grössere Aufgaben in kleinen, einzeln grünen Commits (ruff + Tests + Coverage).
+- Grössere Aufgaben in kleinen, einzeln grünen Commits (`ruff check`, `ruff format`,
+  Tests + Coverage).
 - Render deployt automatisch, sobald `main` eine grüne CI hat.
 - Nach UI-Änderungen den Skill `ui-check` laufen lassen, nicht nur die Unit-Tests.
 
