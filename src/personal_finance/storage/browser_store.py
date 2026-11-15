@@ -22,6 +22,11 @@ MAX_SCENARIO_NAME_LENGTH = 80
 MAX_SCENARIOS = 50
 MAX_TEXT_LENGTH = 20
 
+# Life phases and family (v1.2): rows of phases and children in the inputs.
+LIFE_PHASE_ROWS = 5
+LIFE_CHILDREN = 4
+LIFE_ROW_PARTS = {"to": "integer", "workload": "number", "income": "number", "costs": "number"}
+
 # Field name -> expected type. Order matches the dashboard inputs.
 SCENARIO_FIELDS: Dict[str, str] = {
     "income": "number",
@@ -56,7 +61,24 @@ SCENARIO_FIELDS: Dict[str, str] = {
     "home_amortisation": "text",
     # Salary growth per year in percent (v1.2).
     "salary_growth": "number",
+    # Life phases and family (v1.2). Each phase row: until age (the last one runs until
+    # retirement), workload in percent, income per month on the basis of the income input and
+    # child costs per month. A row is used while its workload is filled in. Children: the
+    # parent's age at each birth.
+    "life_plan": "text",
+    "life_coordination": "text",
+    **{
+        f"life_{row}_{part}": kind
+        for row in range(1, LIFE_PHASE_ROWS + 1)
+        for part, kind in LIFE_ROW_PARTS.items()
+    },
+    **{f"life_child_{child}": "integer" for child in range(1, LIFE_CHILDREN + 1)},
+    "life_role": "text",
+    "life_credit_share": "text",
+    "life_child_allowance": "number",
+    "life_education_allowance": "number",
 }
+LIFE_FIELDS = [field for field in SCENARIO_FIELDS if field.startswith("life_")]
 
 # Defaults for fields added after the first release. Older scenarios and remembered inputs
 # do not contain them; they are filled in here, so that those scenarios still load.
@@ -73,6 +95,13 @@ FIELD_DEFAULTS: Dict[str, Any] = {
     "home_mortgage_rate": 2.0,
     "home_amortisation": "direct",
     "salary_growth": config.SALARY_GROWTH_DEFAULT * 100,
+    # Life phases: the rows and children have no default (empty = not used).
+    "life_plan": "off",
+    "life_coordination": "fixed",
+    "life_role": "mother",
+    "life_credit_share": "full",
+    "life_child_allowance": config.CHILD_ALLOWANCE_MONTHLY,
+    "life_education_allowance": config.EDUCATION_ALLOWANCE_MONTHLY,
 }
 
 

@@ -48,6 +48,8 @@ def _results(
     ahv_contribution_years=44,
     salary_growth=1.0,
     home=("off", 900_000, None, 200_000, 0, 0, None, 5, 2, "direct"),
+    # Life phases (v1.2): not planned, every field with its default.
+    life=tuple(browser_store.FIELD_DEFAULTS.get(field) for field in browser_store.LIFE_FIELDS),
 ):
     return update_results(
         5000,
@@ -71,6 +73,7 @@ def _results(
         ahv_contribution_years,
         *home,
         salary_growth,
+        *life,
     )
 
 

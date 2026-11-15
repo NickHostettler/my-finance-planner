@@ -53,6 +53,8 @@ VALID_INPUTS = {
     "home_imputed_rate": 5,
     "home_mortgage_rate": 2,
     "home_amortisation": "direct",
+    # Life phases (v1.2): not planned.
+    **{field: browser_store.FIELD_DEFAULTS.get(field) for field in browser_store.LIFE_FIELDS},
 }
 
 

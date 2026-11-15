@@ -41,9 +41,39 @@ def sample_values(**overrides):
         "home_mortgage_rate": 1.6,
         "home_amortisation": "indirect",
         "salary_growth": 1.0,
+        **LIFE_VALUES,
     }
     values.update(overrides)
     return values
+
+
+# Life phases (v1.2): full time until 37, 60 % until 44, then 80 %; two children.
+LIFE_VALUES = {
+    "life_plan": "on",
+    "life_coordination": "workload",
+    **{
+        f"life_{row}_{part}": value
+        for row, parts in enumerate(
+            [
+                (37, 100, 7_200, None),
+                (44, 60, 4_300, 1_500),
+                (None, 80, 5_800, 600),
+                (None, None, None, None),
+                (None, None, None, None),
+            ],
+            start=1,
+        )
+        for part, value in zip(store.LIFE_ROW_PARTS, parts)
+    },
+    "life_child_1": 36,
+    "life_child_2": 39,
+    "life_child_3": None,
+    "life_child_4": None,
+    "life_role": "mother",
+    "life_credit_share": "half",
+    "life_child_allowance": 250,
+    "life_education_allowance": 300,
+}
 
 
 # A scenario saved with v1.0.0 (before home ownership): exactly these fields.
@@ -201,6 +231,31 @@ class TestUntrustedBrowserData:
         assert loaded["home_gross_income"] is None
         assert (loaded["home_mortgage_rate"], loaded["home_amortisation"]) == (2.0, "direct")
         assert store.values_from_inputs(store.values_to_inputs(loaded)) == loaded
+
+    def test_scenarios_from_v1_1_load_without_life_phases(self):
+        old = {field: value for field, value in sample_values().items() if field not in LIFE_VALUES}
+        state = {"version": 1, "scenarios": {"v1.1": {"values": old, "updated_at": ""}}}
+
+        loaded = store.load_scenario(state, "v1.1")
+
+        assert {field: loaded[field] for field in old} == old
+        assert loaded["life_plan"] == "off"
+        assert loaded["life_coordination"] == "fixed"
+        assert (loaded["life_role"], loaded["life_credit_share"]) == ("mother", "full")
+        assert loaded["life_child_allowance"] == config.CHILD_ALLOWANCE_MONTHLY
+        assert loaded["life_education_allowance"] == config.EDUCATION_ALLOWANCE_MONTHLY
+        # Rows and children stay empty: not used.
+        assert loaded["life_1_workload"] is None
+        assert loaded["life_child_1"] is None
+
+    def test_life_fields_in_input_order(self):
+        assert store.LIFE_FIELDS[:4] == [
+            "life_plan",
+            "life_coordination",
+            "life_1_to",
+            "life_1_workload",
+        ]
+        assert len(store.LIFE_FIELDS) == 2 + 4 * store.LIFE_PHASE_ROWS + store.LIFE_CHILDREN + 4
 
     def test_remembered_inputs_from_v1_0_get_home_defaults(self):
         old = v1_0_values()

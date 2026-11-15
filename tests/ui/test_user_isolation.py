@@ -52,7 +52,7 @@ def inputs(**overrides):
         **{
             field: browser_store.FIELD_DEFAULTS.get(field)
             for field in browser_store.SCENARIO_FIELDS
-            if field.startswith("home_")
+            if field.startswith(("home_", "life_"))
         },
     }
     values.update(overrides)

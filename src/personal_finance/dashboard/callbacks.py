@@ -29,7 +29,7 @@ from personal_finance.core.pillar_2 import (
     validate_salary_growth,
 )
 from personal_finance.core.projection import project_balance
-from personal_finance.dashboard import home_view
+from personal_finance.dashboard import home_view, life_view
 from personal_finance.dashboard.app import app
 from personal_finance.dashboard.components import (
     money,
@@ -38,6 +38,7 @@ from personal_finance.dashboard.components import (
 from personal_finance.dashboard.layout import (
     HOME_AMOUNT_HINTS,
     HOME_PREFILL_SKIP_STORE_ID,
+    life_input_id,
     LAST_INPUTS_STORE_ID,
     NOTICE_STORE_ID,
     SCENARIOS_STORE_ID,
@@ -85,6 +86,8 @@ SCENARIO_INPUT_IDS = [
     "home-mortgage-rate-input",
     "home-amortisation-input",
     "salary-growth-input",
+    # Life phases and family (v1.2): "life_1_to" -> "life-1-to-input", same order.
+    *[life_input_id(field) for field in browser_store.LIFE_FIELDS],
 ]
 # Same order as the stored fields (browser_store.SCENARIO_FIELDS).
 _BASE_INPUT_COUNT = SCENARIO_INPUT_IDS.index("home-plan-input")
@@ -297,6 +300,35 @@ def update_pillar2_controls(mode):
 def update_home_controls(plan):
     """Show the home ownership fields only while a purchase is planned."""
     return {"display": "grid" if plan == "on" else "none"}
+
+
+# --- life phases: show the used rows (#33) -----------------------------------------------
+
+_LIFE_WORKLOAD_IDS = [life_input_id(f"life_{row}_workload") for row in life_view.ROWS]
+_LIFE_TO_IDS = [life_input_id(f"life_{row}_to") for row in life_view.ROWS]
+
+
+@app.callback(
+    Output("life-fields", "style"),
+    *[Output(f"life-row-{row}", "style") for row in life_view.ROWS],
+    *[Output(f"life-row-{row}-to", "style") for row in life_view.ROWS],
+    *[Output(f"life-row-{row}-title", "children") for row in life_view.ROWS],
+    Input("life-plan-input", "value"),
+    Input("current-age-input", "value"),
+    *[Input(component_id, "value") for component_id in _LIFE_WORKLOAD_IDS],
+    *[Input(component_id, "value") for component_id in _LIFE_TO_IDS],
+)
+def update_life_controls(plan, current_age, *values):
+    """Show the phase rows in use (at least one); the last one needs no «bis Alter»."""
+    rows = len(life_view.ROWS)
+    workloads, to_ages = values[:rows], values[rows:]
+    visible = max(1, life_view.used_rows(workloads))
+    return [
+        {"display": "grid" if plan == "on" else "none"},
+        *[{"display": "block" if row <= visible else "none"} for row in life_view.ROWS],
+        *[{"display": "none" if row == visible else "block"} for row in life_view.ROWS],
+        *life_view.row_titles(current_age, to_ages, visible),
+    ]
 
 
 # --- purchase money: fill in the highest amounts at the purchase age (#40) -----------
