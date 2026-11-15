@@ -113,6 +113,7 @@ MAX_RETIREMENT_AGE = 75  # Maximal betrachtetes Renteneintrittsalter
 # ================================================================================
 # Das Modell setzt den Belehnungswert der Bank dem Kaufpreis gleich. Banken prüfen jeden
 # Kauf individuell (Bonität, Objekt, eigene Sätze); die Werte sind keine Bankzusage.
+HOME_RULES_AS_OF = "November 2026"  # Stand der Wohneigentums- und WEF-Regeln im Tool
 
 # Verbindlich für alle Banken (von der FINMA als Mindeststandard anerkannt):
 # SBVg "Richtlinien betreffend Mindestanforderungen bei Hypothekarfinanzierungen",

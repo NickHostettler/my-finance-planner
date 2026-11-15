@@ -7,6 +7,7 @@ from dash import no_update
 from dash._callback_context import context_value
 from dash._utils import AttributeDict
 
+from personal_finance import config
 from personal_finance.dashboard import app, callbacks
 from personal_finance.dashboard.callbacks import (
     SCENARIO_INPUT_IDS,
@@ -164,6 +165,25 @@ HOME = {
     "home_gross_income": 200_000,
     "home_imputed_rate": 5,
 }
+
+
+def test_assumptions_explain_the_home_rules_with_sources_and_date():
+    # Shown with and without a planned purchase (issue #28).
+    assumptions = results()[3]
+    text = texts(assumptions)
+
+    assert "Wohneigentum · Eigenmittel und Tragbarkeit" in text
+    assert "Mindestens 20% des Kaufpreises" in text
+    assert "davon 10% «hart»" in text
+    assert "Wohneigentum · Vorbezug aus 2. Säule und 3a (WEF)" in text
+    assert "mindestens CHF 20’000 pro Vorbezug" in text
+    assert "Wohneigentum · Hypothek in der Prognose" in text
+    assert text.count(f"Stand {config.HOME_RULES_AS_OF}.") == 2
+    assert "Hypothekarberatung" in text
+    assert "Banken und Pensionskassen individuell" in text
+    links = [node.href for node in assumptions._traverse() if getattr(node, "href", None)]
+    assert config.HOME_SBVG_SOURCE_URL in links
+    assert config.WEF_BVG_SOURCE_URL in links
 
 
 def texts(component):
