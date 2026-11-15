@@ -13,8 +13,10 @@ def _digits(page, selector):
     return page.locator(selector).input_value().replace("’", "")
 
 
-def _open_group(user):
-    user.page.locator(".input-navbar").get_by_text("Lebensphasen & Familie", exact=True).click()
+def _open_group(user, name="Lebensphasen & Familie"):
+    # Person B has the same groups (hidden): only person A's or the shared ones.
+    scope = "#shared-groups" if name == "Kinder" else "#person-a-inputs"
+    user.page.locator(scope).get_by_text(name, exact=True).click()
     user.page.wait_for_timeout(300)
 
 
@@ -37,6 +39,7 @@ def test_life_phases_from_a_template_survive_a_reload(alice):
     assert _digits(page, "#life-2-workload-input") == "60"
     assert "ab 45 bis zur Pensionierung" in page.locator("#life-row-3-title").inner_text()
 
+    _open_group(alice, "Kinder")
     page.fill("#life-child-1-input", "37")
     page.press("#life-child-1-input", "Tab")
     alice.wait_until_idle()
@@ -45,10 +48,12 @@ def test_life_phases_from_a_template_survive_a_reload(alice):
     alice.reload()
 
     _open_group(alice)
+    _open_group(alice, "Kinder")
     assert _digits(page, "#life-2-workload-input") == "60"
     assert _digits(page, "#life-child-1-input") == "37"
     stored = json.loads(alice.local_storage()["pf-scenarios"])["scenarios"]["Teilzeit"]["values"]
-    assert (stored["life_plan"], stored["life_2_workload"], stored["life_child_1"]) == (
+    person_a, household = stored["persons"]["a"], stored["household"]
+    assert (person_a["life_plan"], person_a["life_2_workload"], household["life_child_1"]) == (
         "on",
         60,
         37,

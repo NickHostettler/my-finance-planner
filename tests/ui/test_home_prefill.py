@@ -15,6 +15,7 @@ from personal_finance.dashboard.callbacks import (
     restore_last_inputs,
     update_home_amount_hints,
 )
+from personal_finance.dashboard.callbacks import HOME_AMOUNT_IDS
 from personal_finance.dashboard.layout import HOME_AMOUNT_HINTS
 from personal_finance.storage import browser_store
 from tests.ui.test_callbacks import HOME, VALID_INPUTS, home_tab, texts
@@ -113,7 +114,7 @@ def test_loading_a_scenario_or_the_last_inputs_sets_the_guard():
 
     loaded = copy_context().run(_load)
     restored = restore_last_inputs(
-        1, browser_store.make_last_inputs(dict(store["scenarios"]["Kauf"]["values"]))
+        1, browser_store.make_last_inputs(browser_store.load_scenario(store, "Kauf"))
     )
 
     assert loaded[4 + len(SCENARIO_INPUT_IDS)] == {"plan": "on", "age": 45}
@@ -140,7 +141,7 @@ def test_hints_without_an_advance_withdrawal():
 
 
 def test_hints_without_a_planned_purchase_are_the_defaults():
-    assert hints(home_plan="off") == list(HOME_AMOUNT_HINTS.values())
+    assert hints(home_plan="off") == [HOME_AMOUNT_HINTS[i] for i in HOME_AMOUNT_IDS]
 
 
 # --- the "Wohneigentum" tab ------------------------------------------------------------

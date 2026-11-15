@@ -89,13 +89,15 @@ def plan_life_phases(page, phone: bool) -> None:
     if phone:
         page.click("#navbar-burger")
         page.wait_for_timeout(500)
-    page.locator(".input-navbar").get_by_text("Lebensphasen & Familie", exact=True).click()
+    page.locator("#person-a-inputs").get_by_text("Lebensphasen & Familie", exact=True).click()
     page.wait_for_timeout(300)
     page.locator("#life-plan-input").get_by_text("Phasen planen").click()
     idle(page)
     page.get_by_role("button", name="Teilzeit mit Kindern").click()
     idle(page)
     fill(page, "#life-2-costs-input", "1500")
+    page.locator("#shared-groups").get_by_text("Kinder", exact=True).click()
+    page.wait_for_timeout(300)
     fill(page, "#life-child-1-input", "37")
     if phone:
         page.click("#navbar-burger")

@@ -3,11 +3,14 @@
 Privacy rule: callbacks are pure request/response functions. User data arrives from the
 user's own browser (inputs and ``dcc.Store`` state), is processed, and goes back only to
 that browser. Nothing is written to disk, cached, kept in module state, or logged.
+
+Household (v1.3): person A uses the ids from before, person B the same with "b-". The
+controls of one person (income, 2nd pillar, 3a, life phases) are registered for both.
 """
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from dash import Input, Output, State, ctx, html, no_update
 
@@ -38,14 +41,18 @@ from personal_finance.dashboard.components import (
 from personal_finance.dashboard.layout import (
     HOME_AMOUNT_HINTS,
     HOME_PREFILL_SKIP_STORE_ID,
-    life_input_id,
+    PERSON_B_ID_PREFIX,
+    input_id,
     LAST_INPUTS_STORE_ID,
     NOTICE_STORE_ID,
+    person_id,
     SCENARIOS_STORE_ID,
     STORAGE_KEY_PREFIX,
 )
 from personal_finance.dashboard.results import results_view
 from personal_finance.storage import browser_store
+
+PERSONS = browser_store.PERSON_KEYS  # "a", "b"
 
 RESULT_SECTION_IDS = [
     "overview-section",
@@ -56,64 +63,61 @@ RESULT_SECTION_IDS = [
 ]
 
 
-SCENARIO_INPUT_IDS = [
-    "monthly-income-input",
-    "income-period-input",
-    "income-type-input",
-    "canton-input",
-    "current-age-input",
-    "retirement-age-input",
-    "pillar3a-amount-input",
-    "pillar3b-amount-input",
-    "pillar3a-initial-input",
-    "pillar3b-initial-input",
-    "pillar2-initial-input",
-    "pillar2-mode-input",
-    "pillar2-employee-input",
-    "pillar2-employer-input",
-    "pillar2-return-input",
-    "return-input",
-    "display-basis-input",
-    "ahv-average-income-input",
-    "ahv-contribution-years-input",
-    "home-plan-input",
-    "home-price-input",
-    "home-purchase-age-input",
-    "home-savings-input",
-    "home-pillar3a-input",
-    "home-pillar2-input",
-    "home-gross-income-input",
-    "home-imputed-rate-input",
-    "home-mortgage-rate-input",
-    "home-amortisation-input",
-    "salary-growth-input",
-    # Life phases and family (v1.2): "life_1_to" -> "life-1-to-input", same order.
-    *[life_input_id(field) for field in browser_store.LIFE_FIELDS],
-]
-# Same order as the stored fields (browser_store.SCENARIO_FIELDS).
-_BASE_INPUT_COUNT = SCENARIO_INPUT_IDS.index("home-plan-input")
+# One input per stored field, in the same order (browser_store.SCENARIO_FIELDS); the ids
+# follow from the field names (layout.input_id).
+SCENARIO_INPUT_IDS = [input_id(field) for field in browser_store.SCENARIO_FIELDS]
 
-# The return switch (SegmentedControl) only knows text values; stored values are numbers.
-_RETURN_INPUT_INDEX = SCENARIO_INPUT_IDS.index("return-input")
+# The return switches (SegmentedControl) only know text values; stored values are numbers.
+_RETURN_INPUT_INDEXES = [
+    SCENARIO_INPUT_IDS.index(input_id(browser_store.person_field("assumed_return", person)))
+    for person in PERSONS
+]
 
 
 def _from_components(component_values):
     """Input values as stored: an emptied number field is ``None``, the return a number."""
     values = [None if value == "" else value for value in component_values]
-    if isinstance(values[_RETURN_INPUT_INDEX], str):
-        try:
-            values[_RETURN_INPUT_INDEX] = float(values[_RETURN_INPUT_INDEX])
-        except ValueError:
-            values[_RETURN_INPUT_INDEX] = None
+    for index in _RETURN_INPUT_INDEXES:
+        if isinstance(values[index], str):
+            try:
+                values[index] = float(values[index])
+            except ValueError:
+                values[index] = None
     return values
 
 
 def _to_components(values):
     """Inverse of :func:`_from_components` for setting the input fields."""
     values = list(values)
-    selected_return = values[_RETURN_INPUT_INDEX]
-    values[_RETURN_INPUT_INDEX] = None if selected_return is None else str(selected_return)
+    for index in _RETURN_INPUT_INDEXES:
+        selected_return = values[index]
+        values[index] = None if selected_return is None else str(selected_return)
     return values
+
+
+def _fields(component_values) -> Dict[str, Any]:
+    """The input values (SCENARIO_INPUT_IDS order) by field name, as stored."""
+    return dict(zip(browser_store.SCENARIO_FIELDS, _from_components(component_values)))
+
+
+def person_values(values: Mapping[str, Any], person: str) -> Dict[str, Any]:
+    """The values of one person under the names of person A, with the household fields."""
+    result = dict(values)
+    if person != "a":
+        result.update(
+            {
+                field: values[browser_store.person_field(field, person)]
+                for field in browser_store.PERSON_FIELDS
+            }
+        )
+    return result
+
+
+def _unprefixed(component_id: Any) -> Any:
+    """The id of person A for an element of person B ("b-life-add-button" -> "life-add-…")."""
+    if isinstance(component_id, str) and component_id.startswith(PERSON_B_ID_PREFIX):
+        return component_id[len(PERSON_B_ID_PREFIX) :]
+    return component_id
 
 
 # The highest monthly amount whose yearly total stays within the 3a maximum (rounded down to
@@ -121,14 +125,17 @@ def _to_components(values):
 PILLAR3A_MAX_MONTHLY_INPUT = math.floor(config.PILLAR3A_MONTHLY_MAX * 100) / 100
 
 
-@app.callback(
-    Output("pillar3a-amount-input", "value", allow_duplicate=True),
-    Input("pillar3a-max-button", "n_clicks"),
-    prevent_initial_call=True,
-)
 def fill_pillar3a_maximum(_clicks):
     """Put the highest possible monthly 3a amount into the field."""
     return PILLAR3A_MAX_MONTHLY_INPUT
+
+
+for _person in PERSONS:
+    app.callback(
+        Output(person_id("pillar3a-amount-input", _person), "value", allow_duplicate=True),
+        Input(person_id("pillar3a-max-button", _person), "n_clicks"),
+        prevent_initial_call=True,
+    )(fill_pillar3a_maximum)
 
 
 def _scenario_options(store_data):
@@ -286,12 +293,15 @@ def remember_dashboard_inputs(*component_values):
     return browser_store.make_last_inputs(values), ""
 
 
-@app.callback(
-    Output("pillar2-custom-fields", "style"),
-    Input("pillar2-mode-input", "value"),
-)
 def update_pillar2_controls(mode):
     return {"display": "grid" if mode == "custom" else "none"}
+
+
+for _person in PERSONS:
+    app.callback(
+        Output(person_id("pillar2-custom-fields", _person), "style"),
+        Input(person_id("pillar2-mode-input", _person), "value"),
+    )(update_pillar2_controls)
 
 
 @app.callback(
@@ -303,22 +313,76 @@ def update_home_controls(plan):
     return {"display": "grid" if plan == "on" else "none"}
 
 
-# --- life phases: show the used rows (#33) -----------------------------------------------
+# --- household: one or two persons (#47) -------------------------------------------------
 
-_LIFE_WORKLOAD_IDS = [life_input_id(f"life_{row}_workload") for row in life_view.ROWS]
-_LIFE_TO_IDS = [life_input_id(f"life_{row}_to") for row in life_view.ROWS]
+_HIDDEN = {"display": "none"}
+_SHOWN = {"display": "block"}
+
+CHILDREN_HINTS = {
+    "off": "Dein Alter bei der Geburt, auch für geplante Kinder. Nur Jahrgänge, keine Namen; "
+    "alles bleibt in diesem Browser. Zählt für Lebensphasen.",
+    "on": "Alter von Person A bei der Geburt, auch für geplante Kinder; für Person B rechnet "
+    "das Tool mit dem Altersunterschied. Zählt für die Lebensphasen beider Personen.",
+}
+PURCHASE_AGE_HINTS = {
+    "off": "Leer = heute (dein aktuelles Alter)",
+    "on": "Alter von Person A; leer = heute",
+}
 
 
 @app.callback(
-    Output("life-fields", "style"),
-    *[Output(f"life-row-{row}", "style") for row in life_view.ROWS],
-    *[Output(f"life-row-{row}-to", "style") for row in life_view.ROWS],
-    *[Output(f"life-row-{row}-title", "children") for row in life_view.ROWS],
-    Input("life-plan-input", "value"),
-    Input("current-age-input", "value"),
-    *[Input(component_id, "value") for component_id in _LIFE_WORKLOAD_IDS],
-    *[Input(component_id, "value") for component_id in _LIFE_TO_IDS],
+    Output("input-person-control", "style"),
+    Output("person-a-inputs", "style"),
+    Output("person-b-inputs", "style"),
+    Output("shared-eyebrow", "style"),
+    Output("household-group", "style"),
+    Output("household-credits-control", "style"),
+    Output("children-group", "style"),
+    Output("life-children-hint", "children"),
+    *[Output(person_id("life-credit-share-control", person), "style") for person in PERSONS],
+    *[Output(person_id("home-amounts-title", person), "style") for person in PERSONS],
+    Output(person_id("home-amounts", "b"), "style"),
+    Output("home-purchase-age-input", "description"),
+    Input(input_id("household"), "value"),
+    Input("input-person-input", "value"),
+    Input(input_id("household_relationship"), "value"),
+    *[
+        Input(input_id(browser_store.person_field("life_plan", person)), "value")
+        for person in PERSONS
+    ],
 )
+def update_household_controls(household, person, relationship, life_a, life_b):
+    """Show the inputs of the chosen person and the household fields with two persons."""
+    pair = household == "on"
+    mode = "on" if pair else "off"
+    show_b = pair and person == "b"
+    children = life_a == "on" or (pair and life_b == "on")
+    return [
+        _SHOWN if pair else _HIDDEN,
+        _HIDDEN if show_b else _SHOWN,
+        _SHOWN if show_b else _HIDDEN,
+        _SHOWN if pair else _HIDDEN,
+        _SHOWN if pair else _HIDDEN,
+        _SHOWN if pair and relationship == "unmarried" else _HIDDEN,
+        _SHOWN if children else _HIDDEN,
+        CHILDREN_HINTS[mode],
+        # With two persons the household decides how the education credits are shared.
+        *([_HIDDEN if pair else _SHOWN] * len(PERSONS)),
+        *([_SHOWN if pair else _HIDDEN] * len(PERSONS)),
+        {"display": "grid"} if pair else _HIDDEN,
+        PURCHASE_AGE_HINTS[mode],
+    ]
+
+
+# --- life phases: show the used rows (#33) -----------------------------------------------
+
+
+def _life_ids(person: str, part: str):
+    return [
+        input_id(browser_store.person_field(f"life_{row}_{part}", person)) for row in life_view.ROWS
+    ]
+
+
 def update_life_controls(plan, current_age, *values):
     """Show the phase rows in use (at least one); the last one needs no «bis Alter»."""
     rows = len(life_view.ROWS)
@@ -332,30 +396,35 @@ def update_life_controls(plan, current_age, *values):
     ]
 
 
-# Every phase field in row order: until age, workload, income, child costs of row 1, 2, …
-_LIFE_ROW_IDS = [
-    life_input_id(f"life_{row}_{part}")
-    for row in life_view.ROWS
-    for part in browser_store.LIFE_ROW_PARTS
-]
+for _person in PERSONS:
+    app.callback(
+        Output(person_id("life-fields", _person), "style"),
+        *[Output(person_id(f"life-row-{row}", _person), "style") for row in life_view.ROWS],
+        *[Output(person_id(f"life-row-{row}-to", _person), "style") for row in life_view.ROWS],
+        *[
+            Output(person_id(f"life-row-{row}-title", _person), "children")
+            for row in life_view.ROWS
+        ],
+        Input(person_id(life_view.PLAN, _person), "value"),
+        Input(person_id("current-age-input", _person), "value"),
+        *[Input(component_id, "value") for component_id in _life_ids(_person, "workload")],
+        *[Input(component_id, "value") for component_id in _life_ids(_person, "to")],
+    )(update_life_controls)
+
+
+def _life_row_ids(person: str):
+    """Every phase field of a person in row order: until age, workload, income, child costs."""
+    return [
+        input_id(browser_store.person_field(f"life_{row}_{part}", person))
+        for row in life_view.ROWS
+        for part in browser_store.LIFE_ROW_PARTS
+    ]
+
+
+_LIFE_ROW_IDS = _life_row_ids("a")
 _ROW_SIZE = len(browser_store.LIFE_ROW_PARTS)
 
 
-@app.callback(
-    *[Output(component_id, "value", allow_duplicate=True) for component_id in _LIFE_ROW_IDS],
-    Input(life_view.FULL, "n_clicks"),
-    Input(life_view.KIDS, "n_clicks"),
-    Input(life_view.BREAK, "n_clicks"),
-    Input(life_view.ADD, "n_clicks"),
-    Input(life_view.REMOVE, "n_clicks"),
-    Input(life_view.PLAN, "value"),
-    State("current-age-input", "value"),
-    State("retirement-age-input", "value"),
-    State("monthly-income-input", "value"),
-    State("income-period-input", "value"),
-    *[State(component_id, "value") for component_id in _LIFE_ROW_IDS],
-    prevent_initial_call=True,
-)
 def edit_life_phases(
     _full, _kids, _break, _add, _remove, plan, current_age, retirement_age, income, period, *fields
 ):
@@ -368,16 +437,45 @@ def edit_life_phases(
     if isinstance(income, (int, float)) and not isinstance(income, bool) and income > 0:
         monthly_income = income / 12 if period == "yearly" else income
     new = life_view.edit_rows(
-        ctx.triggered_id, rows, plan, current_age, retirement_age, monthly_income
+        _unprefixed(ctx.triggered_id), rows, plan, current_age, retirement_age, monthly_income
     )
     if new is None:
         return [no_update] * len(_LIFE_ROW_IDS)
     return [value for row in new for value in row]
 
 
+for _person in PERSONS:
+    app.callback(
+        *[
+            Output(component_id, "value", allow_duplicate=True)
+            for component_id in _life_row_ids(_person)
+        ],
+        *[
+            Input(person_id(component_id, _person), "n_clicks")
+            for component_id in (
+                life_view.FULL,
+                life_view.KIDS,
+                life_view.BREAK,
+                life_view.ADD,
+                life_view.REMOVE,
+            )
+        ],
+        Input(person_id(life_view.PLAN, _person), "value"),
+        State(person_id("current-age-input", _person), "value"),
+        State(person_id("retirement-age-input", _person), "value"),
+        State(person_id("monthly-income-input", _person), "value"),
+        State(person_id("income-period-input", _person), "value"),
+        *[State(component_id, "value") for component_id in _life_row_ids(_person)],
+        prevent_initial_call=True,
+    )(edit_life_phases)
+
+
 # --- purchase money: fill in the highest amounts at the purchase age (#40) -----------
 
-HOME_AMOUNT_IDS = list(HOME_AMOUNT_HINTS)  # savings, 3a, pension fund
+HOME_AMOUNT_IDS = [
+    input_id(browser_store.person_field(field, "a"))
+    for field in ("home_savings", "home_pillar3a", "home_pillar2")
+]  # savings, 3a, pension fund of person A
 _PREFILL_TRIGGER_IDS = ["home-plan-input", "home-purchase-age-input"]
 # Everything the projection needs; the amounts themselves are not read (no cycle).
 _PREFILL_STATE_IDS = [
@@ -396,17 +494,15 @@ def _home_maximum(values_by_id):
     ``None`` if no purchase is planned or the inputs are not valid (the result tabs explain
     the error).
     """
-    values = _from_components(
-        [values_by_id.get(component_id) for component_id in SCENARIO_INPUT_IDS]
-    )
+    values = _fields([values_by_id.get(component_id) for component_id in SCENARIO_INPUT_IDS])
     try:
         base = _projection(values)
-        if base.values["home_plan"] != "on":
+        if values["home_plan"] != "on":
             return None
         available = available_funds(
-            base.values["home_purchase_age"], base.current_age, base.retirement_age, *base.pots
+            values["home_purchase_age"], base.current_age, base.retirement_age, *base.pots
         )
-        return available, suggested_amounts(base.values["home_price"], available)
+        return available, suggested_amounts(values["home_price"], available)
     except ValueError:
         return None
 
@@ -464,26 +560,22 @@ def update_home_amount_hints(*component_values):
     ]
 
 
-@app.callback(
-    Output("monthly-income-input", "label"),
-    Output("monthly-income-input", "rightSection"),
-    Output("monthly-income-input", "rightSectionWidth"),
-    Output("monthly-income-input", "description"),
-    Output("canton-control", "style"),
-    Input("income-period-input", "value"),
-    Input("income-type-input", "value"),
-)
-def update_income_controls(period, income_type):
+def update_income_controls(period, income_type, person="a"):
     period_label = "jährliches" if period == "yearly" else "monatliches"
     income_label = "Bruttoeinkommen" if income_type == "gross" else "Nettoeinkommen"
     unit = "CHF/Jahr" if period == "yearly" else "CHF/Monat"
     hint = (
-        "Betrag vor Abzügen; das Netto wird anhand deines Kantons geschätzt."
+        "Betrag vor Abzügen; das Netto wird anhand des Kantons geschätzt."
         if income_type == "gross"
         else "Frei verfügbares Einkommen nach Abzügen."
     )
+    label = (
+        f"Dein {period_label} {income_label}"
+        if person == "a"
+        else f"{period_label.capitalize()} {income_label} von Person B"
+    )
     return (
-        f"Dein {period_label} {income_label}",
+        label,
         unit,
         unit_width(unit),
         hint,
@@ -491,14 +583,10 @@ def update_income_controls(period, income_type):
     )
 
 
-@app.callback(
-    Output("income-preview", "children"),
-    Input("monthly-income-input", "value"),
-    Input("income-period-input", "value"),
-    Input("income-type-input", "value"),
-    Input("current-age-input", "value"),
-    Input("canton-input", "value"),
-)
+def update_income_controls_b(period, income_type):
+    return update_income_controls(period, income_type, person="b")
+
+
 def update_income_preview(amount, period, income_type, age, canton):
     try:
         monthly_net, monthly_gross = normalize_income(
@@ -519,11 +607,31 @@ def update_income_preview(amount, period, income_type, age, canton):
     return f"Für die Vorsorgeplanung verwendet: {money(monthly_net)} netto pro Monat"
 
 
+for _person, _controls in (("a", update_income_controls), ("b", update_income_controls_b)):
+    app.callback(
+        Output(person_id("monthly-income-input", _person), "label"),
+        Output(person_id("monthly-income-input", _person), "rightSection"),
+        Output(person_id("monthly-income-input", _person), "rightSectionWidth"),
+        Output(person_id("monthly-income-input", _person), "description"),
+        Output(person_id("canton-control", _person), "style"),
+        Input(person_id("income-period-input", _person), "value"),
+        Input(person_id("income-type-input", _person), "value"),
+    )(_controls)
+    app.callback(
+        Output(person_id("income-preview", _person), "children"),
+        Input(person_id("monthly-income-input", _person), "value"),
+        Input(person_id("income-period-input", _person), "value"),
+        Input(person_id("income-type-input", _person), "value"),
+        Input(person_id("current-age-input", _person), "value"),
+        Input(person_id("canton-input", _person), "value"),
+    )(update_income_preview)
+
+
 @dataclass(frozen=True)
 class _Projection:
     """The validated general inputs and the projection without a purchase."""
 
-    values: Dict[str, Any]  # all inputs by field name (browser_store.SCENARIO_FIELDS)
+    values: Dict[str, Any]  # one person's inputs under person A's names, see person_values
     current_age: int
     retirement_age: int
     monthly_net_income: float
@@ -547,33 +655,31 @@ class _Projection:
         return monthly * 12
 
 
-def _projection(values) -> _Projection:
-    """Validate the inputs (in SCENARIO_INPUT_IDS order) and project the pots.
+def _projection(fields: Mapping[str, Any]) -> _Projection:
+    """Validate one person's inputs (field names of person A) and project the pots.
 
     Raises ``ValueError`` with the message for the user.
     """
-    (
-        income,
-        income_period,
-        income_type,
-        canton,
-        current_age,
-        retirement_age,
-        pillar3a_amount,
-        pillar3b_amount,
-        initial_3a,
-        initial_3b,
-        initial_2,
-        pillar2_mode,
-        pillar2_employee,
-        pillar2_employer,
-        pillar2_return,
-        assumed_return,
-        display_basis,
-        ahv_average_income,
-        ahv_contribution_years,
-    ) = values[:_BASE_INPUT_COUNT]
-    fields = dict(zip(browser_store.SCENARIO_FIELDS, values))
+    fields = dict(fields)
+    income = fields["income"]
+    income_period = fields["income_period"]
+    income_type = fields["income_type"]
+    canton = fields["canton"]
+    current_age = fields["current_age"]
+    retirement_age = fields["retirement_age"]
+    pillar3a_amount = fields["pillar3a_amount"]
+    pillar3b_amount = fields["pillar3b_amount"]
+    initial_3a = fields["initial_3a"]
+    initial_3b = fields["initial_3b"]
+    initial_2 = fields["initial_2"]
+    pillar2_mode = fields["pillar2_mode"]
+    pillar2_employee = fields["pillar2_employee"]
+    pillar2_employer = fields["pillar2_employer"]
+    pillar2_return = fields["pillar2_return"]
+    assumed_return = fields["assumed_return"]
+    display_basis = fields["display_basis"]
+    ahv_average_income = fields["ahv_average_income"]
+    ahv_contribution_years = fields["ahv_contribution_years"]
 
     if current_age is None or retirement_age is None:
         raise ValueError("Bitte wähle dein aktuelles Alter und dein Pensionierungsalter.")
@@ -721,7 +827,7 @@ def _projection(values) -> _Projection:
 def update_results(*component_values):
     """Validate the inputs and render the result tabs (inputs in SCENARIO_INPUT_IDS order)."""
     try:
-        base = _projection(_from_components(component_values))
+        base = _projection(_fields(component_values))
     except ValueError as error:
         message = html.Div(
             [html.Strong("Eingaben prüfen"), html.P(str(error))],

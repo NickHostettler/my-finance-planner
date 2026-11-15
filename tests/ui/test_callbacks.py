@@ -55,6 +55,12 @@ VALID_INPUTS = {
     "home_amortisation": "direct",
     # Life phases (v1.2): not planned.
     **{field: browser_store.FIELD_DEFAULTS.get(field) for field in browser_store.LIFE_FIELDS},
+    # Household (v1.3): one person; person B with the start values.
+    **{
+        field: browser_store.FIELD_DEFAULTS.get(field)
+        for field in browser_store.SCENARIO_FIELDS
+        if field.startswith(("household", browser_store.PERSON_B_PREFIX))
+    },
 }
 
 

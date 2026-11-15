@@ -16,6 +16,13 @@
   - `_results(...)` in `ui/test_dashboard.py` (Übergabe über die Position!)
   - `sample_values` in `unit/test_browser_store.py`
   - `inputs` in `ui/test_user_isolation.py` (liest die Wohneigentum-Felder aus `FIELD_DEFAULTS`)
+  - Die Felder von Haushalt und Person B kommen in den UI-Tests aus `FIELD_DEFAULTS` (eine
+    Person). `sample_values` in `unit/test_browser_store.py` füllt beide Personen.
+- Gespeicherte Szenarien sind verschachtelt (`values["household"]`, `values["persons"]["a"]`).
+  e2e-Tests, die `localStorage` lesen, greifen so darauf zu.
+- Person B hat dieselben Gruppentitel wie Person A (versteckt). In e2e-Tests Gruppen über
+  `#person-a-inputs`, `#person-b-inputs` oder `#shared-groups` öffnen, sonst findet
+  `get_by_text` zwei Treffer.
 - Texte in DMC-Komponenten stecken nicht nur in `children`: `title` (Alert), `label` und
   `aria-label` sind eigene Props. Die Hilfsfunktion `texts()` in `ui/test_callbacks.py` sammelt
   alle.
