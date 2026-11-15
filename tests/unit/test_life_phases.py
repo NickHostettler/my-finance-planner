@@ -4,7 +4,6 @@ import math
 
 import pytest
 
-from personal_finance import config
 from personal_finance.core.life_phases import (
     MAX_PHASES,
     LifePhase,
@@ -64,10 +63,11 @@ class TestYearlyPlan:
         assert result.pillar3b[3:5] == (2_400, 600)  # 200 x 12, then 50 x 12
         assert result.pillar3a[11] == 3_600  # back to the plan at 41
 
-    def test_3a_stays_within_the_limit(self):
+    def test_3a_is_what_the_plan_wants_the_limit_follows_per_year(self):
+        # The limit depends on the pension fund of each year (part_time.pension_years, #31).
         result = plan(pillar3a=1_000)
 
-        assert set(result.pillar3a) == {config.PILLAR3A_ANNUAL_MAX}  # not 12'000
+        assert set(result.pillar3a) == {12_000}
 
     def test_no_3a_in_a_year_without_income(self):
         break_ = [PHASES[0], LifePhase(34, 40, 0, 0), PHASES[2]]

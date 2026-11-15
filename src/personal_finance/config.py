@@ -52,6 +52,11 @@ PILLAR2_CONTRIBUTION_RATES = {
 # Erwerbseinkommens, höchstens 36'864; das Modell rechnet nur mit dem kleinen Abzug.
 PILLAR3A_ANNUAL_MAX = 7373  # CHF - Maximale jährliche 3a Einzahlung
 PILLAR3A_MONTHLY_MAX = PILLAR3A_ANNUAL_MAX / 12
+# Ohne 2. Säule ("grosser Abzug", BVV 3 Art. 7 Abs. 1 lit. b): 20 % des Erwerbseinkommens,
+# höchstens 36'864 ab 1.1.2027. Quelle: SOURCE_2027_URL. Gilt in den Lebensphasen (#31) für
+# Jahre ohne Pensionskasse; die Prognose ohne Phasen rechnet weiter mit dem kleinen Abzug.
+PILLAR3A_LARGE_RATE = 0.20
+PILLAR3A_LARGE_MAX = 36_864
 
 # ================================================================================
 # 3. SÄULE 3b (Freie Vorsorge - unbegrenzt)

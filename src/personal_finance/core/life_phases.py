@@ -7,7 +7,8 @@ each year until retirement (:func:`yearly_plan`), and the projection pays in yea
 * 2nd pillar: the BVG estimate from the income of each year
   (:func:`estimated_pillar2_by_year`) or the user's own contributions in proportion to the
   income (:func:`scaled_pillar2_by_year`).
-* 3a and 3b: the plan amounts or a phase's own amounts.
+* 3a and 3b: the plan amounts or a phase's own amounts. The 3a limit of each year follows in
+  :mod:`personal_finance.core.part_time` (#31).
 
 Model assumptions (MODELLANNAHME):
 
@@ -24,7 +25,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional, Sequence, Tuple
 
 from personal_finance import config
-from personal_finance.core.pillar_2 import Pillar2Calculator, validate_salary_growth
+from personal_finance.core.pillar_2 import validate_salary_growth
 
 MAX_PHASES = 10
 
@@ -53,7 +54,9 @@ class YearlyPlan:
     ages: Tuple[int, ...]
     workload: Tuple[float, ...]  # decimal
     monthly_income: Tuple[float, ...]  # nominal, with the salary growth
-    pillar3a: Tuple[float, ...]  # per year, within the 3a limit
+    # What the plan or phase wants to pay in per year; 0 without an income from work. The 3a
+    # limit of each year depends on the pension fund (see part_time.pension_years).
+    pillar3a: Tuple[float, ...]
     pillar3b: Tuple[float, ...]  # per year
 
     @property
@@ -194,20 +197,54 @@ def yearly_plan(
         workload.append(phase.workload)
         income.append(monthly_income)
         # Pillar 3a needs an income from work.
-        pillar3a.append(min(monthly_3a * 12, config.PILLAR3A_ANNUAL_MAX) if monthly_income else 0.0)
+        pillar3a.append(monthly_3a * 12 if monthly_income > 0 else 0.0)
         pillar3b.append(monthly_3b * 12)
     return YearlyPlan(tuple(ages), tuple(workload), tuple(income), tuple(pillar3a), tuple(pillar3b))
 
 
-def estimated_pillar2_by_year(annual_net_incomes: Sequence[float], current_age: int) -> List[float]:
+FIXED = "fixed"  # coordination deduction in full, also part time (BVG minimum)
+BY_WORKLOAD = "workload"  # coordination deduction times the workload (many pension funds)
+COORDINATION_MODES = (FIXED, BY_WORKLOAD)
+
+
+def insured_salary(annual_salary: float, workload: float, coordination: str = FIXED) -> float:
+    """The insured (coordinated) salary of one year under the BVG rules (#31).
+
+    Nothing is insured up to the entry threshold. Above it the coordination deduction is
+    subtracted, in full (``FIXED``, the legal minimum, also for part time) or times the
+    workload (``BY_WORKLOAD``). The salary counts up to the upper limit; the insured salary is
+    at least the minimum coordinated salary.
+    """
+    if coordination not in COORDINATION_MODES:
+        raise ValueError("Bitte wähle einen fixen oder einen pensumabhängigen Koordinationsabzug.")
+    if annual_salary <= config.PILLAR2_MIN_SALARY:
+        return 0.0
+    deduction = config.PILLAR2_COORDINATION_DEDUCTION
+    if coordination == BY_WORKLOAD:
+        deduction *= workload
+    return max(
+        min(annual_salary, config.PILLAR2_MAX_SALARY) - deduction,
+        config.PILLAR2_MIN_COORDINATED_SALARY,
+    )
+
+
+def estimated_pillar2_by_year(
+    annual_incomes: Sequence[float],
+    current_age: int,
+    workloads: Optional[Sequence[float]] = None,
+    coordination: str = FIXED,
+) -> List[float]:
     """The simplified BVG estimate for the income of each year.
 
     Like :func:`personal_finance.core.pillar_2.estimated_contributions`, the contribution rate
-    stays at the one of the current age.
+    stays at the one of the current age. With the fixed coordination deduction the result is
+    the same as that estimate; ``workloads`` only count for ``BY_WORKLOAD``.
     """
+    rate = config.get_pillar2_contribution_rate(current_age)
+    workloads = [1.0] * len(annual_incomes) if workloads is None else workloads
     return [
-        Pillar2Calculator(income, current_age).calculate().annual_contribution_total
-        for income in annual_net_incomes
+        insured_salary(income, workload, coordination) * rate
+        for income, workload in zip(annual_incomes, workloads)
     ]
 
 

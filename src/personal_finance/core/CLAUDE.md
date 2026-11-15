@@ -44,5 +44,10 @@
   Jahr, Index 0 = heute). Die Listen gehen direkt in `project_balance`.
 - Regression: `full_time_phase` (eine Phase, 100 %) muss exakt die Reihen ohne Phasen ergeben.
 - Modellannahmen: Phaseneinkommen in heutigen Franken plus Lohnzunahme ab heute; 3a nur in
-  Jahren mit Erwerbseinkommen; eigene PK-Beiträge im Verhältnis zum Einkommen. Die BVG-Regeln
-  für Teilzeit (Eintrittsschwelle, Koordinationsabzug) folgen mit #31.
+  Jahren mit Erwerbseinkommen; eigene PK-Beiträge im Verhältnis zum Einkommen.
+- `part_time.py` (#31): `pension_years` (versicherter Lohn, PK-Beitrag und 3a-Limit pro Jahr:
+  klein mit PK, gross ohne PK), `ahv_monthly_pension` (Phasen senken den Durchschnitt,
+  Erziehungsgutschriften ganz oder hälftig) und `compare_with_full_time` (Vorsorgelücke). Der
+  fixe Koordinationsabzug muss exakt die BVG-Schätzung ohne Phasen ergeben (Test).
+- Kinder werden im Kern als **Alter des Elternteils bei der Geburt** übergeben. Gutschrift ab
+  dem Jahr nach der Geburt bis zum Jahr, in dem das Kind 16 wird, eine pro Jahr.
