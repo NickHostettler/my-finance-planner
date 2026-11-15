@@ -504,3 +504,91 @@ def life_section(
         ],
         gap="md",
     )
+
+
+# --- editing the rows: templates, add and remove ----------------------------------------------
+
+FULL = "life-template-full"
+KIDS = "life-template-kids"
+BREAK = "life-template-break"
+ADD = "life-add-button"
+REMOVE = "life-remove-button"
+PLAN = "life-plan-input"
+
+Row = Tuple[Any, Any, Any, Any]  # until age, workload in %, income per month, child costs
+_EMPTY: Row = (None, None, None, None)
+
+
+def _rounded(amount: Optional[float]) -> Optional[float]:
+    return None if amount is None else round(amount)
+
+
+def _template(name: str, start: int, last_year: int, income: Optional[float]):
+    """The rows of a template, or ``None`` if there are too few years until retirement."""
+
+    def share(factor: float) -> Optional[float]:
+        return None if income is None else _rounded(income * factor)
+
+    if name == FULL:
+        return [(None, 100, share(1), None)]
+    if name == KIDS:
+        # Full time for 3 years, 60 % for 7 years while the children are small, then 80 %.
+        rows = [(start + 2, 100, share(1), None), (start + 9, 60, share(0.6), None)]
+        rows.append((None, 80, share(0.8), None))
+    else:
+        # Full time for 3 years, a break of 2 years, then full time again.
+        rows = [(start + 2, 100, share(1), None), (start + 4, 0, 0, None)]
+        rows.append((None, 100, share(1), None))
+    if rows[-2][0] > last_year - 1:
+        return None
+    return rows
+
+
+def edit_rows(
+    action: Any,
+    rows: Sequence[Row],
+    plan: Any,
+    current_age: Any,
+    retirement_age: Any,
+    monthly_income: Optional[float],
+) -> Optional[List[Row]]:
+    """The phase rows after a template, «+ Phase» or «− Phase»; ``None``: nothing changes.
+
+    Switching life phases on fills in full time while no phase exists yet, so that loading a
+    scenario keeps its phases. ``monthly_income`` is the income of the income input per month
+    (``None`` if not known): templates use it times the workload.
+    """
+    if not (_whole(current_age) and _whole(retirement_age)) or retirement_age <= current_age:
+        return None
+    start, last_year = int(current_age), int(retirement_age) - 1
+    used = used_rows([row[1] for row in rows])
+    if action == PLAN:
+        if plan != "on" or used:
+            return None
+        action = FULL
+    if action in (FULL, KIDS, BREAK):
+        template = _template(action, start, last_year, monthly_income)
+        if template is None:
+            return None
+        return template + [_EMPTY] * (len(rows) - len(template))
+    new = [tuple(row) for row in rows]
+    if action == REMOVE:
+        if used < 2:
+            return None
+        new[used - 1] = _EMPTY
+        return new
+    # ADD: split the last phase in the middle of its years.
+    if used in (0, len(rows)):
+        return None
+    begin = start
+    for row in rows[: used - 1]:
+        if not _whole(row[0]):
+            return None
+        begin = int(row[0]) + 1
+    middle = begin + (last_year - begin) // 2
+    if middle >= last_year:  # the last phase has only one year left (or none)
+        return None
+    last = rows[used - 1]
+    new[used - 1] = (middle, last[1], last[2], last[3])
+    new[used] = (None, last[1], last[2], last[3])
+    return new

@@ -332,6 +332,49 @@ def update_life_controls(plan, current_age, *values):
     ]
 
 
+# Every phase field in row order: until age, workload, income, child costs of row 1, 2, …
+_LIFE_ROW_IDS = [
+    life_input_id(f"life_{row}_{part}")
+    for row in life_view.ROWS
+    for part in browser_store.LIFE_ROW_PARTS
+]
+_ROW_SIZE = len(browser_store.LIFE_ROW_PARTS)
+
+
+@app.callback(
+    *[Output(component_id, "value", allow_duplicate=True) for component_id in _LIFE_ROW_IDS],
+    Input(life_view.FULL, "n_clicks"),
+    Input(life_view.KIDS, "n_clicks"),
+    Input(life_view.BREAK, "n_clicks"),
+    Input(life_view.ADD, "n_clicks"),
+    Input(life_view.REMOVE, "n_clicks"),
+    Input(life_view.PLAN, "value"),
+    State("current-age-input", "value"),
+    State("retirement-age-input", "value"),
+    State("monthly-income-input", "value"),
+    State("income-period-input", "value"),
+    *[State(component_id, "value") for component_id in _LIFE_ROW_IDS],
+    prevent_initial_call=True,
+)
+def edit_life_phases(
+    _full, _kids, _break, _add, _remove, plan, current_age, retirement_age, income, period, *fields
+):
+    """Templates, «+ Phase» and «− Phase»; planning life phases starts with full time."""
+    rows = [
+        tuple(None if value == "" else value for value in fields[start : start + _ROW_SIZE])
+        for start in range(0, len(fields), _ROW_SIZE)
+    ]
+    monthly_income = None
+    if isinstance(income, (int, float)) and not isinstance(income, bool) and income > 0:
+        monthly_income = income / 12 if period == "yearly" else income
+    new = life_view.edit_rows(
+        ctx.triggered_id, rows, plan, current_age, retirement_age, monthly_income
+    )
+    if new is None:
+        return [no_update] * len(_LIFE_ROW_IDS)
+    return [value for row in new for value in row]
+
+
 # --- purchase money: fill in the highest amounts at the purchase age (#40) -----------
 
 HOME_AMOUNT_IDS = list(HOME_AMOUNT_HINTS)  # savings, 3a, pension fund

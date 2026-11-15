@@ -1,10 +1,15 @@
 """Life phases in the inputs: rows, titles and the phases they give (issue #33)."""
 
+from contextvars import copy_context
+
 import pytest
+from dash import no_update
+from dash._callback_context import context_value
+from dash._utils import AttributeDict
 
 from personal_finance.core.life_phases import LifePhase, validate_phases
 from personal_finance.dashboard import life_view
-from personal_finance.dashboard.callbacks import update_life_controls
+from personal_finance.dashboard.callbacks import edit_life_phases, update_life_controls
 from tests.unit.test_browser_store import LIFE_VALUES
 
 
@@ -104,3 +109,119 @@ class TestControls:
         assert result[0] == {"display": "none"}
         assert result[1] == {"display": "block"}
         assert result[2] == {"display": "none"}
+
+
+EMPTY = (None, None, None, None)
+ROWS3 = [(37, 100, 7_200, None), (44, 60, 4_300, 1_500), (None, 80, 5_800, 600), EMPTY, EMPTY]
+
+
+def edit(action, rows=(EMPTY,) * 5, plan="on", current_age=35, retirement_age=65, income=7_200):
+    return life_view.edit_rows(action, list(rows), plan, current_age, retirement_age, income)
+
+
+class TestTemplates:
+    def test_full_time(self):
+        assert edit(life_view.FULL, ROWS3) == [(None, 100, 7_200, None)] + [EMPTY] * 4
+
+    def test_part_time_with_children(self):
+        # 100 % until 37, 60 % until 44 (7'200 x 0.6 = 4'320), then 80 % (5'760).
+        assert edit(life_view.KIDS) == [
+            (37, 100, 7_200, None),
+            (44, 60, 4_320, None),
+            (None, 80, 5_760, None),
+            EMPTY,
+            EMPTY,
+        ]
+
+    def test_break(self):
+        assert edit(life_view.BREAK)[:3] == [
+            (37, 100, 7_200, None),
+            (39, 0, 0, None),
+            (None, 100, 7_200, None),
+        ]
+
+    def test_without_an_income_the_amounts_stay_empty(self):
+        assert edit(life_view.KIDS, income=None)[1] == (44, 60, None, None)
+
+    def test_too_few_years_for_a_template(self):
+        # At 56 with retirement at 65 the 60 % phase would end at 65.
+        assert edit(life_view.KIDS, current_age=56) is None
+        assert edit(life_view.BREAK, current_age=61) is None
+
+    def test_planning_starts_with_full_time_only_without_phases(self):
+        assert edit(life_view.PLAN)[0] == (None, 100, 7_200, None)
+        assert edit(life_view.PLAN, ROWS3) is None  # e.g. a loaded scenario
+        assert edit(life_view.PLAN, plan="off") is None
+
+    @pytest.mark.parametrize(("current_age", "retirement_age"), [(None, 65), (35, None), (65, 65)])
+    def test_nothing_without_valid_ages(self, current_age, retirement_age):
+        assert edit(life_view.FULL, current_age=current_age, retirement_age=retirement_age) is None
+
+
+class TestAddAndRemove:
+    def test_remove_clears_the_last_phase(self):
+        assert edit(life_view.REMOVE, ROWS3) == ROWS3[:2] + [EMPTY] * 3
+
+    def test_at_least_one_phase_stays(self):
+        assert edit(life_view.REMOVE, [(None, 100, 7_200, None)] + [EMPTY] * 4) is None
+
+    def test_add_splits_the_last_phase_in_the_middle(self):
+        # Last phase 45 … 64: the middle is 45 + 19 // 2 = 54.
+        assert edit(life_view.ADD, ROWS3)[2:4] == [(54, 80, 5_800, 600), (None, 80, 5_800, 600)]
+        # One phase 35 … 64: 35 + 29 // 2 = 49.
+        one = edit(life_view.ADD, [(None, 100, 7_200, None)] + [EMPTY] * 4)
+        assert one[:2] == [(49, 100, 7_200, None), (None, 100, 7_200, None)]
+
+    def test_add_keeps_the_last_phase_at_least_one_year(self):
+        assert edit(life_view.ADD, [(None, 100, 7_200, None)] + [EMPTY] * 4, current_age=63)[0] == (
+            63,
+            100,
+            7_200,
+            None,
+        )
+        assert edit(life_view.ADD, [(None, 100, 7_200, None)] + [EMPTY] * 4, current_age=64) is None
+
+    @pytest.mark.parametrize(
+        "rows",
+        [
+            [EMPTY] * 5,  # nothing to split
+            [
+                (36, 100, 1, None),
+                (37, 100, 1, None),
+                (38, 100, 1, None),
+                (39, 100, 1, None),
+                (None, 100, 1, None),
+            ],
+            [(None, 100, 7_200, None), (None, 60, 4_300, None)] + [EMPTY] * 3,  # «bis» missing
+        ],
+    )
+    def test_add_not_possible(self, rows):
+        assert edit(life_view.ADD, rows) is None
+
+
+class TestEditCallback:
+    def run(self, trigger, fields=None, income=7_200, period="monthly"):
+        fields = fields if fields is not None else [None] * 20
+
+        def _run():
+            context_value.set(
+                AttributeDict(triggered_inputs=[{"prop_id": f"{trigger}.n_clicks", "value": 1}])
+            )
+            return edit_life_phases(1, 1, 1, 1, 1, "on", 35, 65, income, period, *fields)
+
+        return copy_context().run(_run)
+
+    def test_template_from_a_yearly_income(self):
+        result = self.run(life_view.FULL, income=86_400, period="yearly")
+
+        assert result[:4] == [None, 100, 7_200, None]
+        assert result[4:] == [None] * 16
+
+    def test_emptied_fields_count_as_empty(self):
+        fields = [None, 100, 7_200, ""] + [""] * 16
+        result = self.run(life_view.ADD, fields)
+
+        assert result[:8] == [49, 100, 7_200, None, None, 100, 7_200, None]
+
+    def test_nothing_to_change(self):
+        assert self.run(life_view.REMOVE, income="") == [no_update] * 20
