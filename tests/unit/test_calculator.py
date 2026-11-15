@@ -4,7 +4,7 @@ Test Suite for Personal Finance Calculator
 
 import pytest
 from personal_finance.calculator import FinanceCalculator
-from personal_finance.core.pillar_2 import Pillar2Calculator
+from personal_finance.core.pillar_2 import Pillar2Calculator, Pillar2Result
 from personal_finance.core.pillar_3a import Pillar3aCalculator
 from personal_finance.core.savings import SavingsCalculator
 
@@ -25,6 +25,9 @@ class TestPillar2:
         calc = Pillar2Calculator(annual_net_income=60000, current_age=35)
         result = calc.calculate()
 
+        # 60'000 - 26'880 = 33'120; davon 12% = 3'974.40 CHF jährlich.
+        assert result.insurable_salary == 33120
+        assert result.annual_contribution_total == pytest.approx(3974.4)
         assert result.annual_contribution_total > 0
         assert result.annual_contribution_employee > 0
         assert result.annual_contribution_employer > 0
@@ -32,6 +35,28 @@ class TestPillar2:
         assert (
             abs(result.annual_contribution_employee - result.annual_contribution_employer) < 1
         )  # Allow rounding
+
+    @pytest.mark.parametrize(
+        ("annual_income", "expected_insurable_salary"),
+        [(23039, 0), (23040, 0), (23041, 3840)],
+    )
+    def test_pillar2_entry_threshold_and_minimum_coordinated_salary(
+        self, annual_income, expected_insurable_salary
+    ):
+        # Versicherungspflicht gilt erst über 23'040 CHF; bei 23'041 greift der
+        # Mindestlohn von 3'840 CHF, davon 12% = 460.80 CHF Jahresbeitrag.
+        result = Pillar2Calculator(annual_income, current_age=35).calculate()
+
+        assert result.insurable_salary == expected_insurable_salary
+        assert result.annual_contribution_total == pytest.approx(expected_insurable_salary * 0.12)
+
+    @pytest.mark.parametrize("annual_income", [92160, 100000])
+    def test_pillar2_coordinated_salary_is_capped(self, annual_income):
+        # 92'160 - 26'880 = 65'280 CHF; höhere Einkommen erhöhen den BVG-Lohn nicht.
+        result = Pillar2Calculator(annual_income, current_age=35).calculate()
+
+        assert result.insurable_salary == 65280
+        assert result.annual_contribution_total == pytest.approx(7833.6)
 
     def test_age_based_contribution_rates(self):
         """Verschiedene Alter sollten unterschiedliche Beitragssätze haben"""
@@ -73,14 +98,14 @@ class TestPillar3a:
         calc = Pillar3aCalculator(annual_net_income=200000, current_age=35)  # Very high income
         result = calc.calculate_by_savings_rate(0.20)
 
-        assert result.annual_savings == 7258
+        assert result.annual_savings == 7373  # 3a-Maximum mit 2. Säule ab 2027
 
-    def test_fixed_monthly_amount_is_capped_at_7258_per_year(self):
+    def test_fixed_monthly_amount_is_capped_at_7373_per_year(self):
         calc = Pillar3aCalculator(annual_net_income=200000, current_age=35)
         result = calc.calculate_by_monthly_amount(1000)
 
-        assert result.annual_savings == 7258
-        assert result.monthly_savings == pytest.approx(7258 / 12)
+        assert result.annual_savings == 7373
+        assert result.monthly_savings == pytest.approx(7373 / 12)
 
     def test_investment_gains(self):
         """Investitionsgewinne sollten > 0 sein"""
@@ -158,3 +183,12 @@ class TestFinanceCalculator:
 
         analysis = calc.complete_analysis()
         assert len(analysis.summary["recommendations"]) > 0
+
+    def test_strong_pillar2_contribution_recommendation(self):
+        calc = FinanceCalculator(monthly_net_income=5000, current_age=35)
+        pillar2 = Pillar2Result(10000, 10000, 20000, 0, 0, 30, 500000)
+        savings = calc.savings_calc.analyze_by_savings_rate(0.1)
+
+        recommendations = calc._generate_recommendations(pillar2, savings)
+
+        assert any("Starker Beitrag" in item for item in recommendations)

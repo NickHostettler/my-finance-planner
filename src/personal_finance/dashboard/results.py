@@ -301,10 +301,12 @@ def results_view(
                             "das Reglement deiner Pensionskasse."
                             if pillar2_mode == "custom"
                             else "Keine offizielle BVG-Mindestberechnung: Das Modell zieht einen "
-                            "festen Koordinationsabzug vom Jahresnettoeinkommen ab, wendet einen "
-                            "altersabhängigen Beitragssatz an und teilt den Beitrag 50/50. Reale "
-                            "Eintrittsschwellen, versicherter Lohn und Reglement deiner PK können "
-                            "abweichen."
+                            "die BVG-Grenzbeträge ab 1.1.2027 für Eintrittsschwelle, "
+                            "Koordinationsabzug und koordinierten Lohn vom modellierten "
+                            "Jahresnettoeinkommen ab, wendet einen altersabhängigen Beitragssatz "
+                            "an und teilt den Beitrag 50/50. Da das Tool nicht mit einem separat "
+                            "erfassten Bruttolohn und dem Reglement deiner PK rechnet, kann die "
+                            "Schätzung von deiner tatsächlichen Vorsorge abweichen."
                         ),
                     ),
                     _assumption(

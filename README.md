@@ -30,7 +30,8 @@ their own browser, and **no personal financial data is ever stored on the server
   browser tests and a Docker build with smoke tests on every pull request. Render deploys only
   commits whose checks passed.
 - **Domain logic:** Swiss salary deductions with 2026 rates (AHV/IV/EO, ALV with its insured-salary
-  cap), BVG estimate, 3a limits, compound-interest projections in nominal or real terms.
+  cap), BVG estimate, AHV pension scale, BVG and 3a limits valid from 2027, compound-interest
+  projections in nominal or real terms.
 - **Home ownership (v1.1):** affordability and equity check following the Swiss banking rules
   (20 % equity, 10 % of it not from the pension fund, housing costs up to a third of the gross
   income) with a traffic light and the maximum affordable price; early withdrawals from the
@@ -294,12 +295,15 @@ Die meisten Parameter können über die `FinanceCalculator` Klasse konfiguriert 
 ## Notes zur Schweizer Finanzplanung
 
 ### 2. Säule (BVG)
-- Minimal: Mindestbeitrag ab CHF 24,885 pro Jahr (50/50 Arbeitgeber/Arbeitnehmer)
+- BSV-Grenzbeträge ab 1. Januar 2027: obligatorisch versichert ist ein Jahreslohn über CHF
+  23’040. Der koordinierte Lohn beträgt mindestens CHF 3’840 und höchstens CHF 65’280
+  (Koordinationsabzug CHF 26’880; obere Limite des Jahreslohns CHF 92’160). Das Modell teilt
+  die geschätzten Beiträge 50/50 zwischen Arbeitgeber und Arbeitnehmer.
 - AHV-Renteneintrittsalter ist maßgeblich
 - Koordinationsabzug beachten
 
 ### 3. Säule
-- 3a (gebundene Vorsorge): Das Modell begrenzt die Einzahlung auf maximal CHF 7'258 pro Jahr (ca. CHF 604.83 pro Monat)
+- 3a (gebundene Vorsorge): Das Modell begrenzt die Einzahlung auf maximal CHF 7’373 pro Jahr (ca. CHF 614.42 pro Monat), gültig ab 1. Januar 2027
 - 3b (freie Vorsorge): Ohne Limit
 
 ## Development

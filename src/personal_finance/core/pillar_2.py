@@ -26,7 +26,9 @@ class Pillar2Calculator:
 
     # Konstanten aus config.py
     MIN_SALARY = config.PILLAR2_MIN_SALARY
+    MIN_COORDINATED_SALARY = config.PILLAR2_MIN_COORDINATED_SALARY
     COORDINATION_DEDUCTION = config.PILLAR2_COORDINATION_DEDUCTION
+    MAX_COORDINATED_SALARY = config.PILLAR2_MAX_COORDINATED_SALARY
     MAX_PILLAR2_RATE = config.PILLAR2_MAX_CONTRIBUTION_RATE
     ASSUMED_ANNUAL_RETURN = config.ASSUMED_ANNUAL_RETURN
 
@@ -51,12 +53,9 @@ class Pillar2Calculator:
         Returns:
             Pillar2Result mit detaillierten Angaben
         """
-        # Versicherbares Einkommen nach Koordinationsabzug
-        insurable_salary = max(0, self.annual_net_income - self.COORDINATION_DEDUCTION)
-
         # Mindestversicherung prüfen
-        if self.annual_net_income < self.MIN_SALARY:
-            # Unter Minimum - keine Versicherung
+        if self.annual_net_income <= self.MIN_SALARY:
+            # The annual salary must exceed the entry threshold.
             return Pillar2Result(
                 annual_contribution_employee=0,
                 annual_contribution_employer=0,
@@ -66,6 +65,14 @@ class Pillar2Calculator:
                 years_until_retirement=self.years_until_retirement,
                 estimated_capital_at_retirement=0,
             )
+
+        insurable_salary = min(
+            max(
+                self.annual_net_income - self.COORDINATION_DEDUCTION,
+                self.MIN_COORDINATED_SALARY,
+            ),
+            self.MAX_COORDINATED_SALARY,
+        )
 
         # Beitragssätze nach Alter (typisches Schweizer Schema)
         contribution_rate = self._get_contribution_rate()
