@@ -34,7 +34,7 @@ from personal_finance.core.life_phases import (
 
 ESTIMATE = "minimum"  # BVG estimate (same value as the dashboard's "pillar2-mode-input")
 OWN = "custom"  # own contributions from the pension fund certificate
-CREDIT_SHARES = (1.0, 0.5)  # education credits in full or half (married couples)
+CREDIT_SHARES = (1.0, 0.5, 0.0)  # education credits in full, half (married) or none (v1.3)
 
 
 @dataclass(frozen=True)
@@ -204,12 +204,12 @@ def ahv_monthly_pension(
     retirement. The contribution years are the last ``contribution_years`` before retirement;
     ``income_ratios`` are the income of each year from today compared with the income input
     (1 = as today, 0.6 = 60 % of it). Earlier years count with the entered average. Each year
-    with a child under 16 adds the education credit (``credit_share``: 1 or 0.5 for married
-    couples). MODELLANNAHME: incomes and credits in today's CHF, no AHV contributions are
+    with a child under 16 adds the education credit (``credit_share``: 1, 0.5 for married
+    couples, 0 if the other parent gets it in full). MODELLANNAHME: incomes and credits in today's CHF, no AHV contributions are
     missing.
     """
     if credit_share not in CREDIT_SHARES:
-        raise ValueError("Die Erziehungsgutschriften zählen ganz oder hälftig.")
+        raise ValueError("Die Erziehungsgutschriften zählen ganz, hälftig oder gar nicht.")
     if (
         isinstance(contribution_years, bool)
         or not isinstance(contribution_years, int)

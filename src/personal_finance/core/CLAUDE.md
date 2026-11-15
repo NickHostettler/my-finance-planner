@@ -58,3 +58,17 @@
   Sparen bleibt. Kinderkosten pro Phase in heutigen Franken, sie steigen mit der Inflation.
 - Familien-Werte: Stand `FAMILY_RULES_AS_OF`; bei neuen Jahreswerten mitprüfen (Skill
   `jahreswerte`).
+
+## Haushalt (v1.3)
+
+- Jede Person rechnet wie ein Einzelplan; `household.py` enthält nur, was der Haushalt teilt:
+  Zusammenleben (`MARRIED` gilt auch für eingetragene Partnerschaften), Aufteilung der
+  Erziehungsgutschriften (verheiratet immer hälftig), AHV-Plafonierung 150 % (`couple_ahv`,
+  in heutigen Franken) und Kinder aus Sicht von Person B (`shift_birth_ages`).
+- `home_plan.plan_joint_purchase(inputs, members)`: ein Kauf mit einer oder zwei `Member`.
+  Eigenmittel und Tragbarkeit mit den Summen, WEF-Limiten und Bezüge je Person
+  (`HomePlan.members`, Pfade bis zur eigenen Pensionierung). Haushaltspfade und Amortisation
+  enden bei der **ersten Pensionierung**. Verpfändete 3a nach freiem 3a-Platz aufgeteilt.
+- Regression: `plan_purchase` (eine Person) ist `plan_joint_purchase` mit einem `Member` und
+  muss exakt die Ergebnisse von v1.2 liefern. Einzelpläne prüfen Beträge mit den Meldungen
+  aus `home.py`, Haushalte zusätzlich je Person mit „Person B: …“.

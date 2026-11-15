@@ -22,6 +22,13 @@ EDUCATION_CREDIT = 3 * 12 * MINIMUM_FULL_MONTHLY_PENSION  # 46'080 pro Jahr ab 2
 EDUCATION_CREDIT_CHILD_AGE = 16
 EDUCATION_CREDIT_URL = "https://www.ahv-iv.ch/p/1.07.d"
 
+# Plafonierung (AHVG Art. 35): Die beiden Renten eines Ehepaars betragen zusammen höchstens
+# 150 % der maximalen Altersrente. Gilt auch für eingetragene Partnerschaften, nicht für
+# unverheiratete Paare. Quelle: Merkblatt 3.01 «Altersrenten und Hilflosenentschädigungen der
+# AHV» (OFFICIAL_LEAFLET_URL), Stand 1.1.2027.
+COUPLE_CAP_RATE = 1.5
+COUPLE_MAXIMUM_MONTHLY_PENSION = COUPLE_CAP_RATE * MAXIMUM_FULL_MONTHLY_PENSION  # 3'840
+
 
 def estimate_monthly_old_age_pension(
     average_annual_income: float,

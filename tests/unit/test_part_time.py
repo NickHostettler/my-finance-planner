@@ -198,7 +198,7 @@ class TestAhv:
     @pytest.mark.parametrize(
         ("years", "share", "message"),
         [
-            (44, 0.7, "ganz oder hälftig"),
+            (44, 0.7, "ganz, hälftig oder gar nicht"),
             (45, 1.0, "Beitragsjahre"),
             (True, 1.0, "Beitragsjahre"),
             (40.0, 1.0, "Beitragsjahre"),
