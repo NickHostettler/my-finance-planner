@@ -2,9 +2,10 @@
 
 For each width and tab: page width (no horizontal scrolling), JavaScript errors, and a
 full-page screenshot. With ``--home`` a home purchase is planned first, so that the
-"Wohneigentum" tab shows all its content.
+"Wohneigentum" tab shows all its content; with ``--life`` life phases with a child (both
+options can be combined).
 
-    uv run python scripts/ui_check.py <output folder> [--home]
+    uv run python scripts/ui_check.py <output folder> [--home] [--life]
 
 Needs the e2e dependency group (``uv sync --group e2e``, ``uv run playwright install
 chromium``). Exit code 1 if a tab scrolls sideways or the page reports errors.
@@ -21,7 +22,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 VIEWPORTS = {"phone": {"width": 390, "height": 844}, "desktop": {"width": 1440, "height": 1000}}
-TABS = ["Übersicht", "Vorsorge", "Wohneigentum", "Annahmen"]
+TABS = ["Übersicht", "Vorsorge", "Wohneigentum", "Lebensphasen", "Annahmen"]
 IDLE = "() => !document.querySelector('[data-dash-is-loading=\"true\"]')"
 PAGE_WIDTH = "() => document.documentElement.scrollWidth"
 # Outermost elements that are wider than the screen while their parent is not.
@@ -83,10 +84,31 @@ def plan_home_purchase(page, phone: bool) -> None:
         page.wait_for_timeout(500)
 
 
+def plan_life_phases(page, phone: bool) -> None:
+    """Part time while the children are small, with one child and child costs."""
+    if phone:
+        page.click("#navbar-burger")
+        page.wait_for_timeout(500)
+    page.locator(".input-navbar").get_by_text("Lebensphasen & Familie", exact=True).click()
+    page.wait_for_timeout(300)
+    page.locator("#life-plan-input").get_by_text("Phasen planen").click()
+    idle(page)
+    page.get_by_role("button", name="Teilzeit mit Kindern").click()
+    idle(page)
+    fill(page, "#life-2-costs-input", "1500")
+    fill(page, "#life-child-1-input", "37")
+    if phone:
+        page.click("#navbar-burger")
+        page.wait_for_timeout(500)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("out", type=Path, help="Ordner für die Screenshots")
     parser.add_argument("--home", action="store_true", help="vorher einen Kauf planen")
+    parser.add_argument(
+        "--life", action="store_true", help="vorher Lebensphasen mit einem Kind planen"
+    )
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -104,6 +126,8 @@ def main() -> int:
                 idle(page)
                 if page.locator("#welcome-dismiss").is_visible():
                     page.click("#welcome-dismiss")
+                if args.life:
+                    plan_life_phases(page, phone=name == "phone")
                 if args.home:
                     plan_home_purchase(page, phone=name == "phone")
                 for tab in TABS:

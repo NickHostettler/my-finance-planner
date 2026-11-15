@@ -339,7 +339,8 @@ def phases_figure(
         figure.add_trace(
             go.Scatter(
                 x=births,
-                y=[0] * len(births),
+                y=[112] * len(births),  # above the workload bars (right axis)
+                yaxis="y2",
                 name="Geburt",
                 mode="markers",
                 marker={"symbol": "star", "size": 13, "color": COLORS["gold"]},
@@ -351,13 +352,23 @@ def phases_figure(
             height=300,
             hovermode="x unified",
             bargap=0.15,
+            margin={"l": 12, "r": 44, "t": 18, "b": 12},  # room for the % labels
             xaxis={"showgrid": False, "zeroline": False, "title": None, "dtick": 5},
+            yaxis={
+                "gridcolor": "#edf1ee",
+                "zeroline": False,
+                "title": None,
+                "tickprefix": "CHF ",
+                "separatethousands": True,
+                "rangemode": "tozero",  # the income drop is not exaggerated
+            },
             yaxis2={
                 "overlaying": "y",
                 "side": "right",
-                "range": [0, 105],
+                "range": [0, 120],
+                "tickvals": [0, 25, 50, 75, 100],
+                "ticktext": ["0 %", "25 %", "50 %", "75 %", "100 %"],
                 "showgrid": False,
-                "ticksuffix": " %",
                 "title": None,
             },
         )

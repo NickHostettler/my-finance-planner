@@ -29,6 +29,14 @@ eigenes CSS nur in `assets/dashboard.css`.
   `memory`-Store `HOME_PREFILL_SKIP_STORE_ID`; das Vorbelegen überspringt genau diese Änderung.
   `memory`-Stores sind die einzige Ausnahme von „jeder Store lokal mit `pf-`“ (ein Test prüft
   beides).
+- **Lebensphasen (#33):** Die Phasen stehen als feste Zeilen im Layout (`life-{n}-to/workload/
+  income/costs-input`, siehe `browser_store.LIFE_FIELDS`); eine Zeile ist benutzt, solange ihr
+  Pensum ausgefüllt ist. „Ab“ folgt aus der vorherigen Zeile, die letzte läuft bis zur
+  Pensionierung. Mit Phasen rechnen Übersicht, Vorsorge und Wohneigentum über `paths`,
+  `per_year` und `ahv_monthly_today` in `results_view`. Neue Ergebnis-Tabs verschieben die
+  Position in `RESULT_SECTION_IDS`; Tests, die Tabs entpacken, nachziehen.
+- Plotly: Mit festen `tickvals` greift `ticksuffix` nicht, die Beschriftung über `ticktext`
+  setzen.
 - Felder ein- und ausblenden über `style={"display": ...}` per Callback (siehe
   `update_home_controls`), nicht durch Entfernen aus dem Layout: Jedes Feld aus
   `SCENARIO_INPUT_IDS` muss immer im Layout stehen.

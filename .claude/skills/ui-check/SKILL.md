@@ -9,12 +9,13 @@ description: Prüft alle Ergebnis-Tabs des Dashboards im echten Browser auf Hand
 2. Prüfung starten, die Screenshots in den Scratchpad-Ordner schreiben (nicht ins Repo):
 
    ```powershell
-   uv run python scripts/ui_check.py <scratchpad>\ui-check --home
+   uv run python scripts/ui_check.py <scratchpad>\ui-check --home --life
    ```
 
    `--home` plant vorher einen Wohnungskauf, damit der Tab „Wohneigentum“ alle Inhalte zeigt.
-   Ohne `--home` wird der Zustand ohne Kauf geprüft. Bei Änderungen am Wohneigentum beides
-   laufen lassen.
+   `--life` plant Lebensphasen („Teilzeit mit Kindern“, ein Kind, Kinderkosten) für den Tab
+   „Lebensphasen“. Ohne Optionen wird der Zustand ohne Kauf und ohne Phasen geprüft. Bei
+   Änderungen an diesen Bereichen mit und ohne Option laufen lassen.
 3. Ergebnis lesen: Jede Zeile nennt Breite, Tab und Seitenbreite. `ZU BREIT` nennt die
    äussersten Elemente, ab denen die Seite breiter wird als der Bildschirm. Exit-Code 1
    heisst: Problem gefunden.
