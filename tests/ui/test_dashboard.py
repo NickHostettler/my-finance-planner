@@ -127,7 +127,7 @@ def test_3a_amount_input_accepts_model_limit():
     assert amount_input.min == 0
     assert amount_input.step == 0.01
     assert amount_input.max == pytest.approx(config.PILLAR3A_ANNUAL_MAX / 12)
-    assert amount_input.max * 12 == pytest.approx(7258)
+    assert amount_input.max * 12 == pytest.approx(7373)
 
 
 @pytest.mark.parametrize(
@@ -396,8 +396,9 @@ def test_ahv_rent_is_separate_and_projected_in_nominal_or_real_basis():
     assert nominal_values[0] == without_ahv_values[0]
     assert nominal_values[4] != real_values[4]
     assert nominal_details[4] != real_details[4]
-    assert "CHF 2’520" in real_values[4]
-    assert "CHF 32’760" in real_details[4]
+    # Maximalrente ab 2027: 2'560 pro Monat, mit 13. Rente 33'280 pro Jahr.
+    assert "CHF 2’560" in real_values[4]
+    assert "CHF 33’280" in real_details[4]
 
 
 @pytest.mark.parametrize(

@@ -134,11 +134,16 @@ calc = FinanceCalculator(
 ## Häufig gestellte Fragen
 
 ### Q: Welche Versicherungsmindestlöhne sind berücksichtigt?
-A: Die 2. Säule berechnet sich nach BVG. Das Modell verwendet CHF 24'885 als Koordinationsabzug (2024 Wert).
+A: Die vereinfachte BVG-Schätzung verwendet die Grenzbeträge des BSV ab 1. Januar 2027: Die
+Eintrittsschwelle beträgt CHF 23’040; obligatorisch versichert ist ein Lohn über dieser Schwelle.
+Vom Jahreslohn werden CHF 26’880 abgezogen. Der koordinierte Lohn beträgt mindestens CHF 3’840
+und höchstens CHF 65’280; die obere Limite des Jahreslohns liegt bei CHF 92’160. Das Modell
+wendet diese Werte auf das modellierte Jahresnettoeinkommen an und ersetzt keine Berechnung
+gemäss Bruttolohn und individuellem PK-Reglement.
 
 ### Q: Sind die 3a Limits realistisch?
-A: Ja, das Modell beachtet die 2024er Limits:
-- Max. CHF 7'258/Jahr für 3a (gebundene Vorsorge; ca. CHF 604.83/Monat)
+A: Ja, das Modell beachtet die Limits ab 1. Januar 2027:
+- Max. CHF 7’373/Jahr für 3a (gebundene Vorsorge mit Pensionskasse; ca. CHF 614.42/Monat)
 - Oder 20% des Nettoeinkommens (je kleiner)
 
 ### Q: Wie wird die Kapitalrendite berechnet?

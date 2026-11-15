@@ -392,7 +392,7 @@ def test_home_tab_shows_mortgage_net_wealth_and_retirement():
 
 
 def test_ahv_estimate_counts_for_the_retirement_check():
-    text = texts(results(**{**HOME, "ahv_average_income": 90_720})[2])
+    text = texts(results(**{**HOME, "ahv_average_income": 92_160})[2])
 
     assert "Angaben fehlen" not in text
     assert "AHV pro Monat" in text

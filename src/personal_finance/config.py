@@ -16,8 +16,17 @@ INFLATION_RATE = 0.02  # 2% angenommene jährliche Inflation
 # 2. SÄULE (BVG - Berufliche Vorsorge)
 # ================================================================================
 
-PILLAR2_MIN_SALARY = 24885  # CHF - Mindestlohn für BVG-Versicherung (2024)
-PILLAR2_COORDINATION_DEDUCTION = 24885  # CHF - Koordinationsabzug
+# Stand 1.1.2027. Quelle: Medienmitteilung des Bundesrats vom 2.10.2026 «AHV/IV-Minimalrente
+# steigt um 20 Franken» (Eintrittsschwelle 23'040, Koordinationsabzug 26'880):
+SOURCE_2027_URL = "https://www.admin.ch/de/newnsb/BqB41FVYi5FB"
+# Die übrigen BVG-Grenzbeträge folgen aus der maximalen AHV-Altersrente von 30'720 pro Jahr
+# (2'560 x 12, siehe core/ahv.py): obere Limite = 3 x 30'720 (BVG Art. 8 Abs. 1),
+# minimaler koordinierter Lohn = 1/8 x 30'720 (BVG Art. 8 Abs. 2).
+PILLAR2_MIN_SALARY = 23_040  # CHF - Eintrittsschwelle, gültig ab 1.1.2027
+PILLAR2_MIN_COORDINATED_SALARY = 3_840  # CHF pro Jahr, gültig ab 1.1.2027
+PILLAR2_COORDINATION_DEDUCTION = 26_880  # CHF pro Jahr, gültig ab 1.1.2027
+PILLAR2_MAX_SALARY = 92_160  # CHF pro Jahr, obere Limite ab 1.1.2027
+PILLAR2_MAX_COORDINATED_SALARY = PILLAR2_MAX_SALARY - PILLAR2_COORDINATION_DEDUCTION
 PILLAR2_MAX_CONTRIBUTION_RATE = 0.15  # Max. 15% Beitragssatz
 
 # Altersabhängige Beitragssätze (kombiniert Arbeitgeber + Arbeitnehmer)
@@ -33,7 +42,10 @@ PILLAR2_CONTRIBUTION_RATES = {
 # 3. SÄULE 3a (Gebundene Vorsorge - mit Steuervorteilen)
 # ================================================================================
 
-PILLAR3A_ANNUAL_MAX = 7258  # CHF - Maximale jährliche 3a Einzahlung
+# Maximaler Abzug für Erwerbstätige mit 2. Säule ("kleiner Abzug"), gültig ab 1.1.2027
+# (bis 2026: 7'258). Quelle: SOURCE_2027_URL. Ohne 2. Säule wären es 20 % des
+# Erwerbseinkommens, höchstens 36'864; das Modell rechnet nur mit dem kleinen Abzug.
+PILLAR3A_ANNUAL_MAX = 7373  # CHF - Maximale jährliche 3a Einzahlung
 PILLAR3A_MONTHLY_MAX = PILLAR3A_ANNUAL_MAX / 12
 
 # ================================================================================
@@ -230,5 +242,5 @@ def get_canton_tax_rate(canton: str) -> float:
 # VERSION UND METADATA
 # ================================================================================
 
-CONFIG_VERSION = "2024.1"  # Format: YEAR.REVISION
-LAST_UPDATED = "2024-01-24"
+CONFIG_VERSION = "2027.1"  # Format: YEAR.REVISION (Jahr, für das die Werte gelten)
+LAST_UPDATED = "2026-11-15"
