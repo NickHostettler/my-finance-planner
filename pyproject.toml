@@ -60,7 +60,8 @@ personal_finance = ["py.typed", "dashboard/assets/*.css"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["--import-mode=importlib", "--strict-markers"]
+# The suite uses Playwright directly, not the unused dash.testing pytest plugin.
+addopts = ["--import-mode=importlib", "--strict-markers", "-p", "no:dash"]
 markers = ["e2e: end-to-end tests in a real browser (need the e2e dependency group)"]
 
 [tool.coverage.run]
