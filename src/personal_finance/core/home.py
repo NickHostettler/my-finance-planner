@@ -103,6 +103,11 @@ def _rate(value, maximum: float, message: str, allow_zero: bool = True) -> float
     return number
 
 
+def validate_price(value) -> float:
+    """The purchase price as a number greater than 0, else ``ValueError``."""
+    return _positive(value, "Bitte gib einen Kaufpreis grösser als 0 CHF ein.")
+
+
 def _years(value) -> int:
     message = (
         "Der Kauf muss mindestens ein Jahr vor der Pensionierung liegen, damit die "
@@ -213,7 +218,7 @@ def assess_purchase(
         purchase_costs_rate: Purchase costs (notary, land register, transfer tax).
         maintenance_rate: Running and maintenance costs per year.
     """
-    price = _positive(price, "Bitte gib einen Kaufpreis grösser als 0 CHF ein.")
+    price = validate_price(price)
     (
         savings,
         pillar3a,

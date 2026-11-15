@@ -49,7 +49,8 @@ class HomeInputs:
     """What the user entered. Amounts in CHF at the time of the purchase.
 
     ``purchase_age`` and ``gross_income`` may be ``None``: buy now, and take the gross
-    income from the income inputs. Empty equity amounts count as 0 CHF.
+    income from the income inputs. Empty equity amounts count as 0 CHF; the dashboard fills
+    them with :func:`suggested_amounts` (#40).
     """
 
     price: Any
@@ -76,6 +77,27 @@ class MortgageOutcome:
 
 
 @dataclass(frozen=True)
+class AvailableFunds:
+    """The most that could go into the purchase at the purchase age (nominal CHF, #40).
+
+    ``savings`` are the projected free assets (3b). ``pillar3a`` and ``pillar2`` are the WEF
+    limits on the projected balances (``pillar2`` is 0 if no advance withdrawal is possible).
+    """
+
+    savings: float
+    pillar3a: float
+    pillar2: float
+
+    @property
+    def hard(self) -> float:
+        return self.savings + self.pillar3a
+
+    @property
+    def total(self) -> float:
+        return self.hard + self.pillar2
+
+
+@dataclass(frozen=True)
 class HomePlan:
     purchase_age: int
     years_until_purchase: int
@@ -83,10 +105,12 @@ class HomePlan:
     gross_income_from_net: bool  # no gross income known: the net income was used
     assessment: HomeAssessment
     max_price: MaxPrice
-    # Money for the purchase (#26)
+    # Money for the purchase (#26) and the most that would be available (#40)
     savings: float
     pillar3a_used: float
     pillar2_used: float
+    available: AvailableFunds
+    max_price_available: MaxPrice  # with all of ``available`` and the same income
     balances_at_purchase: Tuple[float, float, float]  # 2nd pillar, 3a, 3b (nominal)
     pillar2_limit: WithdrawalLimit
     pillar3a_limit: WithdrawalLimit
@@ -100,6 +124,26 @@ class HomePlan:
     @property
     def outcome(self) -> MortgageOutcome:
         return self.outcomes[self.amortisation]
+
+    @property
+    def required_equity(self) -> float:
+        """Minimum equity for the price (hard equity and pension fund money together)."""
+        return self.assessment.price * config.HOME_MIN_EQUITY_RATE
+
+    @property
+    def required_hard_equity(self) -> float:
+        """Minimum share of the equity that must not come from the pension fund."""
+        return self.assessment.price * config.HOME_MIN_HARD_EQUITY_RATE
+
+    @property
+    def required_funds(self) -> float:
+        """Minimum money for the purchase: the minimum equity plus the purchase costs."""
+        return self.required_equity + self.assessment.purchase_costs
+
+    @property
+    def required_hard_funds(self) -> float:
+        """Minimum savings and 3a: the minimum hard equity plus the purchase costs."""
+        return self.required_hard_equity + self.assessment.purchase_costs
 
     @property
     def with_purchase(self) -> Paths:
@@ -159,6 +203,81 @@ def _zero_if_empty(value: Any) -> Any:
     return 0 if value is None else value
 
 
+@dataclass(frozen=True)
+class _AtPurchase:
+    """The projection without a purchase and what it allows at the purchase age."""
+
+    without: Paths
+    balances: Tuple[float, float, float]  # 2nd pillar, 3a, 3b (nominal)
+    pillar2_limit: WithdrawalLimit
+    pillar3a_limit: WithdrawalLimit
+
+    @property
+    def available(self) -> AvailableFunds:
+        return AvailableFunds(
+            self.balances[2], self.pillar3a_limit.maximum, self.pillar2_limit.maximum
+        )
+
+
+def _at_purchase(
+    age: int, current_age: int, retirement_age: int, pot_2: Pot, pot_3a: Pot, pot_3b: Pot
+) -> _AtPurchase:
+    years = retirement_age - current_age
+    at_purchase = age - current_age
+    without = Paths(pot_2.path(years), pot_3a.path(years), pot_3b.path(years))
+    balance_2 = without.pillar2[at_purchase]
+    half_rule_age = config.WEF_PILLAR2_HALF_RULE_AGE
+    balance_at_50 = (
+        without.pillar2[half_rule_age - current_age]
+        if current_age <= half_rule_age <= retirement_age
+        else None  # already older than 50: the balance at 50 is not known
+    )
+    return _AtPurchase(
+        without=without,
+        balances=(balance_2, without.pillar3a[at_purchase], without.pillar3b[at_purchase]),
+        pillar2_limit=wef.pillar2_limit(balance_2, age, retirement_age, balance_at_50),
+        pillar3a_limit=wef.pillar3a_limit(without.pillar3a[at_purchase]),
+    )
+
+
+def available_funds(
+    purchase_age_value: Any,
+    current_age: int,
+    retirement_age: int,
+    pot_2: Pot,
+    pot_3a: Pot,
+    pot_3b: Pot,
+) -> AvailableFunds:
+    """The most that could go into a purchase at the entered age (empty = now, #40)."""
+    age = purchase_age(purchase_age_value, current_age, retirement_age)
+    return _at_purchase(age, current_age, retirement_age, pot_2, pot_3a, pot_3b).available
+
+
+def suggested_amounts(
+    price: Any,
+    available: AvailableFunds,
+    purchase_costs_rate: float = config.HOME_PURCHASE_COSTS_RATE,
+) -> Tuple[float, float, float]:
+    """The highest amounts from savings, 3a and the pension fund for buying at ``price`` (#40).
+
+    Each source gives as much as is available, but no more than the purchase needs: savings
+    and 3a pay the purchase costs, and the equity together may not exceed the price. The
+    sources are used in the order savings, 3a, pension fund, so that the pension fund money
+    (which also lowers the disability and death benefits) is used last. If less than the
+    minimum advance withdrawal is still open, nothing comes from the pension fund. Amounts in
+    whole CHF, rounded down.
+    """
+    price = home.validate_price(price)
+    costs = price * purchase_costs_rate
+    savings = math.floor(min(available.savings, price + costs))
+    pillar3a = math.floor(min(available.pillar3a, price + costs - savings))
+    hard_equity = max(0.0, savings + pillar3a - costs)
+    pillar2 = math.floor(min(available.pillar2, price - hard_equity))
+    if pillar2 < config.WEF_PILLAR2_MIN_AMOUNT:
+        pillar2 = 0
+    return float(savings), float(pillar3a), float(pillar2)
+
+
 def plan_purchase(
     inputs: HomeInputs,
     current_age: int,
@@ -202,18 +321,19 @@ def plan_purchase(
 
     years = retirement_age - current_age
     at_purchase = age - current_age
-    without = Paths(pot_2.path(years), pot_3a.path(years), pot_3b.path(years))
-    balance_2 = without.pillar2[at_purchase]
-    balance_3a = without.pillar3a[at_purchase]
-    balance_3b = without.pillar3b[at_purchase]
-    half_rule_age = config.WEF_PILLAR2_HALF_RULE_AGE
-    balance_at_50 = (
-        without.pillar2[half_rule_age - current_age]
-        if current_age <= half_rule_age <= retirement_age
-        else None  # already older than 50: the balance at 50 is not known
+    state = _at_purchase(age, current_age, retirement_age, pot_2, pot_3a, pot_3b)
+    available = state.available
+    max_price_available = home.max_affordable_price(
+        available.savings,
+        available.pillar3a,
+        available.pillar2,
+        gross_income,
+        years_left,
+        inputs.imputed_rate,
     )
-    limit_2 = wef.pillar2_limit(balance_2, age, retirement_age, balance_at_50)
-    limit_3a = wef.pillar3a_limit(balance_3a)
+    without = state.without
+    balance_3b = state.balances[2]
+    limit_2, limit_3a = state.pillar2_limit, state.pillar3a_limit
     pillar2_used = wef.check_amount(pillar2, limit_2, "aus der Pensionskasse")
     pillar3a_used = wef.check_amount(pillar3a, limit_3a, "aus der Säule 3a")
     savings = assessment.hard_funds - pillar3a_used
@@ -277,7 +397,9 @@ def plan_purchase(
         savings=savings,
         pillar3a_used=pillar3a_used,
         pillar2_used=pillar2_used,
-        balances_at_purchase=(balance_2, balance_3a, balance_3b),
+        available=available,
+        max_price_available=max_price_available,
+        balances_at_purchase=state.balances,
         pillar2_limit=limit_2,
         pillar3a_limit=limit_3a,
         savings_outside_3b=max(0.0, savings - balance_3b),
