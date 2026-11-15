@@ -106,6 +106,10 @@ body {
 
 .results-column {
   display: grid;
+  /* Not the implicit "auto" column: that one grows to the widest content. A chart in a
+     hidden tab is first drawn 700px wide (Plotly's default), which made the whole column
+     and with it the page wider than a phone screen, and the chart never shrank again. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--mantine-spacing-md);
 }
 
