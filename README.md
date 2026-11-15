@@ -14,7 +14,7 @@ their own browser, and **no personal financial data is ever stored on the server
 
 ![Dashboard: inputs on the left, projected retirement capital, AHV estimate and growth chart in tabs on the right](docs/images/dashboard.png)
 
-![Home ownership tab: traffic light for affordability, equity, mortgage, monthly housing costs and the maximum affordable price](docs/images/wohneigentum.png)
+![Home ownership tab: purchase money prefilled with the highest amounts at the purchase age, traffic light for affordability, equity, mortgage, monthly housing costs, the maximum price with the money used and with all money available, and the equity needed versus available](docs/images/wohneigentum.png)
 
 ### Highlights
 
@@ -25,19 +25,21 @@ their own browser, and **no personal financial data is ever stored on the server
 - **Secure deployment:** Dockerized (multi-stage build, non-root user, read-only filesystem) and
   served by gunicorn on Render's free tier. The shared-password login (HTTP Basic Auth,
   constant-time comparison) **fails closed**: the container refuses to start without a password.
-- **CI/CD:** GitHub Actions runs linting, a format check and 440+ tests (100 % line and branch
+- **CI/CD:** GitHub Actions runs linting, a format check and 510+ tests (100 % line and branch
   coverage) on Linux and Windows, Playwright
   browser tests and a Docker build with smoke tests on every pull request. Render deploys only
   commits whose checks passed.
 - **Domain logic:** Swiss salary deductions with 2026 rates (AHV/IV/EO, ALV with its insured-salary
-  cap), BVG estimate, AHV pension scale, BVG and 3a limits valid from 2027, compound-interest
-  projections in nominal or real terms.
+  cap), BVG estimate, AHV pension scale, BVG and 3a limits valid from 2027, 2nd-pillar
+  contributions that grow with the salary year by year, compound-interest projections in nominal
+  or real terms.
 - **Home ownership (v1.1):** affordability and equity check following the Swiss banking rules
   (20 % equity, 10 % of it not from the pension fund, housing costs up to a third of the gross
   income) with a traffic light and the maximum affordable price; early withdrawals from the
   2nd pillar and 3a (WEF) and their effect on the retirement capital; direct or indirect
-  amortisation, net wealth over time and affordability in retirement. Every rule is a constant
-  with its source.
+  amortisation, net wealth over time and affordability in retirement. The purchase money is
+  prefilled with the most the projection allows at the purchase age (v1.1.1), next to the
+  highest price that all available money would allow. Every rule is a constant with its source.
 - **Clean architecture:** `core/` (pure domain logic) → `storage/` → `dashboard/` (UI);
   dependencies only point inwards.
 
@@ -63,13 +65,14 @@ Ein Python-Paket für private Finanzplanung nach dem Schweizer Rentensystem (1.,
 - **Nettolohn Input**: Einfache Eingabe des monatlichen Nettolohns
 - **2. Säule Berechnung**: Automatische Berechnung des Berufsvorsorgeanspruchs (BVG-konform)
 - **3a Szenarien**: Mehrere Sparlösungen für die 3. Säule
-- **Sparquote & Beträge**: Konfigurierbare Sparquoten oder feste monatliche Sparraten
+- **Feste Beträge**: Feste monatliche Beiträge für 3a und 3b; ein Button setzt den höchsten 3a-Betrag im Modell-Limit ein
+- **Lohnzunahme**: Eine jährliche Lohnzunahme lässt die Beiträge an die 2. Säule Jahr für Jahr steigen
 - **Dash Dashboard**: Interaktive Visualisierung und Vermögensanalyse
 - **Live-Planung**: Monatliches oder jährliches Brutto-/Nettoeinkommen, flexible 3a/3b-Beiträge und Renditeannahmen mit interaktiven Prognosegrafiken; Brutto wird anhand des gewählten Kantons vereinfacht netto geschätzt
 - **2. Säule**: Vereinfachtes BVG-Schätzmodell (keine offizielle Mindestberechnung) oder eigene monatliche Arbeitnehmer-/Arbeitgeberbeiträge und PK-Verzinsung
 - **Startguthaben**: Bereits vorhandene Guthaben in der 2. Säule, 3a und 3b fliessen in die Projektion ein
 - **Transparente Modellannahmen**: Renditen, nominale Werte ohne Inflationsbereinigung, Vereinfachungen der BVG-Schätzung und nicht berücksichtigte Faktoren werden bei der Prognose ausgewiesen
-- **Wohneigentum**: Tragbarkeit und Eigenmittel mit Ampel, maximaler Kaufpreis, Vorbezug aus 2. Säule und 3a (WEF), direkte oder indirekte Amortisation, Nettovermögen und Tragbarkeit im Alter
+- **Wohneigentum**: Tragbarkeit und Eigenmittel mit Ampel, maximaler Kaufpreis, Vorbezug aus 2. Säule und 3a (WEF), direkte oder indirekte Amortisation, Nettovermögen und Tragbarkeit im Alter. Die Kaufmittel werden mit den Höchstbeträgen zum Kaufalter vorbelegt; daneben stehen der Eigenmittelbedarf und der höchste Kaufpreis mit allen verfügbaren Mitteln
 - **Nominale und reale Prognose**: Umschaltbare Anzeige in zukünftigen CHF oder kaufkraftbereinigten heutigen CHF unter Verwendung der konfigurierten jährlichen Inflation
 - **AHV-Rente**: Unverbindliche Schätzung anhand des durchschnittlichen Jahreseinkommens und der Beitragsjahre als separates Ruhestandseinkommen; 13 Jahreszahlungen sind berücksichtigt, die AHV wird nicht zum Vorsorgekapital addiert
 - **Szenarien im eigenen Browser**: Dashboard-Eingaben lassen sich benannt speichern, laden und löschen; ein erneut gespeicherter Name aktualisiert das bestehende Szenario. Die Daten bleiben im Browser des Nutzers, der Server speichert nichts
@@ -225,15 +228,12 @@ calc = FinanceCalculator(
 
 # Berechne 2. Säule
 pillar2 = calc.calculate_pillar2()
-print(f"2. Säule Anspruch: {pillar2['annual_contribution']:.2f} CHF")
+print(f"2. Säule Beitrag pro Jahr: {pillar2.annual_contribution_total:.2f} CHF")
+print(f"2. Säule bei Pensionierung: {pillar2.estimated_capital_at_retirement:.2f} CHF")
 
-# Berechne 3a Szenario mit 10% Sparquote
-pillar3a_scenario1 = calc.calculate_pillar3a(savings_rate=0.10)
-print(f"3a Szenario 1 (10% Sparquote): {pillar3a_scenario1['total_at_retirement']:.2f} CHF")
-
-# Berechne 3a mit festem monatlichem Betrag
-pillar3a_scenario2 = calc.calculate_pillar3a(monthly_amount=1000)
-print(f"3a Szenario 2 (1000 CHF/Monat): {pillar3a_scenario2['total_at_retirement']:.2f} CHF")
+# Berechne 3a mit festem monatlichem Betrag (begrenzt auf das Modell-Limit)
+pillar3a = calc.calculate_pillar3a(monthly_amount=500)
+print(f"3a (500 CHF/Monat): {pillar3a.total_at_retirement:.2f} CHF")
 
 # Gesamtanalyse
 analysis = calc.complete_analysis()
