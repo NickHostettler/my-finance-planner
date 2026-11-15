@@ -4,7 +4,10 @@
 Berechnet Beiträge und Ansprüche gemäß BVG (Bundesgesetz über die berufliche Altersversorgung)
 """
 
+import math
 from dataclasses import dataclass
+from typing import List, Optional, Sequence, Union
+
 from personal_finance import config
 
 
@@ -19,6 +22,55 @@ class Pillar2Result:
     insurable_salary: float  # Versicherbares Einkommen
     years_until_retirement: int
     estimated_capital_at_retirement: float  # Schätzung des Kapitals bei Pensionierung
+    # Total contribution of each year until retirement when the salary grows (first entry =
+    # this year, equal to annual_contribution_total). None: the same amount every year.
+    annual_contributions: Optional[Sequence[float]] = None
+
+    def contributions(self) -> Union[float, Sequence[float]]:
+        """What the projection pays in: one amount, or the amount of each year."""
+        if self.annual_contributions is None:
+            return self.annual_contribution_total
+        return self.annual_contributions
+
+
+def validate_salary_growth(growth) -> float:
+    """Return the yearly salary growth (decimal, e.g. 0.01) or raise ``ValueError``."""
+    if (
+        isinstance(growth, bool)
+        or not isinstance(growth, (int, float))
+        or not math.isfinite(growth)
+        or not 0 <= growth <= config.SALARY_GROWTH_MAX
+    ):
+        raise ValueError(
+            f"Die jährliche Lohnzunahme muss zwischen 0 und {config.SALARY_GROWTH_MAX:.0%} liegen."
+        )
+    return float(growth)
+
+
+def growing_contributions(first_year: float, years: int, salary_growth) -> List[float]:
+    """Contributions that rise with the salary: ``first_year`` grows by the rate each year.
+
+    For contributions the user entered (a fixed share of the salary).
+    """
+    growth = validate_salary_growth(salary_growth)
+    return [first_year * (1 + growth) ** year for year in range(years)]
+
+
+def estimated_contributions(
+    annual_net_income: float, current_age: int, years: int, salary_growth
+) -> List[float]:
+    """The simplified BVG estimate for each year while the income grows.
+
+    The coordination deduction and the contribution rate stay as today (the estimate keeps
+    the rate of the current age), so with a growth of 0 every year equals today's estimate.
+    """
+    growth = validate_salary_growth(salary_growth)
+    return [
+        Pillar2Calculator(annual_net_income * (1 + growth) ** year, current_age)
+        .calculate()
+        .annual_contribution_total
+        for year in range(years)
+    ]
 
 
 class Pillar2Calculator:

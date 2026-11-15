@@ -66,6 +66,7 @@ def results_view(
     ahv_average_income: Optional[float],
     ahv_contribution_years: int,
     display_basis: str = "nominal",
+    salary_growth: float = 0,
     paths=None,
     purchase_note: Optional[str] = None,
 ) -> Tuple[object, object, object, str]:
@@ -97,7 +98,7 @@ def results_view(
     )
     if paths is None:
         pillar2_values = project_balance(
-            pillar2.annual_contribution_total, years, pillar2_return, initial_2, inflation_rate
+            pillar2.contributions(), years, pillar2_return, initial_2, inflation_rate
         )
         pillar3a_values = project_balance(
             pillar3a.annual_savings, years, assumed_return, initial_3a, inflation_rate
@@ -157,7 +158,12 @@ def results_view(
                         "2. Säule",
                         money(pillar2_values[-1]),
                         f"AN {money(pillar2.annual_contribution_employee / 12)} · "
-                        f"AG {money(pillar2.annual_contribution_employer / 12)}/Monat",
+                        f"AG {money(pillar2.annual_contribution_employer / 12)}/Monat"
+                        + (
+                            f" · wächst mit dem Lohn ({salary_growth:.1%}/Jahr)"
+                            if salary_growth
+                            else ""
+                        ),
                         "green",
                         "Ⅱ",
                     ),
@@ -328,6 +334,16 @@ def results_view(
                             "entsprechen. Für einen eigenen Zinssatz wähle links «Eigene "
                             "PK-Werte»."
                         ),
+                    ),
+                    _assumption(
+                        "Lohnzunahme",
+                        f"Dein Lohn steigt im Modell um {salary_growth:.1%} pro Jahr (nominal, "
+                        "einstellbar unter «Einkommen & Alter»). Damit steigen die Beiträge an "
+                        "die 2. Säule im gleichen Verhältnis. In der vereinfachten "
+                        "BVG-Schätzung wächst der versicherte Lohn; Koordinationsabzug und "
+                        "Beitragssatz bleiben gleich. 3a- und "
+                        "3b-Beträge, die AHV-Schätzung und die Tragbarkeit eines Hauskaufs "
+                        "rechnen weiter mit den heutigen Angaben.",
                     ),
                     _assumption(
                         "3a und 3b · Rendite & Einzahlungen",

@@ -35,8 +35,6 @@ def inputs(**overrides):
         "canton": "ZH",
         "current_age": 35,
         "retirement_age": 65,
-        "savings_mode": "rate",
-        "savings_rate": 10,
         "pillar3a_amount": 300,
         "pillar3b_amount": 200,
         "initial_3a": 0,
@@ -50,6 +48,7 @@ def inputs(**overrides):
         "display_basis": "nominal",
         "ahv_average_income": None,
         "ahv_contribution_years": 44,
+        "salary_growth": browser_store.FIELD_DEFAULTS["salary_growth"],
         **{
             field: browser_store.FIELD_DEFAULTS.get(field)
             for field in browser_store.SCENARIO_FIELDS

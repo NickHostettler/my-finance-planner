@@ -7,7 +7,7 @@ German message for invalid inputs.
 
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from personal_finance import config
 from personal_finance.core import home, mortgage, wef
@@ -21,7 +21,7 @@ from personal_finance.core.wef import WithdrawalLimit
 class Pot:
     """One savings pot of the projection (2nd pillar, 3a or 3b)."""
 
-    annual_contribution: float
+    annual_contribution: Union[float, Sequence[float]]  # one amount or one per year
     annual_return: float
     initial: float
 

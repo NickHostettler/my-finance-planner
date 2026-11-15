@@ -241,6 +241,19 @@ _income_group = _group(
             cols=2,
             spacing="sm",
         ),
+        number_input(
+            "salary-growth-input",
+            "Jährliche Lohnzunahme",
+            browser_store.FIELD_DEFAULTS["salary_growth"],
+            0,
+            0.1,
+            "%",
+            config.SALARY_GROWTH_MAX * 100,
+            description=(
+                "Nominal pro Jahr. Mit dem Lohn steigen die Beiträge an die 2. Säule; "
+                "3a- und 3b-Beträge bleiben fest."
+            ),
+        ),
     ],
 )
 
@@ -354,44 +367,26 @@ _pillar3a_group = _group(
     "Säule 3a",
     "3a",
     [
-        segmented(
-            "savings-mode-input",
-            "Beitragsart",
-            [
-                {"label": "Sparquote", "value": "rate"},
-                {"label": "Fester Betrag", "value": "amount"},
-            ],
-            "rate",
-        ),
-        html.Div(
-            number_input(
-                "pillar3a-rate-input",
-                "Sparquote vom Nettoeinkommen",
-                10,
-                0,
-                0.5,
-                "%",
-                100,
-                description="Wird auf das modellierte 3a-Maximum begrenzt",
+        number_input(
+            "pillar3a-amount-input",
+            "Monatlicher 3a-Betrag",
+            350,
+            0,
+            0.01,
+            "CHF/Mt.",
+            config.PILLAR3A_MONTHLY_MAX,
+            description=(
+                f"Modell-Limit: {money(config.PILLAR3A_ANNUAL_MAX)}/Jahr "
+                f"(ca. {money(config.PILLAR3A_MONTHLY_MAX, 2)}/Monat)"
             ),
-            id="rate-control",
         ),
-        html.Div(
-            number_input(
-                "pillar3a-amount-input",
-                "Monatlicher 3a-Betrag",
-                350,
-                0,
-                0.01,
-                "CHF/Mt.",
-                config.PILLAR3A_MONTHLY_MAX,
-                description=(
-                    f"Modell-Limit: {money(config.PILLAR3A_ANNUAL_MAX)}/Jahr "
-                    f"(ca. {money(config.PILLAR3A_MONTHLY_MAX, 2)}/Monat)"
-                ),
-            ),
-            id="amount-control",
-            style={"display": "none"},
+        dmc.Button(
+            "Maximalbetrag einsetzen",
+            id="pillar3a-max-button",
+            n_clicks=0,
+            variant="light",
+            size="xs",
+            fullWidth=True,
         ),
     ],
 )

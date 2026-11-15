@@ -174,6 +174,17 @@ class TestFinanceCalculator:
         assert calc.annual_net_income == 60000
         assert calc.years_to_retirement == 30
 
+    def test_pillar3a_requires_a_savings_method(self):
+        calc = FinanceCalculator(monthly_net_income=5000, current_age=35)
+
+        with pytest.raises(ValueError, match="Entweder savings_rate oder monthly_amount"):
+            calc.calculate_pillar3a()
+
+    def test_pillar3a_accepts_a_savings_rate(self):
+        calc = FinanceCalculator(monthly_net_income=5000, current_age=35)
+
+        assert calc.calculate_pillar3a(savings_rate=0.1).annual_savings == 6000
+
     def test_recommendations_generated(self):
         """Empfehlungen sollten generiert werden"""
         calc = FinanceCalculator(

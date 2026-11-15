@@ -30,14 +30,16 @@ bedeutet.
 
 1. **Einkommen & Alter:** Betrag eingeben und wählen: *Monatlich* oder *Jährlich*, *Netto*
    oder *Brutto*. Bei Brutto schätzt die App das Netto anhand deines Kantons. Dazu dein
-   aktuelles Alter und das geplante Pensionierungsalter.
+   aktuelles Alter, das geplante Pensionierungsalter und die angenommene jährliche
+   Lohnzunahme. Diese erhöht im Modell die Beiträge an die 2. Säule.
 2. **Bisherige Guthaben** in 2. Säule, 3a und 3b eintragen, falls vorhanden. Die Werte
    findest du auf deinem Pensionskassenausweis bzw. bei Bank oder Versicherung.
 3. **AHV-Rente:** durchschnittliches Jahreseinkommen und Beitragsjahre für die grobe Schätzung.
 4. **2. Säule:** Am genauesten ist *Eigene PK-Werte* mit den Beiträgen und dem Zins von deinem
    Pensionskassenausweis. Sonst rechnet die App mit einer vereinfachten Schätzung.
-5. **Säule 3a und 3b:** wie viel du sparst, bei 3a als *Sparquote* oder *Fester Betrag*,
-   dazu die angenommene Rendite.
+5. **Säule 3a und 3b:** monatliche Beträge eingeben. Bei 3a kannst du mit *Maximalbetrag
+   einsetzen* das Modell-Limit übernehmen. Die angenommene Lohnzunahme verändert die 3a- und
+   3b-Beträge nicht; dazu die angenommene Rendite wählen.
 6. **Wohneigentum** (freiwillig): siehe nächster Abschnitt. Ohne geplanten Kauf bleibt alles
    wie bisher.
 7. Die Ergebnisse rechts aktualisieren sich sofort. Mit *Nominal* bzw. *Real · heutige

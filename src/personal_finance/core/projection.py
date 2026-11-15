@@ -1,10 +1,10 @@
 """Compound-interest balance projections."""
 
-from typing import List, Mapping, Optional, Sequence
+from typing import List, Mapping, Optional, Sequence, Union
 
 
 def project_balance(
-    annual_contribution: float,
+    annual_contribution: Union[float, Sequence[float]],
     years: int,
     annual_return: float,
     initial_balance: float = 0,
@@ -13,7 +13,9 @@ def project_balance(
 ) -> List[float]:
     """Balance at the start of each year ``0..years``.
 
-    Contributions are paid at the start of each year and then earn the return.
+    Contributions are paid at the start of each year and then earn the return. One amount
+    is paid every year; a sequence gives the amount of each year (first entry = this year)
+    and needs at least ``years`` entries.
     ``withdrawals`` maps a year index to an amount taken out at that point (e.g. a
     withdrawal for a home purchase); the balance never drops below 0. Values after year 0
     are divided by the inflation of the years so far (0 = nominal).
@@ -23,8 +25,10 @@ def project_balance(
     if 0 in withdrawals:
         balance = max(0.0, balance - withdrawals[0])
     values = [balance]
+    per_year = isinstance(annual_contribution, Sequence)
     for year in range(1, years + 1):
-        balance = (balance + annual_contribution) * (1 + annual_return)
+        contribution = annual_contribution[year - 1] if per_year else annual_contribution
+        balance = (balance + contribution) * (1 + annual_return)
         if year in withdrawals:
             balance = max(0.0, balance - withdrawals[year])
         values.append(balance / ((1 + inflation_rate) ** year))

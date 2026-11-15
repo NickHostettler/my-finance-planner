@@ -14,6 +14,9 @@ import math
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional
 
+from personal_finance import config
+from personal_finance.core.income import normalize_income
+
 STORAGE_VERSION = 1
 MAX_SCENARIO_NAME_LENGTH = 80
 MAX_SCENARIOS = 50
@@ -27,8 +30,6 @@ SCENARIO_FIELDS: Dict[str, str] = {
     "canton": "text",
     "current_age": "integer",
     "retirement_age": "integer",
-    "savings_mode": "text",
-    "savings_rate": "number",
     "pillar3a_amount": "number",
     "pillar3b_amount": "number",
     "initial_3a": "number",
@@ -53,6 +54,8 @@ SCENARIO_FIELDS: Dict[str, str] = {
     "home_imputed_rate": "number",
     "home_mortgage_rate": "number",
     "home_amortisation": "text",
+    # Salary growth per year in percent (v1.2).
+    "salary_growth": "number",
 }
 
 # Defaults for fields added after the first release. Older scenarios and remembered inputs
@@ -69,6 +72,7 @@ FIELD_DEFAULTS: Dict[str, Any] = {
     "home_imputed_rate": 5.0,
     "home_mortgage_rate": 2.0,
     "home_amortisation": "direct",
+    "salary_growth": config.SALARY_GROWTH_DEFAULT * 100,
 }
 
 
@@ -102,6 +106,31 @@ def _clean_value(kind: str, value: Any) -> Any:
     return value
 
 
+def _amount_from_savings_rate(source: Mapping[str, Any]) -> Optional[float]:
+    """The monthly 3a amount of an entry saved with a savings rate (until v1.1).
+
+    Since v1.2 the 3a contribution is always a fixed amount. Entries that used the savings
+    rate get the amount that rate gave them: the share of the monthly net income, capped at
+    the 3a maximum. ``None`` if the entry did not use the rate or lacks what it takes.
+    """
+    rate = _clean_value("number", source.get("savings_rate"))
+    age = _clean_value("integer", source.get("current_age"))
+    if source.get("savings_mode") != "rate" or rate is None or age is None:
+        return None
+    try:
+        monthly_net, _ = normalize_income(
+            _clean_value("number", source.get("income")),
+            _clean_value("text", source.get("income_period")),
+            _clean_value("text", source.get("income_type")),
+            age,
+            _clean_value("text", source.get("canton")),
+        )
+    except ValueError:
+        return None
+    amount = min(max(monthly_net * rate / 100, 0.0), config.PILLAR3A_MONTHLY_MAX)
+    return math.floor(amount * 100) / 100
+
+
 def sanitize_values(values: Any) -> Dict[str, Any]:
     """Keep only known fields with valid types; fill in defaults for missing ones."""
     source = values if isinstance(values, Mapping) else {}
@@ -111,6 +140,9 @@ def sanitize_values(values: Any) -> Dict[str, Any]:
         if value is None:
             value = FIELD_DEFAULTS.get(field)
         cleaned[field] = value
+    migrated_amount = _amount_from_savings_rate(source)
+    if migrated_amount is not None:
+        cleaned["pillar3a_amount"] = migrated_amount
     return cleaned
 
 

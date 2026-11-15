@@ -57,7 +57,7 @@ Das Dashboard öffnet sich dann unter: **http://localhost:8050**
 Im Dashboard können Sie:
 - Nettolohn eingeben
 - Alter und Pensionierungsalter setzen
-- 3a Sparquote oder monatlichen Betrag definieren
+- monatliche 3a- und 3b-Beträge definieren
 - Interaktive Grafiken und Prognosen sehen
 
 ### Option 3: Programmatisch nutzen

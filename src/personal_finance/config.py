@@ -12,6 +12,11 @@ So können Werte einfach angepasst werden (z.B. für neue Gesetze oder Jahre).
 ASSUMED_ANNUAL_RETURN = 0.04  # 4% angenommene jährliche Rendite
 INFLATION_RATE = 0.02  # 2% angenommene jährliche Inflation
 
+# Jährliche Lohnzunahme (nominal): MODELLANNAHME, als Eingabe einstellbar. Mit dem Lohn
+# steigen im Modell die Beiträge an die 2. Säule; 3a- und 3b-Beträge bleiben fest.
+SALARY_GROWTH_DEFAULT = 0.01  # 1 % pro Jahr
+SALARY_GROWTH_MAX = 0.10  # höhere Werte sind über Jahrzehnte nicht plausibel
+
 # ================================================================================
 # 2. SÄULE (BVG - Berufliche Vorsorge)
 # ================================================================================

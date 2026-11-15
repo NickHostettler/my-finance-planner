@@ -5,15 +5,17 @@ from dash import html
 
 from personal_finance.core.income import normalize_income
 from personal_finance.core.projection import project_balance
+from personal_finance.calculator import FinanceCalculator
 from personal_finance.dashboard import app
 from personal_finance.dashboard.callbacks import (
     SCENARIO_INPUT_IDS,
+    fill_pillar3a_maximum,
     update_home_controls,
     update_pillar2_controls,
     update_results,
-    update_savings_controls,
 )
 from personal_finance.dashboard.components import chart_card, money
+from personal_finance.dashboard.figures import composition_figure
 from personal_finance import config
 from personal_finance.core import ahv
 from personal_finance.storage import browser_store
@@ -44,6 +46,7 @@ def _results(
     display_basis="nominal",
     ahv_average_income=None,
     ahv_contribution_years=44,
+    salary_growth=1.0,
     home=("off", 900_000, None, 200_000, 0, 0, None, 5, 2, "direct"),
 ):
     return update_results(
@@ -53,8 +56,6 @@ def _results(
         "ZH",
         35,
         65,
-        "amount",
-        10,
         350,
         500,
         initial_3a,
@@ -69,6 +70,7 @@ def _results(
         ahv_average_income,
         ahv_contribution_years,
         *home,
+        salary_growth,
     )
 
 
@@ -450,6 +452,7 @@ def test_custom_pillar2_contributions_and_interest_are_projected():
         pillar2_employee=100,
         pillar2_employer=200,
         pillar2_return=2,
+        salary_growth=0,
     )
 
     assert notice == ""
@@ -476,6 +479,26 @@ def test_custom_pillar2_contributions_and_interest_are_projected():
     ]
     assert "AN CHF 100" in metric_details[1]
     assert "AG CHF 200" in metric_details[1]
+
+
+def test_composition_figure_supports_fixed_pillar2_contributions():
+    calculator = FinanceCalculator(
+        monthly_net_income=5000,
+        current_age=35,
+        retirement_age=37,
+    )
+    figure = composition_figure(
+        calculator.calculate_pillar2(),
+        calculator.calculate_pillar3a(monthly_amount=100),
+        calculator.calculate_pillar3b(monthly_amount=100),
+        1000,
+        0,
+        0,
+        config.ASSUMED_ANNUAL_RETURN,
+    )
+
+    assert figure.data[0].values[0] == 1000
+    assert figure.data[0].values[1] > 0
 
 
 @pytest.mark.parametrize(
@@ -553,20 +576,15 @@ def test_custom_pillar2_rejects_invalid_values(employee, employer, annual_return
     assert notice == ""
 
 
-@pytest.mark.parametrize(
-    ("mode", "expected_rate_display", "expected_amount_display"),
-    [
-        ("rate", "block", "none"),
-        ("amount", "none", "block"),
-    ],
-)
-def test_3a_contribution_mode_shows_only_matching_input(
-    mode, expected_rate_display, expected_amount_display
-):
-    rate_style, amount_style = update_savings_controls(mode)
+def test_3a_fixed_amount_and_maximum_button_are_available():
+    amount = _component("pillar3a-amount-input")
+    maximum_button = _component("pillar3a-max-button")
+    maximum = fill_pillar3a_maximum(1)
 
-    assert rate_style["display"] == expected_rate_display
-    assert amount_style["display"] == expected_amount_display
+    assert amount.value == 350
+    assert maximum_button.children == "Maximalbetrag einsetzen"
+    assert maximum * 12 <= config.PILLAR3A_ANNUAL_MAX
+    assert (maximum + 0.01) * 12 > config.PILLAR3A_ANNUAL_MAX
 
 
 @pytest.mark.parametrize("height", [300, 390])
