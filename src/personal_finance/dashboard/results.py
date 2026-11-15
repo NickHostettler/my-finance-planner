@@ -367,6 +367,58 @@ def results_view(
                         ),
                     ),
                     _assumption(
+                        "Wohneigentum · Eigenmittel und Tragbarkeit",
+                        f"Mindestens {config.HOME_MIN_EQUITY_RATE:.0%} des Kaufpreises müssen "
+                        f"Eigenmittel sein, davon {config.HOME_MIN_HARD_EQUITY_RATE:.0%} «hart», "
+                        "also nicht aus der Pensionskasse (Erspartes, Wertschriften, Säule 3a). "
+                        "Die 2. Hypothek (der Teil über ⅔ des Kaufpreises) wird in höchstens "
+                        f"{config.HOME_AMORTISATION_MAX_YEARS} Jahren und spätestens bis zur "
+                        "Pensionierung amortisiert. Tragbar ist ein Kauf, wenn kalkulatorischer "
+                        f"Zins ({config.HOME_IMPUTED_INTEREST_RATE:.0%}, einstellbar), "
+                        f"{config.HOME_MAINTENANCE_RATE:.0%} Unterhalt und Amortisation höchstens "
+                        "⅓ des Bruttoeinkommens ausmachen; ab "
+                        f"{config.HOME_TIGHT_COST_TO_INCOME:.0%} gilt er als knapp. "
+                        f"Kaufnebenkosten von {config.HOME_PURCHASE_COSTS_RATE:.0%} sind eine "
+                        "Modellannahme und werden aus Erspartem oder 3a bezahlt. Der "
+                        "Belehnungswert der Bank ist dem Kaufpreis gleichgesetzt. Die "
+                        "Mindestanforderungen stammen aus den Richtlinien der Bankiervereinigung "
+                        "(gültig ab 1.1.2025), die übrigen Werte aus der üblichen Bankpraxis. "
+                        f"Stand {config.HOME_RULES_AS_OF}.",
+                        [_link("FINMA zu den SBVg-Richtlinien", config.HOME_SBVG_SOURCE_URL)],
+                    ),
+                    _assumption(
+                        "Wohneigentum · Vorbezug aus 2. Säule und 3a (WEF)",
+                        "Aus der Pensionskasse sind mindestens "
+                        f"{money(config.WEF_PILLAR2_MIN_AMOUNT)} pro Vorbezug nötig, höchstens "
+                        f"alle {config.WEF_MIN_YEARS_BETWEEN_WITHDRAWALS} Jahre und bis "
+                        f"{config.WEF_PILLAR2_DEADLINE_YEARS} Jahre vor der Pensionierung. Ab "
+                        f"Alter {config.WEF_PILLAR2_HALF_RULE_AGE} ist höchstens das Guthaben im "
+                        f"Alter {config.WEF_PILLAR2_HALF_RULE_AGE} oder die Hälfte des aktuellen "
+                        "Guthabens verfügbar (der höhere Betrag); ohne diese Angabe rechnet das "
+                        "Modell vorsichtig mit der Hälfte. Einkäufe der letzten "
+                        f"{config.WEF_BUY_IN_LOCK_YEARS} Jahre dürfen nicht vorbezogen werden. "
+                        "Das 3a-Guthaben lässt sich ganz beziehen. Bezogenes Geld fehlt in der "
+                        "Prognose ab dem Kauf; eine Rückzahlung, die Steuer auf den Bezug und "
+                        "tiefere Leistungen bei Invalidität und Tod sind nicht berechnet. Das "
+                        "Reglement deiner Pensionskasse kann strenger sein. "
+                        f"Stand {config.HOME_RULES_AS_OF}.",
+                        [_link("BVG Art. 30c (Fedlex)", config.WEF_BVG_SOURCE_URL)],
+                    ),
+                    _assumption(
+                        "Wohneigentum · Hypothek in der Prognose",
+                        "Die Immobilie bleibt im Modell zum Kaufpreis, ohne Wertveränderung. Die "
+                        "Zinskosten rechnet es mit deinem effektiven Hypothekarzins (Standard "
+                        f"{config.HOME_MORTGAGE_RATE:.0%}) und nimmt an, dass du Zins, Unterhalt "
+                        "und Amortisation aus dem laufenden Einkommen bezahlst. Bei indirekter "
+                        "Amortisation fliesst der Betrag in ein verpfändetes 3a-Konto, soweit "
+                        f"neben deinem 3a-Plan Platz im Limit von "
+                        f"{money(config.PILLAR3A_ANNUAL_MAX)} bleibt. Für die Tragbarkeit im "
+                        "Alter schätzt das Modell die Rente der 2. Säule mit einem "
+                        f"Umwandlungssatz von {config.HOME_RETIREMENT_CONVERSION_RATE:.0%} "
+                        "(Modellannahme). Steuern sind nicht berechnet; der Eigenmietwert "
+                        f"entfällt ab dem {config.HOME_IMPUTED_RENTAL_VALUE_END}.",
+                    ),
+                    _assumption(
                         "Nicht berücksichtigt",
                         "Die AHV-Schätzung ist keine offizielle Rentenberechnung. Lohn- und "
                         "Beitragsentwicklung, Änderungen von Rendite oder PK-Reglement, Gebühren "
@@ -384,8 +436,10 @@ def results_view(
             ),
             dmc.Alert(
                 "Die Projektion basiert auf vereinfachten Annahmen und ersetzt keine "
-                "individuelle Finanz- oder Steuerberatung. BVG- und 3a-Werte können je nach "
-                "Vorsorgeplan und geltenden gesetzlichen Limiten abweichen.",
+                "individuelle Finanz-, Steuer- oder Hypothekarberatung. BVG- und 3a-Werte "
+                "können je nach Vorsorgeplan und geltenden gesetzlichen Limiten abweichen. "
+                "Über Hypothek und Vorbezug entscheiden Banken und Pensionskassen "
+                "individuell.",
                 title="Modell statt Beratung",
                 color="gray",
                 variant="light",
