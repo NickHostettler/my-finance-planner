@@ -43,8 +43,10 @@ def test_delete_all_removes_scenarios_and_remembered_inputs(alice):
     assert alice.stored_scenario_names() == []
     assert alice.dropdown_options() == []
     assert alice.income() != SECRET_INCOME
-    assert not any(key.startswith("pf-") and SECRET_INCOME in value
-                   for key, value in alice.local_storage().items())
+    assert not any(
+        key.startswith("pf-") and SECRET_INCOME in value
+        for key, value in alice.local_storage().items()
+    )
     assert alice.errors == []
 
 

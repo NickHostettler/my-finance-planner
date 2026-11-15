@@ -40,30 +40,30 @@ class HomeAssessment:
     """Financing and affordability of one purchase (amounts in CHF, rates as decimals)."""
 
     price: float
-    purchase_costs: float          # Kaufnebenkosten, paid from savings/3a
-    hard_funds: float              # savings + 3a before purchase costs
-    pension_funds: float           # money from the 2nd pillar (not hard equity)
-    hard_equity: float             # hard funds left for the price after purchase costs
-    total_equity: float            # hard equity + pension funds
+    purchase_costs: float  # Kaufnebenkosten, paid from savings/3a
+    hard_funds: float  # savings + 3a before purchase costs
+    pension_funds: float  # money from the 2nd pillar (not hard equity)
+    hard_equity: float  # hard funds left for the price after purchase costs
+    total_equity: float  # hard equity + pension funds
     equity_ratio: float
     hard_equity_ratio: float
     mortgage: float
-    first_mortgage: float          # up to 2/3 of the price
-    second_mortgage: float         # the part that must be amortised
+    first_mortgage: float  # up to 2/3 of the price
+    second_mortgage: float  # the part that must be amortised
     loan_to_value: float
     amortisation_years: int
     annual_amortisation: float
     annual_imputed_interest: float
     annual_maintenance: float
-    annual_costs: float            # imputed interest + maintenance + amortisation
+    annual_costs: float  # imputed interest + maintenance + amortisation
     monthly_costs: float
     gross_annual_income: float
     cost_to_income: float
-    missing_equity: float          # up to the minimum share of equity
-    missing_hard_equity: float     # up to the minimum share of hard equity
+    missing_equity: float  # up to the minimum share of equity
+    missing_hard_equity: float  # up to the minimum share of hard equity
     missing_purchase_costs: float  # purchase costs not covered by savings/3a
-    status: str                    # STATUS_AFFORDABLE, STATUS_TIGHT or STATUS_NOT_AFFORDABLE
-    reasons: Tuple[str, ...]       # why the purchase is tight or not affordable
+    status: str  # STATUS_AFFORDABLE, STATUS_TIGHT or STATUS_NOT_AFFORDABLE
+    reasons: Tuple[str, ...]  # why the purchase is tight or not affordable
 
 
 @dataclass(frozen=True)

@@ -95,6 +95,11 @@ class TestTotals:
         summary = DeductionsCalculator(gross_monthly_income=0).get_summary()
 
         assert set(summary["deductions"]) == {
-            "ahv_iv_eo", "alv", "nbu", "krankenkasse", "pensionskasse", "income_tax",
+            "ahv_iv_eo",
+            "alv",
+            "nbu",
+            "krankenkasse",
+            "pensionskasse",
+            "income_tax",
         }
         assert summary["net_rate"] == 0.0

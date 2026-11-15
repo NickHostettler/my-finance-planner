@@ -82,7 +82,7 @@ print(f"3a bei Pensionierung: {pillar3a.total_at_retirement:.0f} CHF")
 
 # Get complete analysis with recommendations
 analysis = calc.complete_analysis()
-for rec in analysis.summary['recommendations']:
+for rec in analysis.summary["recommendations"]:
     print(f"- {rec}")
 ```
 
@@ -98,8 +98,9 @@ uv run pytest --cov
 # Spezifisch eine Test-Datei
 uv run pytest tests/unit/test_calculator.py -v
 
-# Linting
+# Linting und Formatierung (die CI prüft beides)
 uv run ruff check .
+uv run ruff format .
 ```
 
 ## Projektstruktur
@@ -126,7 +127,7 @@ calc = FinanceCalculator(
     current_age=29,
     retirement_age=65,
     assumed_annual_return=0.10,  # 4% angenommene Rendite
-    inflation_rate=0.02,         # 2% Inflation
+    inflation_rate=0.02,  # 2% Inflation
 )
 ```
 

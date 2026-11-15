@@ -32,9 +32,8 @@ def estimate_monthly_old_age_pension(
             f"Die Beitragsjahre müssen zwischen 0 und {FULL_CONTRIBUTION_YEARS} liegen."
         )
 
-    income_fraction = (
-        (average_annual_income - MINIMUM_PENSION_INCOME)
-        / (MAXIMUM_PENSION_INCOME - MINIMUM_PENSION_INCOME)
+    income_fraction = (average_annual_income - MINIMUM_PENSION_INCOME) / (
+        MAXIMUM_PENSION_INCOME - MINIMUM_PENSION_INCOME
     )
     income_fraction = min(1.0, max(0.0, income_fraction))
     full_monthly_pension = MINIMUM_FULL_MONTHLY_PENSION + income_fraction * (

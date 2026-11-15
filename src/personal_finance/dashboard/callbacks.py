@@ -12,9 +12,11 @@ from dash import Input, Output, State, ctx, html, no_update
 from personal_finance import config
 from personal_finance.calculator import FinanceCalculator
 from personal_finance.core import ahv
+from personal_finance.core.home_plan import HomeInputs, Pot, plan_purchase
 from personal_finance.core.income import normalize_income
 from personal_finance.core.pillar_2 import Pillar2Result
 from personal_finance.core.projection import project_balance
+from personal_finance.dashboard import home_view
 from personal_finance.dashboard.app import app
 from personal_finance.dashboard.components import (
     money,
@@ -29,7 +31,12 @@ from personal_finance.dashboard.layout import (
 from personal_finance.dashboard.results import results_view
 from personal_finance.storage import browser_store
 
-RESULT_SECTION_IDS = ["overview-section", "pension-section", "assumptions-section"]
+RESULT_SECTION_IDS = [
+    "overview-section",
+    "pension-section",
+    "home-section",
+    "assumptions-section",
+]
 
 
 @app.callback(
@@ -66,7 +73,19 @@ SCENARIO_INPUT_IDS = [
     "display-basis-input",
     "ahv-average-income-input",
     "ahv-contribution-years-input",
+    "home-plan-input",
+    "home-price-input",
+    "home-purchase-age-input",
+    "home-savings-input",
+    "home-pillar3a-input",
+    "home-pillar2-input",
+    "home-gross-income-input",
+    "home-imputed-rate-input",
+    "home-mortgage-rate-input",
+    "home-amortisation-input",
 ]
+# Same order as the stored fields (browser_store.SCENARIO_FIELDS).
+_BASE_INPUT_COUNT = SCENARIO_INPUT_IDS.index("home-plan-input")
 
 # The return switch (SegmentedControl) only knows text values; stored values are numbers.
 _RETURN_INPUT_INDEX = SCENARIO_INPUT_IDS.index("return-input")
@@ -108,9 +127,7 @@ def _scenario_action_response(
     is_error=False,
 ):
     status_class = (
-        "scenario-status-message scenario-status-error"
-        if is_error
-        else "scenario-status-message"
+        "scenario-status-message scenario-status-error" if is_error else "scenario-status-message"
     )
     status = html.Span(message, className=status_class) if message else ""
     updated_values = (
@@ -248,6 +265,15 @@ def update_pillar2_controls(mode):
 
 
 @app.callback(
+    Output("home-fields", "style"),
+    Input("home-plan-input", "value"),
+)
+def update_home_controls(plan):
+    """Show the home ownership fields only while a purchase is planned."""
+    return {"display": "grid" if plan == "on" else "none"}
+
+
+@app.callback(
     Output("monthly-income-input", "label"),
     Output("monthly-income-input", "rightSection"),
     Output("monthly-income-input", "rightSectionWidth"),
@@ -308,7 +334,8 @@ def update_income_preview(amount, period, income_type, age, canton):
     *[Input(component_id, "value") for component_id in SCENARIO_INPUT_IDS],
 )
 def update_results(*component_values):
-    """Validate the inputs and render the three result tabs (same order as the inputs)."""
+    """Validate the inputs and render the result tabs (inputs in SCENARIO_INPUT_IDS order)."""
+    values = _from_components(component_values)
     (
         income,
         income_period,
@@ -331,21 +358,23 @@ def update_results(*component_values):
         display_basis,
         ahv_average_income,
         ahv_contribution_years,
-    ) = _from_components(component_values)
+    ) = values[:_BASE_INPUT_COUNT]
 
     def show_error(message: str):
         error = html.Div(
             [html.Strong("Eingaben prüfen"), html.P(message)],
             className="validation-message",
         )
-        return error, error, error, ""
+        return error, error, error, error, ""
 
     if current_age is None or retirement_age is None:
         return show_error("Bitte wähle dein aktuelles Alter und dein Pensionierungsalter.")
     if current_age < 18 or retirement_age < current_age:
-        return show_error("Das Pensionierungsalter muss mindestens deinem aktuellen Alter entsprechen.")
+        return show_error(
+            "Das Pensionierungsalter muss mindestens deinem aktuellen Alter entsprechen."
+        )
     try:
-        monthly_net_income, _ = normalize_income(
+        monthly_net_income, monthly_gross_income = normalize_income(
             income,
             income_period,
             income_type,
@@ -361,13 +390,13 @@ def update_results(*component_values):
     if savings_mode not in {"rate", "amount"}:
         return show_error("Bitte wähle eine gültige Beitragsart für die 3a.")
     if savings_mode == "rate" and (
-        savings_rate is None or not math.isfinite(float(savings_rate)) or not 0 <= savings_rate <= 100
+        savings_rate is None
+        or not math.isfinite(float(savings_rate))
+        or not 0 <= savings_rate <= 100
     ):
         return show_error("Die Sparquote muss zwischen 0 und 100 Prozent liegen.")
     if savings_mode == "amount" and (
-        pillar3a_amount is None
-        or not math.isfinite(float(pillar3a_amount))
-        or pillar3a_amount < 0
+        pillar3a_amount is None or not math.isfinite(float(pillar3a_amount)) or pillar3a_amount < 0
     ):
         return show_error("Der monatliche 3a-Beitrag muss mindestens 0 CHF betragen.")
     if pillar3b_amount is None or not math.isfinite(float(pillar3b_amount)) or pillar3b_amount < 0:
@@ -384,11 +413,23 @@ def update_results(*component_values):
     if pillar2_mode not in {"minimum", "custom"}:
         return show_error("Bitte wähle eine Berechnungsgrundlage für die 2. Säule.")
     if pillar2_mode == "custom":
-        if pillar2_employee is None or not math.isfinite(float(pillar2_employee)) or pillar2_employee < 0:
+        if (
+            pillar2_employee is None
+            or not math.isfinite(float(pillar2_employee))
+            or pillar2_employee < 0
+        ):
             return show_error("Der monatliche Arbeitnehmerbeitrag muss mindestens 0 CHF betragen.")
-        if pillar2_employer is None or not math.isfinite(float(pillar2_employer)) or pillar2_employer < 0:
+        if (
+            pillar2_employer is None
+            or not math.isfinite(float(pillar2_employer))
+            or pillar2_employer < 0
+        ):
             return show_error("Der monatliche Arbeitgeberbeitrag muss mindestens 0 CHF betragen.")
-        if pillar2_return is None or not math.isfinite(float(pillar2_return)) or not 0 <= pillar2_return <= 20:
+        if (
+            pillar2_return is None
+            or not math.isfinite(float(pillar2_return))
+            or not 0 <= pillar2_return <= 20
+        ):
             return show_error("Die Verzinsung der 2. Säule muss zwischen 0 und 20 Prozent liegen.")
     if assumed_return is None or assumed_return not in {0.02, 0.04, 0.06}:
         return show_error("Bitte wähle eine der angebotenen Renditeannahmen.")
@@ -452,6 +493,34 @@ def update_results(*component_values):
         pillar3a = calculator.calculate_pillar3a(monthly_amount=float(pillar3a_amount))
         requested_3a_monthly = float(pillar3a_amount)
     pillar3b = calculator.calculate_pillar3b(monthly_amount=float(pillar3b_amount))
+    pots = (
+        Pot(analysis.pillar2.annual_contribution_total, pillar2_return_decimal, float(initial_2)),
+        Pot(pillar3a.annual_savings, float(assumed_return), float(initial_3a)),
+        Pot(pillar3b.annual_savings, float(assumed_return), float(initial_3b)),
+    )
+    plan, home = _home_results(
+        dict(zip(browser_store.SCENARIO_FIELDS, values)),
+        current_age=int(current_age),
+        retirement_age=int(retirement_age),
+        income_annual=(monthly_gross_income if income_type == "gross" else monthly_net_income) * 12,
+        income_is_net=income_type != "gross",
+        pots=pots,
+        display_basis=display_basis,
+        # Nominal AHV per year at retirement (13 pensions), like the overview card.
+        ahv_annual_at_retirement=(
+            None
+            if ahv_average_income is None
+            else 13
+            * ahv.project_pension_basis(
+                ahv.estimate_monthly_old_age_pension(
+                    float(ahv_average_income), int(ahv_contribution_years)
+                ),
+                analysis.years_to_retirement,
+                config.INFLATION_RATE,
+                "nominal",
+            )
+        ),
+    )
     overview, pension, assumptions, notice = results_view(
         income=monthly_net_income,
         current_age=int(current_age),
@@ -466,17 +535,63 @@ def update_results(*component_values):
         initial_3a=float(initial_3a),
         initial_3b=float(initial_3b),
         display_basis=display_basis,
-        ahv_average_income=(
-            None if ahv_average_income is None else float(ahv_average_income)
-        ),
+        ahv_average_income=(None if ahv_average_income is None else float(ahv_average_income)),
         ahv_contribution_years=int(ahv_contribution_years),
+        paths=None if plan is None else plan.with_purchase,
+        purchase_note=None if plan is None else plan.withdrawal_note(),
     )
     if requested_3a_monthly > pillar3a.monthly_savings:
         notice = (
             f"Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
             f"{money(pillar3a.monthly_savings)} pro Monat begrenzt."
         )
-    return overview, pension, assumptions, notice
+    return overview, pension, home, assumptions, notice
+
+
+def _percent_to_rate(value):
+    """Percent from an input field as a decimal; anything else is passed on for validation."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value / 100
+    return value
+
+
+def _home_results(
+    values,
+    current_age,
+    retirement_age,
+    income_annual,
+    income_is_net,
+    pots,
+    display_basis,
+    ahv_annual_at_retirement,
+):
+    """The planned purchase (``None`` if none or invalid) and the "Wohneigentum" tab."""
+    if values["home_plan"] != "on":
+        return None, home_view.home_section(None)
+    inputs = HomeInputs(
+        price=values["home_price"],
+        savings=values["home_savings"],
+        pillar3a=values["home_pillar3a"],
+        pillar2=values["home_pillar2"],
+        purchase_age=values["home_purchase_age"],
+        gross_income=values["home_gross_income"],
+        imputed_rate=_percent_to_rate(values["home_imputed_rate"]),
+        mortgage_rate=_percent_to_rate(values["home_mortgage_rate"]),
+        amortisation=values["home_amortisation"],
+    )
+    try:
+        plan = plan_purchase(
+            inputs,
+            current_age,
+            retirement_age,
+            income_annual,
+            income_is_net,
+            *pots,
+            ahv_annual_at_retirement=ahv_annual_at_retirement,
+        )
+    except ValueError as error:
+        return None, home_view.home_section(None, str(error))
+    return plan, home_view.home_section(plan, display_basis=display_basis)
 
 
 # Phones: the burger in the header shows or hides the inputs column (runs in the browser).
@@ -498,8 +613,10 @@ NOTICE_VERSION = 1  # increase to show the notice again to everyone after a chan
 
 
 def _notice_acknowledged(store_data) -> bool:
-    return isinstance(store_data, dict) and store_data.get("version") == NOTICE_VERSION and (
-        store_data.get("acknowledged") is True
+    return (
+        isinstance(store_data, dict)
+        and store_data.get("version") == NOTICE_VERSION
+        and (store_data.get("acknowledged") is True)
     )
 
 
@@ -541,7 +658,8 @@ app.clientside_callback(
         window.location.reload();
         return "";
     }
-    """ % repr(STORAGE_KEY_PREFIX),
+    """
+    % repr(STORAGE_KEY_PREFIX),
     Output("clear-browser-data-done", "children"),
     Input("clear-browser-data-confirm", "submit_n_clicks"),
     prevent_initial_call=True,

@@ -72,7 +72,12 @@ def test_wrong_credentials_are_rejected(client, username, password):
 
 @pytest.mark.parametrize(
     "header",
-    ["Bearer abc", "Basic", "Basic !!!kein-base64!!!", "Basic " + base64.b64encode(b"ohne-doppelpunkt").decode()],
+    [
+        "Bearer abc",
+        "Basic",
+        "Basic !!!kein-base64!!!",
+        "Basic " + base64.b64encode(b"ohne-doppelpunkt").decode(),
+    ],
 )
 def test_malformed_headers_are_rejected(client, header):
     assert client.get("/", headers={"Authorization": header}).status_code == 401
@@ -86,7 +91,11 @@ def test_health_and_robots_stay_public(client):
 
 
 def test_all_responses_ask_search_engines_not_to_index(client):
-    for response in (client.get("/health"), client.get("/"), client.get("/", headers=basic("kamerad", PASSWORD))):
+    for response in (
+        client.get("/health"),
+        client.get("/"),
+        client.get("/", headers=basic("kamerad", PASSWORD)),
+    ):
         assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 

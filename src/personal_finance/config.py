@@ -22,11 +22,11 @@ PILLAR2_MAX_CONTRIBUTION_RATE = 0.15  # Max. 15% Beitragssatz
 
 # Altersabhängige Beitragssätze (kombiniert Arbeitgeber + Arbeitnehmer)
 PILLAR2_CONTRIBUTION_RATES = {
-    'age_under_25': 0.07,      # 7%
-    'age_25_34': 0.10,         # 10%
-    'age_35_44': 0.12,         # 12%
-    'age_45_54': 0.14,         # 14%
-    'age_55_plus': 0.15,       # 15%
+    "age_under_25": 0.07,  # 7%
+    "age_25_34": 0.10,  # 10%
+    "age_35_44": 0.12,  # 12%
+    "age_45_54": 0.14,  # 14%
+    "age_55_plus": 0.15,  # 15%
 }
 
 # ================================================================================
@@ -71,30 +71,30 @@ AVERAGE_HEALTH_INSURANCE_MONTHLY = 350  # CHF
 
 # Kantonal unterschiedliche Steuersätze (Schätzung: Bundessteuer + durchschn. Kantons-/Gemeindesteuern)
 CANTON_TAX_RATES = {
-    'ZH': 0.165,  # Zürich
-    'BE': 0.145,  # Bern
-    'LU': 0.155,  # Luzern
-    'BS': 0.175,  # Basel-Stadt
-    'BL': 0.165,  # Basel-Landschaft
-    'AG': 0.140,  # Aargau
-    'SO': 0.150,  # Solothurn
-    'SG': 0.155,  # St. Gallen
-    'AR': 0.160,  # Appenzell Ausserrhoden
-    'AI': 0.150,  # Appenzell Innerrhoden
-    'GE': 0.145,  # Genf
-    'VD': 0.140,  # Waadt
-    'VS': 0.140,  # Wallis
-    'NE': 0.150,  # Neuenburg
-    'JU': 0.150,  # Jura
-    'TI': 0.150,  # Tessin
-    'GR': 0.155,  # Graubünden
-    'UR': 0.145,  # Uri
-    'OW': 0.145,  # Obwalden
-    'NW': 0.150,  # Nidwalden
-    'GL': 0.150,  # Glarus
-    'SH': 0.145,  # Schaffhausen
-    'TG': 0.150,  # Thurgau
-    'FR': 0.150,  # Freiburg
+    "ZH": 0.165,  # Zürich
+    "BE": 0.145,  # Bern
+    "LU": 0.155,  # Luzern
+    "BS": 0.175,  # Basel-Stadt
+    "BL": 0.165,  # Basel-Landschaft
+    "AG": 0.140,  # Aargau
+    "SO": 0.150,  # Solothurn
+    "SG": 0.155,  # St. Gallen
+    "AR": 0.160,  # Appenzell Ausserrhoden
+    "AI": 0.150,  # Appenzell Innerrhoden
+    "GE": 0.145,  # Genf
+    "VD": 0.140,  # Waadt
+    "VS": 0.140,  # Wallis
+    "NE": 0.150,  # Neuenburg
+    "JU": 0.150,  # Jura
+    "TI": 0.150,  # Tessin
+    "GR": 0.155,  # Graubünden
+    "UR": 0.145,  # Uri
+    "OW": 0.145,  # Obwalden
+    "NW": 0.150,  # Nidwalden
+    "GL": 0.150,  # Glarus
+    "SH": 0.145,  # Schaffhausen
+    "TG": 0.150,  # Thurgau
+    "FR": 0.150,  # Freiburg
 }
 
 # Freibetrag für Steuerberechnung (vereinfacht)
@@ -117,9 +117,7 @@ MAX_RETIREMENT_AGE = 75  # Maximal betrachtetes Renteneintrittsalter
 # Verbindlich für alle Banken (von der FINMA als Mindeststandard anerkannt):
 # SBVg "Richtlinien betreffend Mindestanforderungen bei Hypothekarfinanzierungen",
 # Dezember 2023, gültig ab 1.1.2025.
-HOME_SBVG_SOURCE_URL = (
-    "https://www.finma.ch/de/news/2024/03/20240327-mm-hypothekarfinanzierungen/"
-)
+HOME_SBVG_SOURCE_URL = "https://www.finma.ch/de/news/2024/03/20240327-mm-hypothekarfinanzierungen/"
 # Ziff. 2.1: Mindestens 10 % des Belehnungswerts müssen Eigenmittel sein, die nicht aus der
 # 2. Säule stammen (weder Vorbezug noch Verpfändung). Erspartes, Wertschriften und Säule 3a
 # zählen dazu ("harte" Eigenmittel).
@@ -145,6 +143,38 @@ HOME_PURCHASE_COSTS_RATE = 0.03
 # Ab diesem Anteil der Wohnkosten am Bruttoeinkommen gilt ein Kauf als "knapp" tragbar.
 HOME_TIGHT_COST_TO_INCOME = 0.30
 
+# --- Hypothek in der Vermögensprognose ---------------------------------------------------
+# Effektiver Hypothekarzins: MODELLANNAHME für die Prognose (nicht für die Tragbarkeit, dort
+# gilt der kalkulatorische Zins). Aktuelle Sätze bei der Bank erfragen.
+HOME_MORTGAGE_RATE = 0.02
+# Tragbarkeit im Alter: Die Rente aus der 2. Säule wird mit diesem Umwandlungssatz aus dem
+# Kapital geschätzt. MODELLANNAHME: Der gesetzliche Mindestsatz von 6.8 % gilt nur für den
+# obligatorischen Teil; viele Kassen wenden auf das ganze Guthaben tiefere Sätze an.
+HOME_RETIREMENT_CONVERSION_RATE = 0.05
+# Eigenmietwert: Systemwechsel bei der Wohneigentumsbesteuerung, angenommen in der
+# Volksabstimmung vom 28.9.2025. Der Eigenmietwert entfällt ab 1.1.2029, damit weitgehend
+# auch der Abzug der Schuldzinsen. Das Tool modelliert keine Steuern, nur einen Hinweis.
+HOME_IMPUTED_RENTAL_VALUE_END = "1. Januar 2029"
+
+# --- Wohneigentumsförderung (WEF): Geld aus der 2. Säule und der Säule 3a ---------------
+# Quellen: BVG (SR 831.40) Art. 30c und Art. 79b Abs. 3, WEFV (SR 831.411) Art. 5,
+# BVV 3 (SR 831.461.3) Art. 3. Die Reglemente der Pensionskassen können strenger sein.
+WEF_BVG_SOURCE_URL = "https://www.fedlex.admin.ch/eli/cc/1983/797_797_797/de#art_30_c"
+# WEFV Art. 5: Mindestbetrag eines Vorbezugs (ausser für Anteilscheine von
+# Wohnbaugenossenschaften) und nur alle 5 Jahre ein Vorbezug.
+WEF_PILLAR2_MIN_AMOUNT = 20_000
+WEF_MIN_YEARS_BETWEEN_WITHDRAWALS = 5
+# BVG Art. 30c Abs. 2: Ab Alter 50 höchstens das Guthaben im Alter 50 oder die Hälfte des
+# aktuellen Guthabens (der höhere Betrag).
+WEF_PILLAR2_HALF_RULE_AGE = 50
+# BVG Art. 30c Abs. 1: Vorbezug bis 3 Jahre vor den Altersleistungen. Das Modell rechnet
+# mit dem Referenzalter 65 oder einer früheren Pensionierung. Manche Kassen setzen die
+# Frist früher an (z. B. ab dem frühestmöglichen Rentenalter).
+WEF_REFERENCE_AGE = 65
+WEF_PILLAR2_DEADLINE_YEARS = 3
+# BVG Art. 79b Abs. 3: Einkäufe der letzten 3 Jahre dürfen nicht vorbezogen werden.
+WEF_BUY_IN_LOCK_YEARS = 3
+
 # ================================================================================
 # VALIDIERUNGS-GRENZEN
 # ================================================================================
@@ -159,35 +189,36 @@ MAX_RECOMMENDED_SAVINGS_RATE = 0.25  # 25%
 # UTILITY FUNKTIONEN ZUM ABRUFEN VON KONFIGURATIONEN
 # ================================================================================
 
+
 def get_pillar2_contribution_rate(current_age: int) -> float:
     """
     Ermittle den altersabhängigen 2. Säule Beitragssatz
-    
+
     Args:
         current_age: Aktuelles Alter
-    
+
     Returns:
         Beitragssatz als Dezimal (z.B. 0.10 = 10%)
     """
     if current_age < 25:
-        return PILLAR2_CONTRIBUTION_RATES['age_under_25']
+        return PILLAR2_CONTRIBUTION_RATES["age_under_25"]
     elif current_age < 35:
-        return PILLAR2_CONTRIBUTION_RATES['age_25_34']
+        return PILLAR2_CONTRIBUTION_RATES["age_25_34"]
     elif current_age < 45:
-        return PILLAR2_CONTRIBUTION_RATES['age_35_44']
+        return PILLAR2_CONTRIBUTION_RATES["age_35_44"]
     elif current_age < 55:
-        return PILLAR2_CONTRIBUTION_RATES['age_45_54']
+        return PILLAR2_CONTRIBUTION_RATES["age_45_54"]
     else:
-        return PILLAR2_CONTRIBUTION_RATES['age_55_plus']
+        return PILLAR2_CONTRIBUTION_RATES["age_55_plus"]
 
 
 def get_canton_tax_rate(canton: str) -> float:
     """
     Ermittle den Steuersatz für einen Kanton
-    
+
     Args:
         canton: Kantons-Abkürzung (z.B. 'ZH', 'BE')
-    
+
     Returns:
         Steuersatz als Dezimal (z.B. 0.165 = 16.5%)
     """

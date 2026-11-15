@@ -18,13 +18,13 @@ class SalaryDeductions:
     gross_monthly_income: float
 
     # Sozialversicherungen (Arbeitnehmer)
-    ahv_iv_eo: float           # AHV/IV/EO auf dem ganzen Lohn
-    alv: float                 # ALV bis zum Höchstlohn
-    nbu: float                 # Nichtberufsunfall bis zum UVG-Höchstlohn
+    ahv_iv_eo: float  # AHV/IV/EO auf dem ganzen Lohn
+    alv: float  # ALV bis zum Höchstlohn
+    nbu: float  # Nichtberufsunfall bis zum UVG-Höchstlohn
 
     # Weitere Abzüge
-    krankenkasse: float        # Durchschnittliche Krankenkassenprämie (Annahme)
-    pensionskasse: float       # 2. Säule Beitrag Arbeitnehmer
+    krankenkasse: float  # Durchschnittliche Krankenkassenprämie (Annahme)
+    pensionskasse: float  # 2. Säule Beitrag Arbeitnehmer
 
     # Steuerschätzung (grob)
     income_tax: float
@@ -108,20 +108,20 @@ class DeductionsCalculator:
         result = self.calculate()
 
         return {
-            'gross_monthly': result.gross_monthly_income,
-            'gross_annual': self.gross_annual_income,
-            'net_monthly': result.net_monthly_income,
-            'net_annual': result.net_monthly_income * 12,
-            'deductions': {
-                'ahv_iv_eo': result.ahv_iv_eo,
-                'alv': result.alv,
-                'nbu': result.nbu,
-                'krankenkasse': result.krankenkasse,
-                'pensionskasse': result.pensionskasse,
-                'income_tax': result.income_tax,
+            "gross_monthly": result.gross_monthly_income,
+            "gross_annual": self.gross_annual_income,
+            "net_monthly": result.net_monthly_income,
+            "net_annual": result.net_monthly_income * 12,
+            "deductions": {
+                "ahv_iv_eo": result.ahv_iv_eo,
+                "alv": result.alv,
+                "nbu": result.nbu,
+                "krankenkasse": result.krankenkasse,
+                "pensionskasse": result.pensionskasse,
+                "income_tax": result.income_tax,
             },
-            'total_deductions': result.total_employee_deductions,
-            'net_rate': (
+            "total_deductions": result.total_employee_deductions,
+            "net_rate": (
                 result.net_monthly_income / result.gross_monthly_income
                 if result.gross_monthly_income
                 else 0.0

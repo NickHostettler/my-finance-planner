@@ -40,14 +40,10 @@ def _is_reloader_child() -> bool:
     return os.environ.get("WERKZEUG_RUN_MAIN") == "true"
 
 
-def run_dashboard(
-    debug: bool = False, port: int = DEFAULT_PORT, open_browser: bool = True
-) -> None:
+def run_dashboard(debug: bool = False, port: int = DEFAULT_PORT, open_browser: bool = True) -> None:
     """Run the dashboard on localhost and, by default, open it in the browser."""
     if open_browser and not _is_reloader_child():
-        threading.Thread(
-            target=open_browser_when_ready, args=(HOST, port), daemon=True
-        ).start()
+        threading.Thread(target=open_browser_when_ready, args=(HOST, port), daemon=True).start()
     app.run(debug=debug, port=port, host=HOST)
 
 

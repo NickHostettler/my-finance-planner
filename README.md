@@ -326,6 +326,7 @@ Jeder Pull Request und jeder Push auf `main` startet [GitHub Actions](.github/wo
 
 ```bash
 uv run ruff check .
+uv run ruff format --check .
 ```
 
 ## License

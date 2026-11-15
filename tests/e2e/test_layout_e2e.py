@@ -32,6 +32,25 @@ def test_every_tab_shows_its_results(alice):
     assert alice.errors == []
 
 
+def test_phone_never_scrolls_sideways_in_any_tab(phone_user):
+    # Charts in tabs that are hidden while they render start 700px wide (Plotly's default).
+    # They must shrink to the phone width once their tab is shown.
+    phone_user.open()
+    page = phone_user.page
+
+    for tab in ["Vorsorge", "Wohneigentum", "Annahmen", "Übersicht"]:
+        page.get_by_role("tab", name=tab).click()
+        page.wait_for_timeout(500)
+        assert _no_horizontal_scroll(page), tab
+        widths = page.evaluate(
+            "() => [...document.querySelectorAll('.js-plotly-plot')]"
+            ".filter(plot => plot.offsetParent)"
+            ".map(plot => plot.getBoundingClientRect().width)"
+        )
+        assert all(width <= 390 for width in widths), (tab, widths)
+    assert phone_user.errors == []
+
+
 def test_phone_hides_inputs_behind_the_menu(phone_user):
     phone_user.open()
     page = phone_user.page

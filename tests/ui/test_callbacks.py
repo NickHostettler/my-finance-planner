@@ -43,6 +43,16 @@ VALID_INPUTS = {
     "display_basis": "nominal",
     "ahv_average_income": None,
     "ahv_contribution_years": 44,
+    "home_plan": "off",
+    "home_price": 900_000,
+    "home_purchase_age": None,
+    "home_savings": 200_000,
+    "home_pillar3a": 0,
+    "home_pillar2": 0,
+    "home_gross_income": None,
+    "home_imputed_rate": 5,
+    "home_mortgage_rate": 2,
+    "home_amortisation": "direct",
 }
 
 
@@ -130,13 +140,279 @@ def test_capped_3a_contribution_is_explained():
     assert "Modell-Limit" in notice
 
 
-def test_results_fill_all_three_tabs():
-    overview, pension, assumptions, _ = results()
+def test_results_fill_all_tabs():
+    overview, pension, home, assumptions, _ = results()
 
-    texts = [repr(section) for section in (overview, pension, assumptions)]
+    texts = [repr(section) for section in (overview, pension, home, assumptions)]
     assert "Projiziertes Vorsorgekapital" in texts[0]
     assert "Dein Sparplan" in texts[1]
-    assert "Modell statt Beratung" in texts[2]
+    assert "Wohneigentum planen" in texts[2]
+    assert "Modell statt Beratung" in texts[3]
+
+
+# --- the "Wohneigentum" tab (issue #25) ----------------------------------------------------
+
+HOME = {
+    # Enough in the pension fund and free assets for the purchase today (age 35).
+    "initial_2": 100_000,
+    "initial_3b": 200_000,
+    "home_plan": "on",
+    "home_price": 1_000_000,
+    "home_savings": 170_000,
+    "home_pillar3a": 0,
+    "home_pillar2": 60_000,
+    "home_gross_income": 200_000,
+    "home_imputed_rate": 5,
+}
+
+
+def texts(component):
+    """All texts in a component tree (children, titles and aria labels), joined."""
+    found = []
+    for node in [component, *component._traverse()]:
+        for prop in ("children", "title", "aria-label"):
+            value = getattr(node, prop, None)
+            if isinstance(value, str):
+                found.append(value)
+    return " ".join(found)
+
+
+def home_tab(**overrides):
+    return results(**{**HOME, **overrides})[2]
+
+
+def test_home_tab_shows_the_assessment_with_traffic_light():
+    tab = home_tab()
+    text = texts(tab)
+
+    assert "Tragbar" in text
+    assert "Ampel: Tragbar" in text
+    assert "CHF 200’000" in text  # equity
+    assert "CHF 800’000" in text  # mortgage
+    assert "Maximal finanzierbarer Kaufpreis" in text
+    lamps = [node for node in tab._traverse() if "lamp-on" in str(getattr(node, "className", ""))]
+    # First light: affordability of the purchase (the second one is for retirement).
+    assert lamps[0].className == "lamp lamp-green lamp-on"
+
+
+@pytest.mark.parametrize(
+    ("overrides", "headline", "reason"),
+    [
+        ({"home_gross_income": 185_000}, "Knapp tragbar", "nahe an der Grenze"),
+        (
+            {"home_savings": 100_000, "home_pillar2": 130_000, "initial_2": 200_000},
+            "Nicht tragbar",
+            "harte Eigenmittel",
+        ),
+        ({"home_gross_income": 120_000}, "Nicht tragbar", "erlaubt ist höchstens"),
+    ],
+)
+def test_home_tab_explains_why_a_purchase_is_tight_or_not_affordable(overrides, headline, reason):
+    text = texts(home_tab(**overrides))
+
+    assert f"Ampel: {headline}" in text
+    assert reason in text
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"home_price": None}, "Kaufpreis"),
+        ({"home_price": ""}, "Kaufpreis"),
+        ({"home_imputed_rate": 0}, "kalkulatorische Zins"),
+        ({"home_imputed_rate": None}, "kalkulatorische Zins"),
+        ({"home_savings": -5}, "Ersparte"),
+        ({"home_purchase_age": 65}, "Kaufalter"),
+        ({"home_purchase_age": 30}, "Kaufalter"),
+        ({"home_savings": 2_000_000}, "höher als Kaufpreis"),
+    ],
+)
+def test_invalid_home_inputs_show_a_message_only_in_the_home_tab(overrides, message):
+    overview, _, home, _, _ = results(**{**HOME, **overrides})
+
+    assert home.className == "validation-message"
+    assert "Wohneigentum" in home.children[0].children
+    assert message in home.children[1].children
+    assert getattr(overview, "className", None) != "validation-message"
+
+
+def test_home_tab_uses_the_income_inputs_without_an_entered_gross_income():
+    net = texts(home_tab(home_gross_income=None))
+    gross = texts(home_tab(home_gross_income=None, income_type="gross", income=16_000))
+
+    assert "Bruttoeinkommen fehlt" in net
+    assert "CHF 86’400" in net  # 7'200 net per month x 12
+    assert "Bruttoeinkommen fehlt" not in gross
+    assert "CHF 192’000" in gross  # 16'000 gross per month x 12
+
+
+def test_without_a_planned_purchase_the_other_tabs_stay_the_same():
+    # Regression: the "off" switch must give exactly the results of v1.0.
+    not_planned = results(**{**HOME, "home_plan": "off"})
+    before_home_ownership = results(initial_2=100_000, initial_3b=200_000)
+
+    assert [repr(section) for section in not_planned[:2]] == [
+        repr(section) for section in before_home_ownership[:2]
+    ]
+    assert "Wohneigentum planen" in texts(not_planned[2])
+
+
+def test_invalid_purchase_leaves_the_other_tabs_without_purchase():
+    invalid = results(**{**HOME, "home_price": None})
+    not_planned = results(**{**HOME, "home_plan": "off"})
+
+    assert repr(invalid[0]) == repr(not_planned[0])
+
+
+# --- money from the 2nd pillar and 3a (issue #26) ----------------------------------------
+
+
+def metric_values(component):
+    return [
+        node.children
+        for node in component._traverse()
+        if getattr(node, "className", None) == "metric-value"
+    ]
+
+
+def chf(text):
+    return float(text.replace("CHF ", "").replace("’", "").replace("/Monat", ""))
+
+
+def test_withdrawals_lower_the_retirement_capital_in_overview_and_home_tab():
+    planned = results(**{**HOME, "home_pillar3a": 10_000, "initial_3a": 20_000})
+    not_planned = results(
+        **{**HOME, "home_pillar3a": 10_000, "initial_3a": 20_000, "home_plan": "off"}
+    )
+
+    with_purchase, without = metric_values(planned[0]), metric_values(not_planned[0])
+    # Overview: total, 2nd pillar, 3a and 3b are lower after the purchase.
+    for index in range(4):
+        assert chf(with_purchase[index]) < chf(without[index])
+    assert (
+        "Mit dem geplanten Kauf mit 35 Jahren: Vorbezug Pensionskasse CHF 60’000, "
+        "Bezug 3a CHF 10’000, Erspartes aus dem freien Vermögen CHF 170’000" in texts(planned[0])
+    )
+
+    home = texts(planned[2])
+    assert "Vorsorge mit und ohne Kauf" in home
+    assert "Möglicher Vorbezug" in home
+    assert f"ohne Kauf {without[1]}" in home  # 2nd pillar card names the value without purchase
+    figure = next(
+        node.figure
+        for node in planned[2]._traverse()
+        if hasattr(node, "figure") and node.figure.data[0].name == "2. Säule ohne Kauf"
+    )
+    pillar2_without, pillar2_with = figure.data[0].y, figure.data[1].y
+    assert pillar2_without[0] == 100_000
+    assert pillar2_with[0] == 40_000  # 60'000 withdrawn at once
+    assert chf(without[1]) == pytest.approx(pillar2_without[-1], abs=1)
+
+
+def test_real_view_shows_the_home_capital_in_todays_purchasing_power():
+    nominal = texts(results(**HOME)[2])
+    real = texts(results(**{**HOME, "display_basis": "real"})[2])
+
+    assert "Gestrichelt ohne Kauf · nominal" in nominal
+    assert "Gestrichelt ohne Kauf · heutige Kaufkraft" in real
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"home_pillar2": 10_000}, "mindestens CHF 20’000"),
+        ({"home_pillar2": 150_000}, "höchstens CHF 100’000"),
+        ({"home_pillar2": 60_000, "home_purchase_age": 63}, "bis Alter 62"),
+        ({"home_pillar3a": 5_000}, "Säule 3a ist zum Kaufzeitpunkt nicht möglich"),
+        ({"home_pillar3a": -1}, "3a-Geld"),
+    ],
+)
+def test_withdrawals_beyond_the_rules_are_explained(overrides, message):
+    home = results(**{**HOME, **overrides})[2]
+
+    assert home.className == "validation-message"
+    assert message in home.children[1].children
+
+
+def test_from_50_only_the_balance_at_50_or_half_can_be_withdrawn():
+    # Today 55: the balance at 50 is not known, so the model takes half (cautious).
+    home = texts(results(**{**HOME, "current_age": 55, "home_pillar2": 50_000})[2])
+
+    assert "Möglicher Vorbezug" in home
+    assert "CHF 50’000" in home
+    assert "vorsichtig mit der Hälfte" in home
+
+
+def test_home_tab_shows_mortgage_net_wealth_and_retirement():
+    tab = results(**HOME)[2]
+    text = texts(tab)
+
+    assert "Hypothek und Vermögen bis zur Pensionierung" in text
+    assert "Direkt (gewählt)" in text
+    assert "Indirekt über 3a" in text
+    assert "Tragbarkeit im Alter" in text
+    assert "Angaben fehlen" in text  # no AHV estimate entered
+    assert "Eigenmietwert" in text and "1. Januar 2029" in text
+    figure = next(
+        node.figure
+        for node in tab._traverse()
+        if hasattr(node, "figure") and node.figure.data[0].name == "Vorsorge und Vermögen"
+    )
+    names = [trace.name for trace in figure.data]
+    assert names == [
+        "Vorsorge und Vermögen",
+        "Immobilie (Kaufpreis)",
+        "Hypothekarschuld",
+        "Nettovermögen",
+    ]
+    debt = figure.data[2].y
+    assert debt[0] == pytest.approx(800_000)
+    assert debt[15] == pytest.approx(800_000 - 400_000 / 3)  # 2nd mortgage gone after 15 y
+    assert figure.data[3].y[0] == pytest.approx(figure.data[0].y[0] + figure.data[1].y[0] - debt[0])
+
+
+def test_ahv_estimate_counts_for_the_retirement_check():
+    text = texts(results(**{**HOME, "ahv_average_income": 90_720})[2])
+
+    assert "Angaben fehlen" not in text
+    assert "AHV pro Monat" in text
+
+
+def test_indirect_amortisation_keeps_the_debt_and_grows_3a():
+    # 3a plan 5 % of 7'200 = 4'320 per year: room for pledged 3a payments below the limit.
+    direct = results(**{**HOME, "savings_rate": 5})
+    indirect = results(**{**HOME, "savings_rate": 5, "home_amortisation": "indirect"})
+
+    assert "Indirekt über 3a (gewählt)" in texts(indirect[2])
+    # Overview: the pledged 3a account is part of 3a.
+    assert chf(metric_values(indirect[0])[2]) > chf(metric_values(direct[0])[2])
+
+
+def test_indirect_amortisation_beyond_the_3a_limit_is_explained():
+    text = texts(results(**{**HOME, "home_amortisation": "indirect", "savings_rate": 20})[2])
+
+    assert "3a-Limit erreicht" in text
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"home_mortgage_rate": None}, "Hypothekarzins"),
+        ({"home_mortgage_rate": 16}, "Hypothekarzins"),
+        ({"home_amortisation": "other"}, "direkte oder indirekte"),
+    ],
+)
+def test_invalid_mortgage_inputs(overrides, message):
+    home = results(**{**HOME, **overrides})[2]
+
+    assert message in home.children[1].children
+
+
+def test_savings_beyond_the_free_assets_are_assumed_to_come_from_outside():
+    home = texts(results(**{**HOME, "initial_3b": 50_000})[2])
+
+    assert "Erspartes ausserhalb der Prognose" in home
+    assert "CHF 120’000" in home  # 170'000 savings - 50'000 free assets
 
 
 # --- values coming from the Mantine input fields ------------------------------------------
@@ -163,9 +439,9 @@ def test_fields_receive_the_return_as_text_and_empty_values_as_none():
     values = browser_store.values_to_inputs({**VALID_INPUTS, "assumed_return": None})
 
     assert callbacks._to_components(values)[SCENARIO_INPUT_IDS.index("return-input")] is None
-    stored = callbacks._from_components(callbacks._to_components(
-        browser_store.values_to_inputs(VALID_INPUTS)
-    ))
+    stored = callbacks._from_components(
+        callbacks._to_components(browser_store.values_to_inputs(VALID_INPUTS))
+    )
     assert stored == browser_store.values_to_inputs(VALID_INPUTS)
 
 
@@ -180,9 +456,7 @@ def test_fields_receive_the_return_as_text_and_empty_values_as_none():
     ],
 )
 def test_income_controls_follow_period_and_type(period, income_type, label, unit, canton_display):
-    shown_label, shown_unit, width, hint, canton_style = update_income_controls(
-        period, income_type
-    )
+    shown_label, shown_unit, width, hint, canton_style = update_income_controls(period, income_type)
 
     assert (shown_label, shown_unit, canton_style["display"]) == (label, unit, canton_display)
     assert width > 0
@@ -218,9 +492,7 @@ def test_number_input_with_unit_and_whole_numbers_only():
 
 def scenarios(trigger, store_data, selected=None, name=None):
     inputs = browser_store.values_to_inputs(VALID_INPUTS)
-    return run_callback(
-        trigger, manage_scenarios, 0, 0, 0, 0, name, selected, store_data, *inputs
-    )
+    return run_callback(trigger, manage_scenarios, 0, 0, 0, 0, name, selected, store_data, *inputs)
 
 
 def status_text(result):

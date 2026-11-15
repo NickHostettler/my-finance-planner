@@ -76,6 +76,92 @@ def projection_figure(
     return figure
 
 
+def withdrawal_figure(
+    ages: List[int],
+    pillar2_without: List[float],
+    pillar2_with: List[float],
+    pillar3a_without: List[float],
+    pillar3a_with: List[float],
+) -> go.Figure:
+    """2nd pillar and 3a with the withdrawals for the purchase (solid) and without (dotted)."""
+    figure = go.Figure()
+    series = [
+        ("2. Säule ohne Kauf", pillar2_without, COLORS["green"], "dot"),
+        ("2. Säule mit Kauf", pillar2_with, COLORS["green"], "solid"),
+        ("3a ohne Kauf", pillar3a_without, COLORS["blue"], "dot"),
+        ("3a mit Kauf", pillar3a_with, COLORS["blue"], "solid"),
+    ]
+    for label, values, color, dash in series:
+        figure.add_trace(
+            go.Scatter(
+                x=ages,
+                y=values,
+                name=label,
+                mode="lines",
+                line={"color": color, "width": 2.5 if dash == "solid" else 1.8, "dash": dash},
+                hovertemplate=f"<b>{label}</b><br>Alter %{{x}}<br>%{{y:,.0f}} CHF<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        **chart_layout(
+            height=320,
+            hovermode="x unified",
+            xaxis={"showgrid": False, "zeroline": False, "title": None, "dtick": 5},
+        )
+    )
+    return figure
+
+
+def wealth_figure(
+    ages: List[int],
+    savings: List[float],
+    property_value: List[float],
+    debt: List[float],
+    net_wealth: List[float],
+) -> go.Figure:
+    """Savings and the home (stacked), the mortgage debt and the net wealth over time."""
+    figure = go.Figure()
+    for label, values, color in [
+        ("Vorsorge und Vermögen", savings, COLORS["green"]),
+        ("Immobilie (Kaufpreis)", property_value, COLORS["gold"]),
+    ]:
+        figure.add_trace(
+            go.Scatter(
+                x=ages,
+                y=values,
+                name=label,
+                mode="lines",
+                stackgroup="assets",
+                line={"color": color, "width": 1.5},
+                fillcolor=color,
+                opacity=0.5,
+                hovertemplate=f"<b>{label}</b><br>Alter %{{x}}<br>%{{y:,.0f}} CHF<extra></extra>",
+            )
+        )
+    for label, values, color, dash, width in [
+        ("Hypothekarschuld", debt, COLORS["red"], "dash", 2.5),
+        ("Nettovermögen", net_wealth, COLORS["ink"], "solid", 3),
+    ]:
+        figure.add_trace(
+            go.Scatter(
+                x=ages,
+                y=values,
+                name=label,
+                mode="lines",
+                line={"color": color, "width": width, "dash": dash},
+                hovertemplate=f"<b>{label}</b><br>Alter %{{x}}<br>%{{y:,.0f}} CHF<extra></extra>",
+            )
+        )
+    figure.update_layout(
+        **chart_layout(
+            height=360,
+            hovermode="x unified",
+            xaxis={"showgrid": False, "zeroline": False, "title": None, "dtick": 5},
+        )
+    )
+    return figure
+
+
 def composition_figure(
     pillar2,
     pillar3a,
@@ -89,13 +175,10 @@ def composition_figure(
     initial_balance = initial_2 + initial_3a + initial_3b
     years = pillar2.years_until_retirement
     contributions_per_year = (
-        pillar2.annual_contribution_total
-        + pillar3a.annual_savings
-        + pillar3b.annual_savings
+        pillar2.annual_contribution_total + pillar3a.annual_savings + pillar3b.annual_savings
     )
     contributions = sum(
-        contributions_per_year / ((1 + inflation_rate) ** year)
-        for year in range(1, years + 1)
+        contributions_per_year / ((1 + inflation_rate) ** year) for year in range(1, years + 1)
     )
     projected_total = (
         project_balance(
@@ -139,7 +222,13 @@ def composition_figure(
         **chart_layout(
             height=300,
             showlegend=True,
-            legend={"orientation": "h", "y": -0.02, "x": 0.5, "xanchor": "center", "font": {"size": 11}},
+            legend={
+                "orientation": "h",
+                "y": -0.02,
+                "x": 0.5,
+                "xanchor": "center",
+                "font": {"size": 11},
+            },
             annotations=[
                 {
                     "text": "Bis zur<br>Pensionierung",

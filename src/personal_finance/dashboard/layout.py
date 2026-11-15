@@ -28,13 +28,32 @@ NAVBAR_WIDTH = 350
 MOBILE_BREAKPOINT = 768  # px; below this the inputs move behind the burger menu
 
 CANTONS = [
-    ("ZH", "Zürich"), ("BE", "Bern"), ("LU", "Luzern"), ("UR", "Uri"), ("SZ", "Schwyz"),
-    ("OW", "Obwalden"), ("NW", "Nidwalden"), ("GL", "Glarus"), ("ZG", "Zug"),
-    ("FR", "Freiburg"), ("SO", "Solothurn"), ("BS", "Basel-Stadt"),
-    ("BL", "Basel-Landschaft"), ("SH", "Schaffhausen"), ("AR", "Appenzell Ausserrhoden"),
-    ("AI", "Appenzell Innerrhoden"), ("SG", "St. Gallen"), ("GR", "Graubünden"),
-    ("AG", "Aargau"), ("TG", "Thurgau"), ("TI", "Tessin"), ("VD", "Waadt"),
-    ("VS", "Wallis"), ("NE", "Neuenburg"), ("GE", "Genf"), ("JU", "Jura"),
+    ("ZH", "Zürich"),
+    ("BE", "Bern"),
+    ("LU", "Luzern"),
+    ("UR", "Uri"),
+    ("SZ", "Schwyz"),
+    ("OW", "Obwalden"),
+    ("NW", "Nidwalden"),
+    ("GL", "Glarus"),
+    ("ZG", "Zug"),
+    ("FR", "Freiburg"),
+    ("SO", "Solothurn"),
+    ("BS", "Basel-Stadt"),
+    ("BL", "Basel-Landschaft"),
+    ("SH", "Schaffhausen"),
+    ("AR", "Appenzell Ausserrhoden"),
+    ("AI", "Appenzell Innerrhoden"),
+    ("SG", "St. Gallen"),
+    ("GR", "Graubünden"),
+    ("AG", "Aargau"),
+    ("TG", "Thurgau"),
+    ("TI", "Tessin"),
+    ("VD", "Waadt"),
+    ("VS", "Wallis"),
+    ("NE", "Neuenburg"),
+    ("GE", "Genf"),
+    ("JU", "Jura"),
 ]
 
 RETURN_OPTIONS = [
@@ -205,7 +224,9 @@ _income_group = _group(
         dmc.Text(id="income-preview", className="income-preview"),
         dmc.SimpleGrid(
             [
-                number_input("current-age-input", "Aktuelles Alter", 35, 18, 1, "Jahre", 80, decimals=0),
+                number_input(
+                    "current-age-input", "Aktuelles Alter", 35, 18, 1, "Jahre", 80, decimals=0
+                ),
                 number_input(
                     "retirement-age-input",
                     "Pensionierung mit",
@@ -311,9 +332,15 @@ _pillar2_group = _group(
         ),
         html.Div(
             [
-                number_input("pillar2-employee-input", "Dein Beitrag (Arbeitnehmer)", None, 0, 10, "CHF/Mt."),
-                number_input("pillar2-employer-input", "Beitrag Arbeitgeber", None, 0, 10, "CHF/Mt."),
-                number_input("pillar2-return-input", "Verzinsung gemäss PK-Ausweis", None, 0, 0.05, "%", 20),
+                number_input(
+                    "pillar2-employee-input", "Dein Beitrag (Arbeitnehmer)", None, 0, 10, "CHF/Mt."
+                ),
+                number_input(
+                    "pillar2-employer-input", "Beitrag Arbeitgeber", None, 0, 10, "CHF/Mt."
+                ),
+                number_input(
+                    "pillar2-return-input", "Verzinsung gemäss PK-Ausweis", None, 0, 0.05, "%", 20
+                ),
             ],
             id="pillar2-custom-fields",
             className="field-stack",
@@ -393,6 +420,122 @@ _pillar3b_group = _group(
     ],
 )
 
+_home_defaults = browser_store.FIELD_DEFAULTS
+
+_home_group = _group(
+    "home",
+    "Wohneigentum",
+    "⌂",
+    [
+        segmented(
+            "home-plan-input",
+            "Eigenheim",
+            [
+                {"label": "Kein Kauf geplant", "value": "off"},
+                {"label": "Kauf planen", "value": "on"},
+            ],
+            _home_defaults["home_plan"],
+            "Selbst bewohntes Eigentum. Ohne Kauf bleibt die Prognose unverändert.",
+        ),
+        html.Div(
+            [
+                number_input(
+                    "home-price-input",
+                    "Kaufpreis",
+                    _home_defaults["home_price"],
+                    0,
+                    10000,
+                    "CHF",
+                ),
+                number_input(
+                    "home-purchase-age-input",
+                    "Kauf mit Alter",
+                    None,
+                    18,
+                    1,
+                    "Jahren",
+                    config.MAX_RETIREMENT_AGE,
+                    description="Leer = heute (dein aktuelles Alter)",
+                    decimals=0,
+                ),
+                dmc.Text("Eigenkapital für den Kauf", fw=600, size="sm", mt="xs"),
+                number_input(
+                    "home-savings-input",
+                    "Erspartes und Wertschriften",
+                    _home_defaults["home_savings"],
+                    0,
+                    1000,
+                    "CHF",
+                    description="Inkl. Geld für die Kaufnebenkosten",
+                ),
+                number_input(
+                    "home-pillar3a-input",
+                    "Aus der Säule 3a",
+                    _home_defaults["home_pillar3a"],
+                    0,
+                    1000,
+                    "CHF",
+                    description="Zählt als harte Eigenmittel",
+                ),
+                number_input(
+                    "home-pillar2-input",
+                    "Aus der Pensionskasse (Vorbezug)",
+                    _home_defaults["home_pillar2"],
+                    0,
+                    1000,
+                    "CHF",
+                    description="Zählt nicht als harte Eigenmittel",
+                ),
+                dmc.Text("Tragbarkeit", fw=600, size="sm", mt="xs"),
+                number_input(
+                    "home-gross-income-input",
+                    "Bruttoeinkommen des Haushalts",
+                    None,
+                    0,
+                    1000,
+                    "CHF/Jahr",
+                    description="Leer = aus deinen Einkommensangaben",
+                ),
+                number_input(
+                    "home-imputed-rate-input",
+                    "Kalkulatorischer Zins",
+                    _home_defaults["home_imputed_rate"],
+                    0,
+                    0.25,
+                    "%",
+                    15,
+                    description="So rechnen Banken die Tragbarkeit, nicht dein echter Zins",
+                ),
+                dmc.Text("Hypothek in der Prognose", fw=600, size="sm", mt="xs"),
+                number_input(
+                    "home-mortgage-rate-input",
+                    "Effektiver Hypothekarzins",
+                    _home_defaults["home_mortgage_rate"],
+                    0,
+                    0.05,
+                    "%",
+                    15,
+                    description="Dein erwarteter Zins für die Zinskosten",
+                ),
+                segmented(
+                    "home-amortisation-input",
+                    "Amortisation der 2. Hypothek",
+                    [
+                        {"label": "Direkt", "value": "direct"},
+                        {"label": "Indirekt über 3a", "value": "indirect"},
+                    ],
+                    _home_defaults["home_amortisation"],
+                    "Direkt sinkt die Schuld jedes Jahr; indirekt sparst du in ein verpfändetes "
+                    "3a-Konto.",
+                ),
+            ],
+            id="home-fields",
+            className="field-stack",
+            style={"display": "none"},
+        ),
+    ],
+)
+
 _navbar = dmc.AppShellNavbar(
     [
         dmc.Text("DEINE AUSGANGSLAGE", className="eyebrow"),
@@ -410,6 +553,7 @@ _navbar = dmc.AppShellNavbar(
                 _pillar2_group,
                 _pillar3a_group,
                 _pillar3b_group,
+                _home_group,
             ],
             multiple=True,
             value=["income", "balances"],
@@ -482,7 +626,9 @@ _results = html.Div(
                 html.Div(
                     [
                         dmc.Text("DEIN VORSORGE-AUSBLICK", className="eyebrow"),
-                        dmc.Title("Heute planen. Morgen sicherer sein.", order=2, className="page-title"),
+                        dmc.Title(
+                            "Heute planen. Morgen sicherer sein.", order=2, className="page-title"
+                        ),
                     ]
                 ),
                 dmc.SegmentedControl(
@@ -506,11 +652,13 @@ _results = html.Div(
                     [
                         dmc.TabsTab("Übersicht", value="overview"),
                         dmc.TabsTab("Vorsorge", value="pension"),
+                        dmc.TabsTab("Wohneigentum", value="home"),
                         dmc.TabsTab("Annahmen", value="assumptions"),
                     ]
                 ),
                 dmc.TabsPanel(html.Div(id="overview-section"), value="overview", pt="md"),
                 dmc.TabsPanel(html.Div(id="pension-section"), value="pension", pt="md"),
+                dmc.TabsPanel(html.Div(id="home-section"), value="home", pt="md"),
                 dmc.TabsPanel(html.Div(id="assumptions-section"), value="assumptions", pt="md"),
             ],
             id="result-tabs",

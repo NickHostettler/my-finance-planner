@@ -112,8 +112,11 @@ def test_gunicorn_serves_dashboard_and_health(tmp_path):
     port = _free_port()
     process = subprocess.Popen(
         [
-            sys.executable, "-m", "gunicorn",
-            "-c", "python:personal_finance.gunicorn_conf",
+            sys.executable,
+            "-m",
+            "gunicorn",
+            "-c",
+            "python:personal_finance.gunicorn_conf",
             "personal_finance.wsgi:server",
         ],
         env={
