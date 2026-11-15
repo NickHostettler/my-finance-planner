@@ -21,9 +21,9 @@ class WithdrawalLimit:
     """How much can be withdrawn at the time of the purchase (CHF)."""
 
     balance: float
-    maximum: float                 # 0 if no withdrawal is possible
-    minimum: float                 # smallest allowed withdrawal (0 = any amount)
-    reasons: Tuple[str, ...]       # why less than the balance (or nothing) is available
+    maximum: float  # 0 if no withdrawal is possible
+    minimum: float  # smallest allowed withdrawal (0 = any amount)
+    reasons: Tuple[str, ...]  # why less than the balance (or nothing) is available
 
 
 def _chf(value: float) -> str:
@@ -51,9 +51,7 @@ def _too_soon(years_since_last_withdrawal: Optional[int]) -> bool:
     )
 
 
-_TOO_SOON = (
-    f"Ein Bezug ist nur alle {config.WEF_MIN_YEARS_BETWEEN_WITHDRAWALS} Jahre möglich."
-)
+_TOO_SOON = f"Ein Bezug ist nur alle {config.WEF_MIN_YEARS_BETWEEN_WITHDRAWALS} Jahre möglich."
 
 
 def latest_pillar2_age(retirement_age: int) -> int:

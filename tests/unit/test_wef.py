@@ -62,9 +62,7 @@ class TestPillar2MinimumAndDeadline:
     def test_half_rule_can_fall_below_the_minimum(self):
         assert pillar2_limit(30_000, 55, 65).maximum == 0
 
-    @pytest.mark.parametrize(
-        ("retirement_age", "latest"), [(65, 62), (70, 62), (60, 57)]
-    )
+    @pytest.mark.parametrize(("retirement_age", "latest"), [(65, 62), (70, 62), (60, 57)])
     def test_until_three_years_before_retirement(self, retirement_age, latest):
         assert latest_pillar2_age(retirement_age) == latest
         assert pillar2_limit(400_000, latest, retirement_age, 300_000).maximum > 0
@@ -100,9 +98,12 @@ class TestCheckAmount:
         assert check_amount(50_000, pillar2_limit(100_000, 40, 65), PK) == 50_000
 
     def test_more_than_the_maximum(self):
-        with pytest.raises(ValueError, match=r"Aus der Pensionskasse sind .* höchstens "
-                                             r"CHF 150’000 möglich \(Guthaben voraussichtlich "
-                                             r"CHF 300’000\)\. Ab 50"):
+        with pytest.raises(
+            ValueError,
+            match=r"Aus der Pensionskasse sind .* höchstens "
+            r"CHF 150’000 möglich \(Guthaben voraussichtlich "
+            r"CHF 300’000\)\. Ab 50",
+        ):
             check_amount(200_000, pillar2_limit(300_000, 55, 65), PK)
 
     def test_below_the_minimum(self):
@@ -114,8 +115,10 @@ class TestCheckAmount:
             check_amount(50_000, pillar2_limit(300_000, 63, 65), PK)
 
     def test_empty_3a_says_so(self):
-        with pytest.raises(ValueError, match="Säule 3a ist .* nicht möglich. Das Guthaben "
-                                             "beträgt voraussichtlich CHF 0"):
+        with pytest.raises(
+            ValueError,
+            match="Säule 3a ist .* nicht möglich. Das Guthaben beträgt voraussichtlich CHF 0",
+        ):
             check_amount(1, pillar3a_limit(0), "aus der Säule 3a")
 
     @pytest.mark.parametrize("amount", [-1, math.nan, None, "10", True])

@@ -199,8 +199,11 @@ def test_home_tab_shows_the_assessment_with_traffic_light():
     ("overrides", "headline", "reason"),
     [
         ({"home_gross_income": 185_000}, "Knapp tragbar", "nahe an der Grenze"),
-        ({"home_savings": 100_000, "home_pillar2": 130_000, "initial_2": 200_000},
-         "Nicht tragbar", "harte Eigenmittel"),
+        (
+            {"home_savings": 100_000, "home_pillar2": 130_000, "initial_2": 200_000},
+            "Nicht tragbar",
+            "harte Eigenmittel",
+        ),
         ({"home_gross_income": 120_000}, "Nicht tragbar", "erlaubt ist höchstens"),
     ],
 )
@@ -278,23 +281,28 @@ def chf(text):
 
 def test_withdrawals_lower_the_retirement_capital_in_overview_and_home_tab():
     planned = results(**{**HOME, "home_pillar3a": 10_000, "initial_3a": 20_000})
-    not_planned = results(**{**HOME, "home_pillar3a": 10_000, "initial_3a": 20_000,
-                             "home_plan": "off"})
+    not_planned = results(
+        **{**HOME, "home_pillar3a": 10_000, "initial_3a": 20_000, "home_plan": "off"}
+    )
 
     with_purchase, without = metric_values(planned[0]), metric_values(not_planned[0])
     # Overview: total, 2nd pillar, 3a and 3b are lower after the purchase.
     for index in range(4):
         assert chf(with_purchase[index]) < chf(without[index])
-    assert "Mit dem geplanten Kauf mit 35 Jahren: Vorbezug Pensionskasse CHF 60’000, " \
-           "Bezug 3a CHF 10’000, Erspartes aus dem freien Vermögen CHF 170’000" \
-        in texts(planned[0])
+    assert (
+        "Mit dem geplanten Kauf mit 35 Jahren: Vorbezug Pensionskasse CHF 60’000, "
+        "Bezug 3a CHF 10’000, Erspartes aus dem freien Vermögen CHF 170’000" in texts(planned[0])
+    )
 
     home = texts(planned[2])
     assert "Vorsorge mit und ohne Kauf" in home
     assert "Möglicher Vorbezug" in home
     assert f"ohne Kauf {without[1]}" in home  # 2nd pillar card names the value without purchase
-    figure = next(node.figure for node in planned[2]._traverse() if hasattr(node, "figure")
-                  and node.figure.data[0].name == "2. Säule ohne Kauf")
+    figure = next(
+        node.figure
+        for node in planned[2]._traverse()
+        if hasattr(node, "figure") and node.figure.data[0].name == "2. Säule ohne Kauf"
+    )
     pillar2_without, pillar2_with = figure.data[0].y, figure.data[1].y
     assert pillar2_without[0] == 100_000
     assert pillar2_with[0] == 40_000  # 60'000 withdrawn at once
@@ -345,17 +353,22 @@ def test_home_tab_shows_mortgage_net_wealth_and_retirement():
     assert "Tragbarkeit im Alter" in text
     assert "Angaben fehlen" in text  # no AHV estimate entered
     assert "Eigenmietwert" in text and "1. Januar 2029" in text
-    figure = next(node.figure for node in tab._traverse() if hasattr(node, "figure")
-                  and node.figure.data[0].name == "Vorsorge und Vermögen")
+    figure = next(
+        node.figure
+        for node in tab._traverse()
+        if hasattr(node, "figure") and node.figure.data[0].name == "Vorsorge und Vermögen"
+    )
     names = [trace.name for trace in figure.data]
-    assert names == ["Vorsorge und Vermögen", "Immobilie (Kaufpreis)", "Hypothekarschuld",
-                     "Nettovermögen"]
+    assert names == [
+        "Vorsorge und Vermögen",
+        "Immobilie (Kaufpreis)",
+        "Hypothekarschuld",
+        "Nettovermögen",
+    ]
     debt = figure.data[2].y
     assert debt[0] == pytest.approx(800_000)
     assert debt[15] == pytest.approx(800_000 - 400_000 / 3)  # 2nd mortgage gone after 15 y
-    assert figure.data[3].y[0] == pytest.approx(
-        figure.data[0].y[0] + figure.data[1].y[0] - debt[0]
-    )
+    assert figure.data[3].y[0] == pytest.approx(figure.data[0].y[0] + figure.data[1].y[0] - debt[0])
 
 
 def test_ahv_estimate_counts_for_the_retirement_check():
@@ -426,9 +439,9 @@ def test_fields_receive_the_return_as_text_and_empty_values_as_none():
     values = browser_store.values_to_inputs({**VALID_INPUTS, "assumed_return": None})
 
     assert callbacks._to_components(values)[SCENARIO_INPUT_IDS.index("return-input")] is None
-    stored = callbacks._from_components(callbacks._to_components(
-        browser_store.values_to_inputs(VALID_INPUTS)
-    ))
+    stored = callbacks._from_components(
+        callbacks._to_components(browser_store.values_to_inputs(VALID_INPUTS))
+    )
     assert stored == browser_store.values_to_inputs(VALID_INPUTS)
 
 
@@ -443,9 +456,7 @@ def test_fields_receive_the_return_as_text_and_empty_values_as_none():
     ],
 )
 def test_income_controls_follow_period_and_type(period, income_type, label, unit, canton_display):
-    shown_label, shown_unit, width, hint, canton_style = update_income_controls(
-        period, income_type
-    )
+    shown_label, shown_unit, width, hint, canton_style = update_income_controls(period, income_type)
 
     assert (shown_label, shown_unit, canton_style["display"]) == (label, unit, canton_display)
     assert width > 0
@@ -481,9 +492,7 @@ def test_number_input_with_unit_and_whole_numbers_only():
 
 def scenarios(trigger, store_data, selected=None, name=None):
     inputs = browser_store.values_to_inputs(VALID_INPUTS)
-    return run_callback(
-        trigger, manage_scenarios, 0, 0, 0, 0, name, selected, store_data, *inputs
-    )
+    return run_callback(trigger, manage_scenarios, 0, 0, 0, 0, name, selected, store_data, *inputs)
 
 
 def status_text(result):

@@ -272,7 +272,9 @@ def results_view(
                             ),
                             _detail_row("Monatliches Sparen", money(monthly_savings)),
                             _detail_row("Sparquote vom Netto", f"{savings_rate:.1f} %"),
-                            _detail_row("Verbleibend nach 3a & 3b", money(income - monthly_savings)),
+                            _detail_row(
+                                "Verbleibend nach 3a & 3b", money(income - monthly_savings)
+                            ),
                         ],
                         className="detail-list",
                     )

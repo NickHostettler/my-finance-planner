@@ -127,9 +127,7 @@ def _scenario_action_response(
     is_error=False,
 ):
     status_class = (
-        "scenario-status-message scenario-status-error"
-        if is_error
-        else "scenario-status-message"
+        "scenario-status-message scenario-status-error" if is_error else "scenario-status-message"
     )
     status = html.Span(message, className=status_class) if message else ""
     updated_values = (
@@ -372,7 +370,9 @@ def update_results(*component_values):
     if current_age is None or retirement_age is None:
         return show_error("Bitte wähle dein aktuelles Alter und dein Pensionierungsalter.")
     if current_age < 18 or retirement_age < current_age:
-        return show_error("Das Pensionierungsalter muss mindestens deinem aktuellen Alter entsprechen.")
+        return show_error(
+            "Das Pensionierungsalter muss mindestens deinem aktuellen Alter entsprechen."
+        )
     try:
         monthly_net_income, monthly_gross_income = normalize_income(
             income,
@@ -390,13 +390,13 @@ def update_results(*component_values):
     if savings_mode not in {"rate", "amount"}:
         return show_error("Bitte wähle eine gültige Beitragsart für die 3a.")
     if savings_mode == "rate" and (
-        savings_rate is None or not math.isfinite(float(savings_rate)) or not 0 <= savings_rate <= 100
+        savings_rate is None
+        or not math.isfinite(float(savings_rate))
+        or not 0 <= savings_rate <= 100
     ):
         return show_error("Die Sparquote muss zwischen 0 und 100 Prozent liegen.")
     if savings_mode == "amount" and (
-        pillar3a_amount is None
-        or not math.isfinite(float(pillar3a_amount))
-        or pillar3a_amount < 0
+        pillar3a_amount is None or not math.isfinite(float(pillar3a_amount)) or pillar3a_amount < 0
     ):
         return show_error("Der monatliche 3a-Beitrag muss mindestens 0 CHF betragen.")
     if pillar3b_amount is None or not math.isfinite(float(pillar3b_amount)) or pillar3b_amount < 0:
@@ -413,11 +413,23 @@ def update_results(*component_values):
     if pillar2_mode not in {"minimum", "custom"}:
         return show_error("Bitte wähle eine Berechnungsgrundlage für die 2. Säule.")
     if pillar2_mode == "custom":
-        if pillar2_employee is None or not math.isfinite(float(pillar2_employee)) or pillar2_employee < 0:
+        if (
+            pillar2_employee is None
+            or not math.isfinite(float(pillar2_employee))
+            or pillar2_employee < 0
+        ):
             return show_error("Der monatliche Arbeitnehmerbeitrag muss mindestens 0 CHF betragen.")
-        if pillar2_employer is None or not math.isfinite(float(pillar2_employer)) or pillar2_employer < 0:
+        if (
+            pillar2_employer is None
+            or not math.isfinite(float(pillar2_employer))
+            or pillar2_employer < 0
+        ):
             return show_error("Der monatliche Arbeitgeberbeitrag muss mindestens 0 CHF betragen.")
-        if pillar2_return is None or not math.isfinite(float(pillar2_return)) or not 0 <= pillar2_return <= 20:
+        if (
+            pillar2_return is None
+            or not math.isfinite(float(pillar2_return))
+            or not 0 <= pillar2_return <= 20
+        ):
             return show_error("Die Verzinsung der 2. Säule muss zwischen 0 und 20 Prozent liegen.")
     if assumed_return is None or assumed_return not in {0.02, 0.04, 0.06}:
         return show_error("Bitte wähle eine der angebotenen Renditeannahmen.")
@@ -490,8 +502,7 @@ def update_results(*component_values):
         dict(zip(browser_store.SCENARIO_FIELDS, values)),
         current_age=int(current_age),
         retirement_age=int(retirement_age),
-        income_annual=(monthly_gross_income if income_type == "gross" else monthly_net_income)
-        * 12,
+        income_annual=(monthly_gross_income if income_type == "gross" else monthly_net_income) * 12,
         income_is_net=income_type != "gross",
         pots=pots,
         display_basis=display_basis,
@@ -524,9 +535,7 @@ def update_results(*component_values):
         initial_3a=float(initial_3a),
         initial_3b=float(initial_3b),
         display_basis=display_basis,
-        ahv_average_income=(
-            None if ahv_average_income is None else float(ahv_average_income)
-        ),
+        ahv_average_income=(None if ahv_average_income is None else float(ahv_average_income)),
         ahv_contribution_years=int(ahv_contribution_years),
         paths=None if plan is None else plan.with_purchase,
         purchase_note=None if plan is None else plan.withdrawal_note(),
@@ -604,8 +613,10 @@ NOTICE_VERSION = 1  # increase to show the notice again to everyone after a chan
 
 
 def _notice_acknowledged(store_data) -> bool:
-    return isinstance(store_data, dict) and store_data.get("version") == NOTICE_VERSION and (
-        store_data.get("acknowledged") is True
+    return (
+        isinstance(store_data, dict)
+        and store_data.get("version") == NOTICE_VERSION
+        and (store_data.get("acknowledged") is True)
     )
 
 
@@ -647,7 +658,8 @@ app.clientside_callback(
         window.location.reload();
         return "";
     }
-    """ % repr(STORAGE_KEY_PREFIX),
+    """
+    % repr(STORAGE_KEY_PREFIX),
     Output("clear-browser-data-done", "children"),
     Input("clear-browser-data-confirm", "submit_n_clicks"),
     prevent_initial_call=True,

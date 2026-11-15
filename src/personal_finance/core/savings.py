@@ -10,12 +10,13 @@ from dataclasses import dataclass
 @dataclass
 class SavingsAnalysis:
     """Analyse der Sparfähigkeit"""
+
     monthly_net_income: float
-    monthly_expenses_max: float       # Maximale monatliche Ausgaben (100% - Sparen)
-    savings_rate: float               # Sparquote (z.B. 0.10 = 10%)
-    savings_per_month: float          # Sparbetrag pro Monat
-    savings_per_year: float           # Sparbetrag pro Jahr
-    remaining_income: float           # Verbleibendes Einkommen nach Sparen
+    monthly_expenses_max: float  # Maximale monatliche Ausgaben (100% - Sparen)
+    savings_rate: float  # Sparquote (z.B. 0.10 = 10%)
+    savings_per_month: float  # Sparbetrag pro Monat
+    savings_per_year: float  # Sparbetrag pro Jahr
+    remaining_income: float  # Verbleibendes Einkommen nach Sparen
 
 
 class SavingsCalculator:

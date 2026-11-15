@@ -175,13 +175,10 @@ def composition_figure(
     initial_balance = initial_2 + initial_3a + initial_3b
     years = pillar2.years_until_retirement
     contributions_per_year = (
-        pillar2.annual_contribution_total
-        + pillar3a.annual_savings
-        + pillar3b.annual_savings
+        pillar2.annual_contribution_total + pillar3a.annual_savings + pillar3b.annual_savings
     )
     contributions = sum(
-        contributions_per_year / ((1 + inflation_rate) ** year)
-        for year in range(1, years + 1)
+        contributions_per_year / ((1 + inflation_rate) ** year) for year in range(1, years + 1)
     )
     projected_total = (
         project_balance(
@@ -225,7 +222,13 @@ def composition_figure(
         **chart_layout(
             height=300,
             showlegend=True,
-            legend={"orientation": "h", "y": -0.02, "x": 0.5, "xanchor": "center", "font": {"size": 11}},
+            legend={
+                "orientation": "h",
+                "y": -0.02,
+                "x": 0.5,
+                "xanchor": "center",
+                "font": {"size": 11},
+            },
             annotations=[
                 {
                     "text": "Bis zur<br>Pensionierung",

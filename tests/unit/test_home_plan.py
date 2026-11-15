@@ -24,8 +24,16 @@ INPUTS = HomeInputs(
 POTS = (Pot(0, 0, 100_000), Pot(0, 0, 0), Pot(0, 0, 200_000))
 
 
-def plan(inputs=INPUTS, current_age=35, retirement_age=65, income=200_000, income_is_net=False,
-         pots=POTS, ahv_annual=None, **changes):
+def plan(
+    inputs=INPUTS,
+    current_age=35,
+    retirement_age=65,
+    income=200_000,
+    income_is_net=False,
+    pots=POTS,
+    ahv_annual=None,
+    **changes,
+):
     return plan_purchase(
         HomeInputs(**{**inputs.__dict__, **changes}),
         current_age,
@@ -121,7 +129,9 @@ class TestWithdrawals:
         assert balance_2 == pot_2.path(30)[10]
         assert result.with_purchase.pillar2[10] == pytest.approx(balance_2 - 80_000)
         assert (result.pillar2_used, result.pillar3a_used, result.savings) == (
-            80_000, 50_000, 170_000
+            80_000,
+            50_000,
+            170_000,
         )
 
     def test_retirement_capital_is_lower_with_the_purchase(self):
@@ -163,11 +173,18 @@ class TestWithdrawals:
     def test_note_lists_only_what_is_taken(self):
         note = self.later().withdrawal_note()
 
-        assert note.startswith("Mit dem geplanten Kauf mit 45 Jahren: Vorbezug Pensionskasse "
-                               "CHF 80’000, Bezug 3a CHF 50’000, Erspartes aus dem freien "
-                               "Vermögen CHF 170’000 sind ab dann abgezogen.")
-        only_3a = plan(savings=0, pillar3a=0, pillar2=0, price=100_000,
-                       pots=(Pot(0, 0, 0), Pot(0, 0, 0), Pot(0, 0, 0)))
+        assert note.startswith(
+            "Mit dem geplanten Kauf mit 45 Jahren: Vorbezug Pensionskasse "
+            "CHF 80’000, Bezug 3a CHF 50’000, Erspartes aus dem freien "
+            "Vermögen CHF 170’000 sind ab dann abgezogen."
+        )
+        only_3a = plan(
+            savings=0,
+            pillar3a=0,
+            pillar2=0,
+            price=100_000,
+            pots=(Pot(0, 0, 0), Pot(0, 0, 0), Pot(0, 0, 0)),
+        )
         assert only_3a.withdrawal_note() is None
 
 
@@ -193,8 +210,11 @@ class TestMortgage:
         for year in (0, 10, 30):
             paths = outcome.paths
             assert outcome.net_wealth[year] == pytest.approx(
-                paths.pillar2[year] + paths.pillar3a[year] + paths.pillar3b[year]
-                + outcome.property_value[year] - outcome.debt[year]
+                paths.pillar2[year]
+                + paths.pillar3a[year]
+                + paths.pillar3b[year]
+                + outcome.property_value[year]
+                - outcome.debt[year]
             )
         assert result.net_wealth_without_purchase()[0] == 290_000
 
@@ -222,8 +242,10 @@ class TestMortgage:
 
     @pytest.mark.parametrize(
         ("changes", "message"),
-        [({"amortisation": "monthly"}, "direkte oder indirekte"),
-         ({"mortgage_rate": -0.01}, "Hypothekarzins")],
+        [
+            ({"amortisation": "monthly"}, "direkte oder indirekte"),
+            ({"mortgage_rate": -0.01}, "Hypothekarzins"),
+        ],
     )
     def test_invalid_mortgage_inputs(self, changes, message):
         with pytest.raises(ValueError, match=message):

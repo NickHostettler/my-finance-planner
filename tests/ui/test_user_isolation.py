@@ -50,8 +50,11 @@ def inputs(**overrides):
         "display_basis": "nominal",
         "ahv_average_income": None,
         "ahv_contribution_years": 44,
-        **{field: browser_store.FIELD_DEFAULTS.get(field) for field in browser_store.SCENARIO_FIELDS
-           if field.startswith("home_")},
+        **{
+            field: browser_store.FIELD_DEFAULTS.get(field)
+            for field in browser_store.SCENARIO_FIELDS
+            if field.startswith("home_")
+        },
     }
     values.update(overrides)
     return browser_store.values_to_inputs(values)

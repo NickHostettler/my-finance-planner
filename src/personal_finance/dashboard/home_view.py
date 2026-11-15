@@ -169,7 +169,10 @@ def pension_money_section(plan: HomePlan, display_basis: str):
                             "Vorsorge mit und ohne Kauf",
                             f"Gestrichelt ohne Kauf · {basis}",
                             withdrawal_figure(
-                                ages, pillar2_without, pillar2_with, pillar3a_without,
+                                ages,
+                                pillar2_without,
+                                pillar2_with,
+                                pillar3a_without,
                                 pillar3a_with,
                             ),
                             height=320,
@@ -363,9 +366,7 @@ def mortgage_section(plan: HomePlan, display_basis: str):
     retirement = outcome.retirement
     status = home.STATUS_AFFORDABLE if retirement.affordable else home.STATUS_NOT_AFFORDABLE
     ratio = (
-        _percent(retirement.cost_to_income)
-        if retirement.cost_to_income != float("inf")
-        else "–"
+        _percent(retirement.cost_to_income) if retirement.cost_to_income != float("inf") else "–"
     )
     retirement_rows = [
         _detail_row(

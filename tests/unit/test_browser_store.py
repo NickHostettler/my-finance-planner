@@ -48,10 +48,26 @@ def sample_values(**overrides):
 
 # A scenario saved with v1.0.0 (before home ownership): exactly these fields.
 V1_0_FIELDS = [
-    "income", "income_period", "income_type", "canton", "current_age", "retirement_age",
-    "savings_mode", "savings_rate", "pillar3a_amount", "pillar3b_amount", "initial_3a",
-    "initial_3b", "initial_2", "pillar2_mode", "pillar2_employee", "pillar2_employer",
-    "pillar2_return", "assumed_return", "display_basis", "ahv_average_income",
+    "income",
+    "income_period",
+    "income_type",
+    "canton",
+    "current_age",
+    "retirement_age",
+    "savings_mode",
+    "savings_rate",
+    "pillar3a_amount",
+    "pillar3b_amount",
+    "initial_3a",
+    "initial_3b",
+    "initial_2",
+    "pillar2_mode",
+    "pillar2_employee",
+    "pillar2_employer",
+    "pillar2_return",
+    "assumed_return",
+    "display_basis",
+    "ahv_average_income",
     "ahv_contribution_years",
 ]
 

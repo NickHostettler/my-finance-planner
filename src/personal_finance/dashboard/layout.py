@@ -28,13 +28,32 @@ NAVBAR_WIDTH = 350
 MOBILE_BREAKPOINT = 768  # px; below this the inputs move behind the burger menu
 
 CANTONS = [
-    ("ZH", "Zürich"), ("BE", "Bern"), ("LU", "Luzern"), ("UR", "Uri"), ("SZ", "Schwyz"),
-    ("OW", "Obwalden"), ("NW", "Nidwalden"), ("GL", "Glarus"), ("ZG", "Zug"),
-    ("FR", "Freiburg"), ("SO", "Solothurn"), ("BS", "Basel-Stadt"),
-    ("BL", "Basel-Landschaft"), ("SH", "Schaffhausen"), ("AR", "Appenzell Ausserrhoden"),
-    ("AI", "Appenzell Innerrhoden"), ("SG", "St. Gallen"), ("GR", "Graubünden"),
-    ("AG", "Aargau"), ("TG", "Thurgau"), ("TI", "Tessin"), ("VD", "Waadt"),
-    ("VS", "Wallis"), ("NE", "Neuenburg"), ("GE", "Genf"), ("JU", "Jura"),
+    ("ZH", "Zürich"),
+    ("BE", "Bern"),
+    ("LU", "Luzern"),
+    ("UR", "Uri"),
+    ("SZ", "Schwyz"),
+    ("OW", "Obwalden"),
+    ("NW", "Nidwalden"),
+    ("GL", "Glarus"),
+    ("ZG", "Zug"),
+    ("FR", "Freiburg"),
+    ("SO", "Solothurn"),
+    ("BS", "Basel-Stadt"),
+    ("BL", "Basel-Landschaft"),
+    ("SH", "Schaffhausen"),
+    ("AR", "Appenzell Ausserrhoden"),
+    ("AI", "Appenzell Innerrhoden"),
+    ("SG", "St. Gallen"),
+    ("GR", "Graubünden"),
+    ("AG", "Aargau"),
+    ("TG", "Thurgau"),
+    ("TI", "Tessin"),
+    ("VD", "Waadt"),
+    ("VS", "Wallis"),
+    ("NE", "Neuenburg"),
+    ("GE", "Genf"),
+    ("JU", "Jura"),
 ]
 
 RETURN_OPTIONS = [
@@ -205,7 +224,9 @@ _income_group = _group(
         dmc.Text(id="income-preview", className="income-preview"),
         dmc.SimpleGrid(
             [
-                number_input("current-age-input", "Aktuelles Alter", 35, 18, 1, "Jahre", 80, decimals=0),
+                number_input(
+                    "current-age-input", "Aktuelles Alter", 35, 18, 1, "Jahre", 80, decimals=0
+                ),
                 number_input(
                     "retirement-age-input",
                     "Pensionierung mit",
@@ -311,9 +332,15 @@ _pillar2_group = _group(
         ),
         html.Div(
             [
-                number_input("pillar2-employee-input", "Dein Beitrag (Arbeitnehmer)", None, 0, 10, "CHF/Mt."),
-                number_input("pillar2-employer-input", "Beitrag Arbeitgeber", None, 0, 10, "CHF/Mt."),
-                number_input("pillar2-return-input", "Verzinsung gemäss PK-Ausweis", None, 0, 0.05, "%", 20),
+                number_input(
+                    "pillar2-employee-input", "Dein Beitrag (Arbeitnehmer)", None, 0, 10, "CHF/Mt."
+                ),
+                number_input(
+                    "pillar2-employer-input", "Beitrag Arbeitgeber", None, 0, 10, "CHF/Mt."
+                ),
+                number_input(
+                    "pillar2-return-input", "Verzinsung gemäss PK-Ausweis", None, 0, 0.05, "%", 20
+                ),
             ],
             id="pillar2-custom-fields",
             className="field-stack",
@@ -599,7 +626,9 @@ _results = html.Div(
                 html.Div(
                     [
                         dmc.Text("DEIN VORSORGE-AUSBLICK", className="eyebrow"),
-                        dmc.Title("Heute planen. Morgen sicherer sein.", order=2, className="page-title"),
+                        dmc.Title(
+                            "Heute planen. Morgen sicherer sein.", order=2, className="page-title"
+                        ),
                     ]
                 ),
                 dmc.SegmentedControl(

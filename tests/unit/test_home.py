@@ -238,7 +238,10 @@ class TestMaxPrice:
     def test_limited_by_total_equity(self):
         # 100'000 hard equity allow 1'000'000 (10 %) but only 500'000 (20 %) in total.
         result = price_limit(
-            savings=100_000, pillar3a=0, pillar2=0, gross_annual_income=1_000_000,
+            savings=100_000,
+            pillar3a=0,
+            pillar2=0,
+            gross_annual_income=1_000_000,
             purchase_costs_rate=0,
         )
 
@@ -247,7 +250,10 @@ class TestMaxPrice:
     def test_limited_by_hard_equity(self):
         # 50'000 hard + 200'000 pension money: 20 % allows 1'250'000, 10 % hard only 500'000.
         result = price_limit(
-            savings=30_000, pillar3a=20_000, pillar2=200_000, gross_annual_income=1_000_000,
+            savings=30_000,
+            pillar3a=20_000,
+            pillar2=200_000,
+            gross_annual_income=1_000_000,
             purchase_costs_rate=0,
         )
 
@@ -256,9 +262,7 @@ class TestMaxPrice:
 
     def test_purchase_costs_lower_the_maximum(self):
         # 100'000 must cover 3 % costs and 20 % equity: P = 100'000 / 0.23.
-        result = price_limit(
-            savings=100_000, pillar3a=0, pillar2=0, gross_annual_income=1_000_000
-        )
+        result = price_limit(savings=100_000, pillar3a=0, pillar2=0, gross_annual_income=1_000_000)
 
         assert result.price == pytest.approx(100_000 / 0.23)
 

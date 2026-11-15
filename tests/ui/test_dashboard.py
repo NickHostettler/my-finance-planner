@@ -157,9 +157,7 @@ def test_custom_pillar2_inputs_start_blank():
         "pillar2-return-input",
     ):
         component = next(
-            item
-            for item in app.layout._traverse()
-            if getattr(item, "id", None) == input_id
+            item for item in app.layout._traverse() if getattr(item, "id", None) == input_id
         )
 
         assert component.value is None
@@ -335,7 +333,9 @@ def test_results_include_starting_balances_in_retirement_projection():
 
 
 def test_empty_starting_balances_are_treated_as_zero():
-    with_empty_balances, notice = _update_dashboard(initial_3a=None, initial_2=None, initial_3b=None)
+    with_empty_balances, notice = _update_dashboard(
+        initial_3a=None, initial_2=None, initial_3b=None
+    )
 
     assert notice == ""
     assert with_empty_balances
@@ -545,7 +545,10 @@ def test_custom_pillar2_rejects_invalid_values(employee, employer, annual_return
     )
 
     assert result.__class__.__name__ == "Div"
-    assert "mindestens 0 CHF" in result.children[1].children or "zwischen 0 und 20" in result.children[1].children
+    assert (
+        "mindestens 0 CHF" in result.children[1].children
+        or "zwischen 0 und 20" in result.children[1].children
+    )
     assert notice == ""
 
 
@@ -568,7 +571,9 @@ def test_3a_contribution_mode_shows_only_matching_input(
 @pytest.mark.parametrize("height", [300, 390])
 def test_chart_card_sets_explicit_graph_height(height):
     card = chart_card("Chart", "Description", None, height=height)
-    graph = next(component for component in card._traverse() if component.__class__.__name__ == "Graph")
+    graph = next(
+        component for component in card._traverse() if component.__class__.__name__ == "Graph"
+    )
 
     assert graph.style["height"] == f"{height}px"
 
@@ -607,8 +612,12 @@ def test_results_are_split_into_overview_pension_and_assumption_tabs():
     assert tabs.value == "overview"
     # Hidden tabs stay mounted so they always show the latest results.
     assert tabs.keepMounted is True
-    for section_id in ("overview-section", "pension-section", "home-section",
-                       "assumptions-section"):
+    for section_id in (
+        "overview-section",
+        "pension-section",
+        "home-section",
+        "assumptions-section",
+    ):
         assert _component(section_id) is not None
 
 

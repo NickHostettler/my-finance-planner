@@ -10,7 +10,6 @@ Requires the optional ``e2e`` dependency group and a browser:
 Skipped automatically when Playwright is not installed.
 """
 
-
 import pytest
 
 playwright_api = pytest.importorskip("playwright.sync_api")

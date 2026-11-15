@@ -1,6 +1,5 @@
 """Colour palette and Mantine theme shared by the dashboard layout and charts."""
 
-
 COLORS = {
     "ink": "#13251f",
     "muted": "#65756e",

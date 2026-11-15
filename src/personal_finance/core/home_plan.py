@@ -68,10 +68,10 @@ class MortgageOutcome:
     """The purchase with one way of amortising (#27). Lists per year from today, nominal."""
 
     plan: AmortisationPlan
-    paths: Paths                 # 2nd pillar, 3a (incl. pledged 3a) and 3b
+    paths: Paths  # 2nd pillar, 3a (incl. pledged 3a) and 3b
     property_value: List[float]  # price from the purchase on (no change in value)
     debt: List[float]
-    net_wealth: List[float]      # paths + property - debt
+    net_wealth: List[float]  # paths + property - debt
     retirement: RetirementAffordability
 
 
@@ -123,7 +123,8 @@ class HomePlan:
         if not parts:
             return None
         return (
-            f"Mit dem geplanten Kauf mit {self.purchase_age} Jahren: " + ", ".join(parts)
+            f"Mit dem geplanten Kauf mit {self.purchase_age} Jahren: "
+            + ", ".join(parts)
             + " sind ab dann abgezogen. Details im Tab «Wohneigentum»."
         )
 

@@ -30,13 +30,13 @@ class AmortisationPlan:
     """Values per year since the purchase (index 0 = purchase, last = retirement)."""
 
     mode: str
-    years: int                    # amortisation period of the 2nd mortgage
-    annual_amortisation: float    # 2nd mortgage / years
-    annual_direct: float          # repaid directly per year
-    annual_pledged: float         # paid into the pledged 3a per year (indirect)
-    debt: Tuple[float, ...]       # mortgage debt at the start of each year
+    years: int  # amortisation period of the 2nd mortgage
+    annual_amortisation: float  # 2nd mortgage / years
+    annual_direct: float  # repaid directly per year
+    annual_pledged: float  # paid into the pledged 3a per year (indirect)
+    debt: Tuple[float, ...]  # mortgage debt at the start of each year
     pledged_3a: Tuple[float, ...]  # pledged 3a balance at the start of each year
-    interest: Tuple[float, ...]   # interest paid in each year until retirement
+    interest: Tuple[float, ...]  # interest paid in each year until retirement
     total_interest: float
 
 
@@ -44,11 +44,11 @@ class AmortisationPlan:
 class RetirementAffordability:
     """Housing costs and pensions per year after retirement (CHF)."""
 
-    annual_costs: float           # imputed interest on the remaining debt + maintenance
-    pension_income: float         # 2nd pillar pension (from the capital)
-    ahv_income: Optional[float]   # None: no AHV estimate available
+    annual_costs: float  # imputed interest on the remaining debt + maintenance
+    pension_income: float  # 2nd pillar pension (from the capital)
+    ahv_income: Optional[float]  # None: no AHV estimate available
     annual_income: float
-    cost_to_income: float         # inf without any income
+    cost_to_income: float  # inf without any income
     affordable: bool
 
 
@@ -162,9 +162,7 @@ def retirement_affordability(
     """
     debt = _number(debt, "Die Hypothek bei Pensionierung muss mindestens 0 CHF betragen.")
     price = _number(price, "Der Kaufpreis muss mindestens 0 CHF betragen.")
-    capital = _number(
-        pension_capital, "Das Kapital der 2. Säule muss mindestens 0 CHF betragen."
-    )
+    capital = _number(pension_capital, "Das Kapital der 2. Säule muss mindestens 0 CHF betragen.")
     if ahv_annual is not None:
         ahv_annual = _number(ahv_annual, "Die AHV-Rente muss mindestens 0 CHF betragen.")
     imputed_rate = _number(imputed_rate, "Der kalkulatorische Zins ist ungültig.", maximum=1)

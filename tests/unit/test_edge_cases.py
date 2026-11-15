@@ -38,8 +38,9 @@ def test_income_rejects_unknown_choices(period, income_type, canton, message):
 
 
 def test_youngest_age_group_has_its_own_pillar2_rate():
-    assert config.get_pillar2_contribution_rate(20) == (
-        config.PILLAR2_CONTRIBUTION_RATES["age_under_25"]
+    assert (
+        config.get_pillar2_contribution_rate(20)
+        == (config.PILLAR2_CONTRIBUTION_RATES["age_under_25"])
     )
 
 

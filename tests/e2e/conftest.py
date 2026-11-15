@@ -80,9 +80,11 @@ class User:
         )
         self.page.on(
             "response",
-            lambda response: self.console.append(f"HTTP {response.status} {response.url[-80:]}")
-            if response.status >= 400
-            else None,
+            lambda response: (
+                self.console.append(f"HTTP {response.status} {response.url[-80:]}")
+                if response.status >= 400
+                else None
+            ),
         )
         self.base_url = base_url
 
