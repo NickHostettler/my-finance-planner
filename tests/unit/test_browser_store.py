@@ -5,6 +5,7 @@ import math
 
 import pytest
 
+from personal_finance import config
 from personal_finance.storage import browser_store as store
 
 
@@ -16,8 +17,6 @@ def sample_values(**overrides):
         "canton": "ZH",
         "current_age": 35,
         "retirement_age": 65,
-        "savings_mode": "amount",
-        "savings_rate": 10,
         "pillar3a_amount": 350,
         "pillar3b_amount": 500,
         "initial_3a": 10000,
@@ -41,6 +40,7 @@ def sample_values(**overrides):
         "home_imputed_rate": 4.5,
         "home_mortgage_rate": 1.6,
         "home_amortisation": "indirect",
+        "salary_growth": 1.0,
     }
     values.update(overrides)
     return values
@@ -70,6 +70,13 @@ V1_0_FIELDS = [
     "ahv_average_income",
     "ahv_contribution_years",
 ]
+
+
+def v1_0_values():
+    values = sample_values()
+    values.pop("salary_growth")
+    values.update(savings_mode="amount", savings_rate=10)
+    return {field: values[field] for field in V1_0_FIELDS}
 
 
 class TestScenarios:
@@ -154,7 +161,12 @@ class TestUntrustedBrowserData:
 
     def test_older_entries_get_defaults_for_newer_fields(self):
         old = sample_values()
-        del old["display_basis"], old["ahv_contribution_years"], old["ahv_average_income"]
+        del (
+            old["display_basis"],
+            old["ahv_contribution_years"],
+            old["ahv_average_income"],
+            old["salary_growth"],
+        )
         state = {"version": 1, "scenarios": {"Alt": {"values": old, "updated_at": ""}}}
 
         loaded = store.load_scenario(state, "Alt")
@@ -162,14 +174,25 @@ class TestUntrustedBrowserData:
         assert loaded["display_basis"] == "nominal"
         assert loaded["ahv_contribution_years"] == 44
         assert loaded["ahv_average_income"] is None
+        assert loaded["salary_growth"] == store.FIELD_DEFAULTS["salary_growth"]
 
     def test_scenarios_from_v1_0_load_without_home_purchase(self):
-        old = {field: sample_values()[field] for field in V1_0_FIELDS}
+        old = v1_0_values()
         state = {"version": 1, "scenarios": {"Vor 1.1": {"values": old, "updated_at": ""}}}
 
         loaded = store.load_scenario(state, "Vor 1.1")
 
-        assert {field: loaded[field] for field in V1_0_FIELDS} == old
+        assert {
+            field: loaded[field]
+            for field in V1_0_FIELDS
+            if field not in {"savings_mode", "savings_rate"}
+        } == {
+            field: value
+            for field, value in old.items()
+            if field not in {"savings_mode", "savings_rate"}
+        }
+        assert "savings_mode" not in loaded
+        assert "savings_rate" not in loaded
         # No purchase planned, the home fields get their defaults (empty: buy now).
         assert loaded["home_plan"] == "off"
         assert loaded["home_price"] == store.FIELD_DEFAULTS["home_price"]
@@ -180,12 +203,53 @@ class TestUntrustedBrowserData:
         assert store.values_from_inputs(store.values_to_inputs(loaded)) == loaded
 
     def test_remembered_inputs_from_v1_0_get_home_defaults(self):
-        old = {field: sample_values()[field] for field in V1_0_FIELDS}
+        old = v1_0_values()
 
         restored = store.read_last_inputs({"version": 1, "values": old})
 
         assert restored["home_plan"] == "off"
         assert restored["home_pillar2"] == 0
+        assert restored["salary_growth"] == store.FIELD_DEFAULTS["salary_growth"]
+
+    @pytest.mark.parametrize(
+        ("rate", "expected"),
+        [(5, 250), (100, math.floor(config.PILLAR3A_MONTHLY_MAX * 100) / 100)],
+    )
+    def test_old_savings_rates_migrate_to_a_fixed_monthly_amount(self, rate, expected):
+        old = {
+            "income": 5000,
+            "income_period": "monthly",
+            "income_type": "net",
+            "canton": "ZH",
+            "current_age": 35,
+            "savings_mode": "rate",
+            "savings_rate": rate,
+            "pillar3a_amount": 350,
+        }
+
+        assert store.sanitize_values(old)["pillar3a_amount"] == expected
+
+    @pytest.mark.parametrize(
+        "old",
+        [
+            {"savings_mode": "amount", "savings_rate": 5, "current_age": 35},
+            {"savings_mode": "rate", "savings_rate": None, "current_age": 35},
+            {"savings_mode": "rate", "savings_rate": 5},
+            {
+                "savings_mode": "rate",
+                "savings_rate": 5,
+                "current_age": 35,
+                "income": 5000,
+                "income_period": "unknown",
+                "income_type": "net",
+                "canton": "ZH",
+            },
+        ],
+    )
+    def test_unmigratable_savings_rates_leave_the_fixed_amount_unchanged(self, old):
+        old["pillar3a_amount"] = 350
+
+        assert store.sanitize_values(old)["pillar3a_amount"] == 350
 
 
 class TestLastInputs:

@@ -29,8 +29,6 @@ VALID_INPUTS = {
     "canton": "ZH",
     "current_age": 35,
     "retirement_age": 65,
-    "savings_mode": "rate",
-    "savings_rate": 10,
     "pillar3a_amount": 300,
     "pillar3b_amount": 200,
     "initial_3a": 0,
@@ -44,6 +42,7 @@ VALID_INPUTS = {
     "display_basis": "nominal",
     "ahv_average_income": None,
     "ahv_contribution_years": 44,
+    "salary_growth": 1.0,
     "home_plan": "off",
     "home_price": 900_000,
     "home_purchase_age": None,
@@ -91,13 +90,13 @@ def run_callback(trigger, func, *args):
         ({"current_age": 17}, "mindestens deinem aktuellen Alter"),
         ({"current_age": 50, "retirement_age": 45}, "mindestens deinem aktuellen Alter"),
         ({"income": 0}, "größer als 0"),
-        ({"savings_mode": "other"}, "Beitragsart"),
-        ({"savings_rate": None}, "Sparquote"),
-        ({"savings_rate": float("nan")}, "Sparquote"),
-        ({"savings_rate": 101}, "Sparquote"),
-        ({"savings_mode": "amount", "pillar3a_amount": None}, "3a-Beitrag"),
-        ({"savings_mode": "amount", "pillar3a_amount": float("inf")}, "3a-Beitrag"),
-        ({"savings_mode": "amount", "pillar3a_amount": -1}, "3a-Beitrag"),
+        ({"salary_growth": None}, "jährliche Lohnzunahme"),
+        ({"salary_growth": float("nan")}, "jährliche Lohnzunahme"),
+        ({"salary_growth": -0.1}, "jährliche Lohnzunahme"),
+        ({"salary_growth": 10.1}, "jährliche Lohnzunahme"),
+        ({"pillar3a_amount": None}, "3a-Beitrag"),
+        ({"pillar3a_amount": float("inf")}, "3a-Beitrag"),
+        ({"pillar3a_amount": -1}, "3a-Beitrag"),
         ({"pillar3b_amount": None}, "3b-Beitrag"),
         ({"pillar3b_amount": -1}, "3b-Beitrag"),
         ({"initial_3a": -1}, "3a-Guthaben"),
@@ -136,9 +135,18 @@ def test_zero_net_income_after_deductions_is_reported(monkeypatch):
 
 
 def test_capped_3a_contribution_is_explained():
-    notice = results(savings_mode="amount", pillar3a_amount=2000)[-1]
+    notice = results(pillar3a_amount=2000)[-1]
 
     assert "Modell-Limit" in notice
+
+
+def test_salary_growth_increases_projected_pillar2_contributions():
+    no_growth = results(salary_growth=0)
+    with_growth = results(salary_growth=5)
+
+    assert repr(no_growth[0]) != repr(with_growth[0])
+    assert "wächst mit dem Lohn (5.0%/Jahr)" in texts(with_growth[0])
+    assert "Lohn steigt im Modell um 5.0% pro Jahr" in texts(with_growth[3])
 
 
 def test_results_fill_all_tabs():
@@ -399,9 +407,9 @@ def test_ahv_estimate_counts_for_the_retirement_check():
 
 
 def test_indirect_amortisation_keeps_the_debt_and_grows_3a():
-    # 3a plan 5 % of 7'200 = 4'320 per year: room for pledged 3a payments below the limit.
-    direct = results(**{**HOME, "savings_rate": 5})
-    indirect = results(**{**HOME, "savings_rate": 5, "home_amortisation": "indirect"})
+    # 360 CHF monthly leaves room for pledged 3a payments below the limit.
+    direct = results(**{**HOME, "pillar3a_amount": 360})
+    indirect = results(**{**HOME, "pillar3a_amount": 360, "home_amortisation": "indirect"})
 
     assert "Indirekt über 3a (gewählt)" in texts(indirect[2])
     # Overview: the pledged 3a account is part of 3a.
@@ -409,7 +417,7 @@ def test_indirect_amortisation_keeps_the_debt_and_grows_3a():
 
 
 def test_indirect_amortisation_beyond_the_3a_limit_is_explained():
-    text = texts(results(**{**HOME, "home_amortisation": "indirect", "savings_rate": 20})[2])
+    text = texts(results(**{**HOME, "home_amortisation": "indirect", "pillar3a_amount": 1000})[2])
 
     assert "3a-Limit erreicht" in text
 

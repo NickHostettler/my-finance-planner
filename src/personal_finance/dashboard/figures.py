@@ -1,6 +1,6 @@
 """Plotly figure factories for the dashboard."""
 
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 import plotly.graph_objects as go
 
@@ -174,15 +174,17 @@ def composition_figure(
 ) -> go.Figure:
     initial_balance = initial_2 + initial_3a + initial_3b
     years = pillar2.years_until_retirement
-    contributions_per_year = (
-        pillar2.annual_contribution_total + pillar3a.annual_savings + pillar3b.annual_savings
-    )
+    pillar2_contributions = pillar2.contributions()
+    if not isinstance(pillar2_contributions, Sequence):
+        pillar2_contributions = [pillar2_contributions] * years
     contributions = sum(
-        contributions_per_year / ((1 + inflation_rate) ** year) for year in range(1, years + 1)
+        (pillar2_contributions[year - 1] + pillar3a.annual_savings + pillar3b.annual_savings)
+        / ((1 + inflation_rate) ** year)
+        for year in range(1, years + 1)
     )
     projected_total = (
         project_balance(
-            pillar2.annual_contribution_total,
+            pillar2.contributions(),
             years,
             pillar2_return,
             initial_2,

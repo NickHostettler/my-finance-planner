@@ -14,7 +14,12 @@ from personal_finance.calculator import FinanceCalculator
 from personal_finance.core import ahv
 from personal_finance.core.home_plan import HomeInputs, Pot, plan_purchase
 from personal_finance.core.income import normalize_income
-from personal_finance.core.pillar_2 import Pillar2Result
+from personal_finance.core.pillar_2 import (
+    Pillar2Result,
+    estimated_contributions,
+    growing_contributions,
+    validate_salary_growth,
+)
 from personal_finance.core.projection import project_balance
 from personal_finance.dashboard import home_view
 from personal_finance.dashboard.app import app
@@ -39,18 +44,6 @@ RESULT_SECTION_IDS = [
 ]
 
 
-@app.callback(
-    Output("rate-control", "style"),
-    Output("amount-control", "style"),
-    Input("savings-mode-input", "value"),
-)
-def update_savings_controls(mode):
-    return (
-        {"display": "block" if mode == "rate" else "none"},
-        {"display": "block" if mode == "amount" else "none"},
-    )
-
-
 SCENARIO_INPUT_IDS = [
     "monthly-income-input",
     "income-period-input",
@@ -58,8 +51,6 @@ SCENARIO_INPUT_IDS = [
     "canton-input",
     "current-age-input",
     "retirement-age-input",
-    "savings-mode-input",
-    "pillar3a-rate-input",
     "pillar3a-amount-input",
     "pillar3b-amount-input",
     "pillar3a-initial-input",
@@ -83,6 +74,7 @@ SCENARIO_INPUT_IDS = [
     "home-imputed-rate-input",
     "home-mortgage-rate-input",
     "home-amortisation-input",
+    "salary-growth-input",
 ]
 # Same order as the stored fields (browser_store.SCENARIO_FIELDS).
 _BASE_INPUT_COUNT = SCENARIO_INPUT_IDS.index("home-plan-input")
@@ -108,6 +100,21 @@ def _to_components(values):
     selected_return = values[_RETURN_INPUT_INDEX]
     values[_RETURN_INPUT_INDEX] = None if selected_return is None else str(selected_return)
     return values
+
+
+# The highest monthly amount whose yearly total stays within the 3a maximum (rounded down to
+# the 0.01 CHF step of the field).
+PILLAR3A_MAX_MONTHLY_INPUT = math.floor(config.PILLAR3A_MONTHLY_MAX * 100) / 100
+
+
+@app.callback(
+    Output("pillar3a-amount-input", "value", allow_duplicate=True),
+    Input("pillar3a-max-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+def fill_pillar3a_maximum(_clicks):
+    """Put the highest possible monthly 3a amount into the field."""
+    return PILLAR3A_MAX_MONTHLY_INPUT
 
 
 def _scenario_options(store_data):
@@ -343,8 +350,6 @@ def update_results(*component_values):
         canton,
         current_age,
         retirement_age,
-        savings_mode,
-        savings_rate,
         pillar3a_amount,
         pillar3b_amount,
         initial_3a,
@@ -359,6 +364,7 @@ def update_results(*component_values):
         ahv_average_income,
         ahv_contribution_years,
     ) = values[:_BASE_INPUT_COUNT]
+    fields = dict(zip(browser_store.SCENARIO_FIELDS, values))
 
     def show_error(message: str):
         error = html.Div(
@@ -387,17 +393,11 @@ def update_results(*component_values):
         return show_error(
             "Das geschätzte Nettoeinkommen beträgt 0 CHF. Bitte prüfe den Bruttobetrag."
         )
-    if savings_mode not in {"rate", "amount"}:
-        return show_error("Bitte wähle eine gültige Beitragsart für die 3a.")
-    if savings_mode == "rate" and (
-        savings_rate is None
-        or not math.isfinite(float(savings_rate))
-        or not 0 <= savings_rate <= 100
-    ):
-        return show_error("Die Sparquote muss zwischen 0 und 100 Prozent liegen.")
-    if savings_mode == "amount" and (
-        pillar3a_amount is None or not math.isfinite(float(pillar3a_amount)) or pillar3a_amount < 0
-    ):
+    try:
+        salary_growth = validate_salary_growth(_percent_to_rate(fields["salary_growth"]))
+    except ValueError as error:
+        return show_error(str(error))
+    if pillar3a_amount is None or not math.isfinite(float(pillar3a_amount)) or pillar3a_amount < 0:
         return show_error("Der monatliche 3a-Beitrag muss mindestens 0 CHF betragen.")
     if pillar3b_amount is None or not math.isfinite(float(pillar3b_amount)) or pillar3b_amount < 0:
         return show_error("Der monatliche 3b-Beitrag muss mindestens 0 CHF betragen.")
@@ -456,15 +456,18 @@ def update_results(*component_values):
         retirement_age=int(retirement_age),
         assumed_annual_return=float(assumed_return),
     )
-    selected_rate = float(savings_rate) / 100 if savings_mode == "rate" else 0
-    analysis = calculator.complete_analysis(pillar3a_savings_rate=selected_rate)
+    analysis = calculator.complete_analysis(pillar3a_savings_rate=0)
+    years = analysis.years_to_retirement
+    # The contributions to the 2nd pillar rise with the salary, year by year.
     if pillar2_mode == "custom":
-        years = analysis.years_to_retirement
         employee_annual = float(pillar2_employee) * 12
         employer_annual = float(pillar2_employer) * 12
         pillar2_return_decimal = float(pillar2_return) / 100
+        pillar2_contributions = growing_contributions(
+            employee_annual + employer_annual, years, salary_growth
+        )
         pillar2_capital = project_balance(
-            employee_annual + employer_annual,
+            pillar2_contributions,
             years,
             pillar2_return_decimal,
             float(initial_2),
@@ -477,29 +480,29 @@ def update_results(*component_values):
             insurable_salary=0,
             years_until_retirement=years,
             estimated_capital_at_retirement=pillar2_capital,
+            annual_contributions=pillar2_contributions,
         )
     else:
         pillar2_return_decimal = config.ASSUMED_ANNUAL_RETURN
+        pillar2_contributions = estimated_contributions(
+            monthly_net_income * 12, int(current_age), years, salary_growth
+        )
+        analysis.pillar2.annual_contributions = pillar2_contributions
         analysis.pillar2.estimated_capital_at_retirement = project_balance(
-            analysis.pillar2.annual_contribution_total,
-            analysis.years_to_retirement,
+            pillar2_contributions,
+            years,
             pillar2_return_decimal,
             float(initial_2),
         )[-1]
-    if savings_mode == "rate":
-        pillar3a = calculator.calculate_pillar3a(savings_rate=selected_rate)
-        requested_3a_monthly = monthly_net_income * selected_rate
-    else:
-        pillar3a = calculator.calculate_pillar3a(monthly_amount=float(pillar3a_amount))
-        requested_3a_monthly = float(pillar3a_amount)
+    pillar3a = calculator.calculate_pillar3a(monthly_amount=float(pillar3a_amount))
     pillar3b = calculator.calculate_pillar3b(monthly_amount=float(pillar3b_amount))
     pots = (
-        Pot(analysis.pillar2.annual_contribution_total, pillar2_return_decimal, float(initial_2)),
+        Pot(pillar2_contributions, pillar2_return_decimal, float(initial_2)),
         Pot(pillar3a.annual_savings, float(assumed_return), float(initial_3a)),
         Pot(pillar3b.annual_savings, float(assumed_return), float(initial_3b)),
     )
     plan, home = _home_results(
-        dict(zip(browser_store.SCENARIO_FIELDS, values)),
+        fields,
         current_age=int(current_age),
         retirement_age=int(retirement_age),
         income_annual=(monthly_gross_income if income_type == "gross" else monthly_net_income) * 12,
@@ -535,12 +538,13 @@ def update_results(*component_values):
         initial_3a=float(initial_3a),
         initial_3b=float(initial_3b),
         display_basis=display_basis,
+        salary_growth=salary_growth,
         ahv_average_income=(None if ahv_average_income is None else float(ahv_average_income)),
         ahv_contribution_years=int(ahv_contribution_years),
         paths=None if plan is None else plan.with_purchase,
         purchase_note=None if plan is None else plan.withdrawal_note(),
     )
-    if requested_3a_monthly > pillar3a.monthly_savings:
+    if float(pillar3a_amount) > pillar3a.monthly_savings:
         notice = (
             f"Der eingegebene 3a-Beitrag wurde gemäss dem Modell-Limit auf "
             f"{money(pillar3a.monthly_savings)} pro Monat begrenzt."
